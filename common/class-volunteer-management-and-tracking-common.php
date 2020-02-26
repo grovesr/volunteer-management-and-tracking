@@ -34,78 +34,110 @@ class Volunteer_Management_And_Tracking_Common {
 
 	}
 	
-	public function  boolean_choice_field($args) {
+	private function  boolean_choice_field($args) {
 	    /*
 	     * display a boolean choice field
 	     */
 	    
+	    $page = '';
 	    $var_name = $args['option_name'];
 	    $label = $args['label'];
+	    $type = 'div';
 	    $var_value = false;
-	    /*
-	     * retain selection values in case of repost due to error
-	     */
-	    if ( ! empty($_POST[$var_name]) ) {
-	        $var_value = boolval($_POST[$var_name]);
+	    if ( ! empty( $args['type'] ) ) {
+	        $type = $args['type'];
 	    }
-	    ?>
-	    <label for="<?php echo esc_attr($var_name)?>"><?php _e($label, 'vmattd') ?></label>
-		<input type="checkbox"
-		       id="<?php echo esc_attr($var_name)?>"
-		       name="<?php echo esc_attr($var_name)?>"
-		       <?php if ( $var_value ) {
-		            echo "checked";
+	    if ( ! empty( $args['value'] ) ) {
+	        $var_value = boolval($args['value']);
+	    } else {
+	        $var_value = false;
+	        /*
+	         * retain selection values in case of repost due to error
+	         */
+	        if ( ! empty($_POST[$var_name]) ) {
+	            $var_value = boolval($_POST[$var_name]);
+	        }
+	    }
+	    if ( $type == 'div' ) {
+	        $page .= '<label for="' . esc_attr($var_name) . '">' . __($label, 'vmattd') . '</label>';
+	    } else {
+	        $page .= '<th>' . __($label, 'vmattd') . '</th>';
+	        $page .= '<td>';
+	    }
+	    $page .= '<input type="checkbox"
+		       id="' . esc_attr($var_name) . '"
+		       name="' . esc_attr($var_name) . '" ';
+		       if ( $var_value ) {
+		           $page .= "checked";
 		       }
-		       ?>
-		       />
-	    <?php
-	    
+		       $page .= '/>';
+	    if ( $type != 'div' ) {
+	        $page .= '</td>';
+	    }
+	    return $page;
 	}
 	
-	public function text_input_field($args) {
+	private function text_input_field($args) {
 	    /*
 	     * display a text input field
 	     */
-	    
+	    $page = '';
 	    $var_name = $args['option_name'];
+	    
 	    $label = $args['label'];
+	    $type = 'div';
+	    if ( ! empty( $args['type'] ) ) {
+	        $type = $args['type'];
+	    }
 	    $required = false;
-	    if( in_array('required', $args) ) {
+	    if( ! empty( $args['required'] ) ) {
 	       $required = boolval($args['required']);
 	    }
-	    $var_value = '';
-	    /*
-	     * retain selection values in case of repost due to error
-	     */
-	    if ( ! empty($_POST[$var_name]) ) {
-	        $var_value = strval($_POST[$var_name]);
-	    }
-	    
-	    if ( ! empty($_POST['vmat_is_volunteer']) ) {
-	        $is_volunteer = boolval($_POST['vmat_is_volunteer']);
-	    }
-	    if ( ! $is_volunteer ) {
+	    if ( ! empty( $args['value'] ) ) {
+	        $var_value = strval($args['value']);
+	    } else {
 	        $var_value = '';
+	        /*
+	         * retain selection values in case of repost due to error
+	         */
+	        if ( ! empty($_POST[$var_name]) ) {
+	            $var_value = strval($_POST[$var_name]);
+	        }
+	    }
+	    if ( $type == 'div' ) {
+	        $page .= '<label for="' . esc_attr($var_name) . '">' . 
+    	    __($label, 'vmattd');
+    	    if ( $required ) 
+    	    { 
+    	        $page .= '*';
+    	    }
+    	    $page .= '</label>';
+	    } else {
+	        $page .= '<th>' .
+    	    __($label, 'vmattd');
+    	    if ( $required ) 
+    	    { 
+    	        $page .= '*';
+    	    }
+    	    $page .= '</th>';
+    	    $page .= '<td>';
 	    }
 	    
-	    ?>
-	    <label for="<?php echo esc_attr($var_name)?>"><?php
-	    _e($label, 'vmattd');
-	    if ( $required ) 
-	    { 
-	        echo '*';
+	    $page .= '<input type="text"
+		       id="' . esc_attr($var_name) . '"
+		       name="' . esc_attr($var_name) . '"
+		       value="' . $var_value . '" ';
+	    if ( $required ) {
+	        $page .= 'required';
 	    }
-	    ?></label>
-		<input type="text"
-		       id="<?php echo esc_attr($var_name)?>"
-		       name="<?php echo esc_attr($var_name)?>"
-		       value="<?php echo $var_value?>"
-		       />
-	    <?php
-	    
+		$page .= '/>';
+	    if ( $type != 'div' ) {
+	        $page .= '</td>';
+	    }
+	    return $page;
 	}
 	
-	public function multiselect_children_of_category_registration_fields($category='Skillsets') {
+	private function multiselect_children_of_category_registration_fields($args) {
 	    /*
 	     * Display a multiselect populated from children of the passed-in $category
 	     * The $category is derived from the post taxonomy 'category'
@@ -114,6 +146,12 @@ class Volunteer_Management_And_Tracking_Common {
 	    /*
 	     * retain selection values in case of repost due to error
 	     */
+	    $category = $args['category'];
+	    $type = 'div';
+	    if ( ! empty( $args['type'] ) ) {
+	        $type = $args['type'];
+	    }
+	    $page = '';
 	    $ms_var_name = 'vmat_volunteer_' . strtolower($category);
 	    if ( ! empty($_POST[$ms_var_name]) ) {
 	        $ms_var = $_POST[$ms_var_name];
@@ -133,146 +171,291 @@ class Volunteer_Management_And_Tracking_Common {
 	            'hide_empty' => false,)
 	            );
 	        if ( count($subcategories) ) {
-	            ?>
-    	        <fieldset>
-    	        	<legend>Choose your <?php echo $category?></legend>
-    	        <?php
+	            if ( $type != 'div') {
+	                $page .= '<th>Choose your ' . $category . '</th>';
+	                $page .= '<td>';
+	            }
+	            $page .= '<fieldset>';
+    	        if ( $type == 'div' ) {
+    	            $page .= '<legend>Choose your ' . $category . '</legend>';
+    	        }
     	        foreach ($subcategories as $subcategory) {
-    	            
-    	            ?>
-    	            	<div>
-                        	<input type="checkbox" 
-                        	       id="<?php echo "vmat-" . esc_attr( $subcategory->slug ); ?>" 
-                        	       name="<?php echo $ms_var_name ?>[]" 
-                        	       value="<?php echo esc_attr( $subcategory->name ); ?>"
-                        	       <?php if ( in_array($subcategory->name, $ms_var) ) {
-                			         echo "checked";
-                			       }?>
-                			       />
-                        	<label for="<?php echo "vmat-" . esc_attr( $subcategory->slug ); ?>"><?php echo esc_html( __($subcategory->name, 'vmattd') ); ?></label>
-                        </div>
-    	            <?php
+    	            $page .= '<div>';
+    	            $page .= '<input type="checkbox" 
+                        	       id="' . 'vmat-' . esc_attr( $subcategory->slug ) . '" 
+                        	       name="' . $ms_var_name . '[]" 
+                        	       value="' . esc_attr( $subcategory->name ) . '" ';
+                        	       if ( in_array($subcategory->name, $ms_var) ) {
+                        	           $page .= "checked";
+                			       }
+                			       $page .= '/>';
+                			       $page .= '<label for="vmat-' . esc_attr( $subcategory->slug ) . '">' . esc_html( __($subcategory->name, 'vmattd') ) . '</label>';
+                			       $page .= '</div>';
         	        }
-        	        ?>
-    	        </fieldset>
-    	        <?php
+        	        $page .= '</fieldset>';
+        	    if ( $type != 'div' ) {
+        	        $page .= '</td>';
+        	    }
 	        } // if ( count($subcategories)
 	   } // if ($category_id)
+	   return $page;
 	} // multiselect_children_of_category_registration_fields
     
-	public function registration_fields() {
+	private function registration_fields($type) {
 	    /*
 	     * display user registration form with extra fields for volunteers
+	     * $type switches between <div> based and <table> based layouts
 	     */
 	    
+	    $page = '';
 	    $is_volunteer = false;
+	    $reg_fields_display = 'none';
+	    if ( $type == 'table' ) {
+	        $section = 'tr';
+	    } else {
+	        $section = 'div';
+	    }
 	    /*
 	     * retain selection values in case of repost due to error
 	     */
 	    if ( ! empty($_POST['vmat_is_volunteer']) ) {
 	        $is_volunteer = boolval($_POST['vmat_is_volunteer']);
 	    }
-	    ?>
-	    <div>
-	    <?php
-	    echo $this->boolean_choice_field(['option_name' => 'vmat_is_volunteer',
+	    if ( $is_volunteer ) {
+	        $reg_fields_display = 'show';
+	    }
+	    if ( $type == 'table' ) {
+	        $page .= '<table class="form-table" role="presentation">';
+	    }
+	    $page .= '<' . $section . '>';
+	    $page .= $this->boolean_choice_field(['option_name' => 'vmat_is_volunteer',
 	                                      'label' => 'Volunteer',
+	                                      'type' => $type,
+	                                      'value' => $is_volunteer,
 	                                     ]);
-	    ?>
-	    </div>
-	    <div id="vmat_registration_fields"
-    		 style="display:<?php
-	            	if ( $is_volunteer ) {
-	            	  echo "show";
-	            	} else {
-	            	    echo "none";
-	            	}
-	            	?>"
-	    >
-	    <div>
-	    <?php
-	    echo $this->text_input_field(['option_name' => 'vmat_first_name',
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields" 
+                                    style="display:' . $reg_fields_display . '">';
+	    $page .= $this->text_input_field(['option_name' => 'first_name',
                                       'label' => 'First Name',
+	                                  'type' => $type,
 	                                  'required' => true,
                                      ]);
-	    ?>
-	    </div>
-	    <div>
-	    <?php
-	    echo $this->text_input_field(['option_name' => 'vmat_last_name',
-                                      'label' => 'Last Name'
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section .  ' class="vmat-registration-fields"
+	                                 style="display:' . $reg_fields_display . '">';
+	    $page .= $this->text_input_field(['option_name' => 'last_name',
+                            	      'label' => 'Last Name',
+                            	      'type' => $type,
+                            	      ]);
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->text_input_field(['option_name' => 'vmat_phone_cell',
+                                      'label' => 'Phone (cell)',
+	                                  'type' => $type,
                                      ]);
-	    ?>
-	    </div>
-	    <div>
-	    <?php
-	    echo $this->text_input_field(['option_name' => 'vmat_phone_cell',
-                                      'label' => 'Phone (cell)'
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->text_input_field(['option_name' => 'vmat_phone_landline',
+                                      'label' => 'Phone (landline)',
+	                                  'type' => $type,
                                      ]);
-	    ?>
-	    </div>
-	    <div>
-	    <?php
-	    echo $this->text_input_field(['option_name' => 'vmat_phone_landline',
-                                      'label' => 'Phone (landline)'
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->text_input_field(['option_name' => 'vmat_address_street',
+                                      'label' => 'Street Address',
+	                                  'type' => $type,
                                      ]);
-	    ?>
-	    </div>
-	    <div>
-	    <?php
-	    echo $this->text_input_field(['option_name' => 'vmat_address_street',
-                                      'label' => 'Street Address'
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->text_input_field(['option_name' => 'vmat_address_city',
+                                      'label' => 'City',
+	                                  'type' => $type,
                                      ]);
-	    ?>
-	    </div>
-	    <div>
-	    <?php
-	    echo $this->text_input_field(['option_name' => 'vmat_address_city',
-                                      'label' => 'City'
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->text_input_field(['option_name' => 'vmat_address_zipcode',
+                                      'label' => 'Zip Code',
+	                                  'type' => $type,
                                      ]);
-	    ?>
-	    </div>
-	    <div>
-	    <?php
-	    echo $this->text_input_field(['option_name' => 'vmat_address_zipcode',
-                                      'label' => 'Zip Code'
-                                     ]);
-	    ?>
-	    </div>
-	    <div>
-	    <?php
-	    echo $this->multiselect_children_of_category_registration_fields('Skillsets');
-	    ?>
-	    </div>
-	    <div>
-	    <?php
-	    echo $this->multiselect_children_of_category_registration_fields('Interests');
-        ?>
-        </div>
-        </div>
-        <?php
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->multiselect_children_of_category_registration_fields(['category' => 'Skillsets',
+	                                                                          'type' => $type,
+	                                                                          ]);
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->multiselect_children_of_category_registration_fields(['category' => 'Interests',
+                                                                        	  'type' => $type,
+                                                                        	 ]);
+	    $page .= '</' . $section .'>';
+        if ( $type == 'table' ) {
+            $page .= '</table>';
+	    }
+	    return $page;
 	}
 	
-	public function registration_errors($errors) {
+	private function populate_registration_fields($user, $type) {
+	    /*
+	     * display user registration form with extra fields for volunteers
+	     * $type switches between <div> based and <table> based layouts
+	     */
+	    
+	    $page = '';
+	    $reg_fields_display = 'none';
+	    $is_volunteer = false;
+	    if ( $type == 'table' ) {
+	        $section = 'tr';
+	    } else {
+	        $section = 'div';
+	    }
+	    
+	    /*
+	     * Get the values from the $user meta 
+	     */
+	    $capabilities = get_the_author_meta( 'wp_capabilities', $user->ID );
+	    if ( ! empty( $capabilities['Volunteer'] ) ) {
+	        $is_volunteer = $capabilities['Volunteer'];
+	    }
+	    
+	    /*
+	     * retain selection values in case of repost due to error
+	     */
+	    if ( ! empty($_POST['vmat_is_volunteer']) ) {
+	        $is_volunteer = boolval($_POST['vmat_is_volunteer']);
+	    }
+	    if ( $is_volunteer ) {
+	        $reg_fields_display = 'show';
+	    }
+	    if ( $type == 'table' ) {
+	        $page .= '<table class="form-table" role="presentation">';
+	    }
+	    $page .= '<' . $section . '>';
+	    $page .= $this->boolean_choice_field(['option_name' => 'vmat_is_volunteer',
+	        'label' => 'Volunteer',
+	        'type' => $type,
+	        'value' => $is_volunteer,
+	    ]);
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+                                    style="display:' . $reg_fields_display . '>';
+	    $page .= $this->text_input_field(['option_name' => 'vmat_first_name',
+	        'label' => 'First Name',
+	        'type' => $type,
+	        'required' => true,
+	    ]);
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section .  ' class="vmat-registration-fields"
+	                                 style="display:' . $reg_fields_display . '>';
+	    $page .= $this->text_input_field(['option_name' => 'vmat_last_name',
+	        'label' => 'Last Name',
+	        'type' => $type,
+	    ]);
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->text_input_field(['option_name' => 'vmat_phone_cell',
+	        'label' => 'Phone (cell)',
+	        'type' => $type,
+	    ]);
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->text_input_field(['option_name' => 'vmat_phone_landline',
+	        'label' => 'Phone (landline)',
+	        'type' => $type,
+	    ]);
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->text_input_field(['option_name' => 'vmat_address_street',
+	        'label' => 'Street Address',
+	        'type' => $type,
+	    ]);
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->text_input_field(['option_name' => 'vmat_address_city',
+	        'label' => 'City',
+	        'type' => $type,
+	    ]);
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->text_input_field(['option_name' => 'vmat_address_zipcode',
+	        'label' => 'Zip Code',
+	        'type' => $type,
+	    ]);
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->multiselect_children_of_category_registration_fields(['category' => 'Skillsets',
+                                                                	          'type' => $type,
+                                                                	         ]);
+	    $page .= '</' . $section . '>';
+	    $page .= '<' . $section . ' class="vmat-registration-fields"
+	                                style="display:' . $reg_fields_display . '">';
+	    $page .= $this->multiselect_children_of_category_registration_fields(['category' => 'Interests',
+                                                                        	  'type' => $type,
+                                                                        	 ]);
+	    $page .= '</' . $section .'>';
+	    if ( $type == 'table' ) {
+	        $page .= '</table>';
+	    }
+	    return $page;
+	}
+	
+	private function registration_errors($errors) {
 	    /*
 	     * Check for errors on volunteer user registration
 	     */
 	    
-	    if ( empty( $_POST['vmat_first_name'] ) ) {
+	    if ( empty( $_POST['first_name'] ) ) {
 	        $errors->add( 'vmat_first_name_error', __( '<strong>ERROR</strong>: Please enter your first name.', 'vmattd' ) );
 	    }
 	    return $errors;
+	}
+	
+	public function registration_fields_div() {
+	    echo $this->registration_fields('div');
+	}
+	
+	public function registration_fields_form_table() {
+	    echo $this->registration_fields('table');
+	}
+	
+	public function populate_registration_fields_div( $user ) {
+	    echo $this->populate_registration_fields($user, 'div');
+	}
+	
+	public function populate_registration_fields_form_table( $user ) {
+	    echo $this->populate_registration_fields($user, 'table');
+	}
+	
+	public function registration_errors_filter($errors) {
+	   return $this->registration_errors($errors);
+	}
+	
+	public function registration_errors_action($errors) {
+	    $this->registration_errors($errors);
 	}
 	
 	public function user_register($user_id) {
 	    /*
 	     * Register the new volunteer user
 	     */
-	    if ( ! empty( $_POST['vmat_first_name'] ) ) {
-	        update_user_meta( $user_id, 'first_name', strval( $_POST['vmat_first_name'] ) );
+	    if ( ! empty( $_POST['first_name'] ) ) {
+	        update_user_meta( $user_id, 'first_name', strval( $_POST['first_name'] ) );
 	    }
-	    if ( ! empty( $_POST['vmat_last_name'] ) ) {
-	        update_user_meta( $user_id, 'last_name', strval( $_POST['vmat_last_name'] ) );
+	    if ( ! empty( $_POST['last_name'] ) ) {
+	        update_user_meta( $user_id, 'last_name', strval( $_POST['last_name'] ) );
 	    }
 	    if ( ! empty( $_POST['vmat_phone_cell'] ) ) {
 	        update_user_meta( $user_id, 'phone_cell', strval( $_POST['vmat_phone_cell'] ) );

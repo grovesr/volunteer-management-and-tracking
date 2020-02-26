@@ -29,13 +29,26 @@
 	 * practising this, we should strive to set a better example in our own work.
 	 */
 	$(function() {
+		// show/hide volunteer registration fields and change selected role
 		$("#vmat_is_volunteer").on("change", function() {
 			if(this.checked) {
-				$("#vmat_registration_fields").show();
+				$(".vmat-registration-fields").show();
+				$('option:selected', 'select[name="role"]').removeAttr('selected');
+				$('select[name="role"]').find('option[value="volunteer"]').attr("selected",true);
 			} else {
-				$("#vmat_registration_fields").hide();
+				$(".vmat-registration-fields").hide();
+				$('option:selected', 'select[name="role"]').removeAttr('selected');
+				$('select[name="role"]').find('option[value="subscriber"]').attr("selected",true);
 			}
-		})
+		});
+		// link volunteer first name to user first name in add user form
+		$("#first_name").on("change", function() {
+			$("#vmat_first_name").val($(this).val());
+		});
+		// link volunteer first name to user first name in add user form
+		$("#last_name").on("change", function() {
+			$("#vmat_last_name").val($(this).val());
+		});
 	});
 
 })( jQuery );

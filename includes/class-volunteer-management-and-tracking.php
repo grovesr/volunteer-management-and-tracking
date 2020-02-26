@@ -144,9 +144,10 @@ class Volunteer_Management_And_Tracking {
 
         $this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
         $this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
-        $this->loader->add_action('user_new_form', $this->common, 'registration_fields');
-        $this->loader->add_action('user_profile_update_errors', $this->common, 'registration_errors');
+        $this->loader->add_action('user_new_form', $this->common, 'registration_fields_form_table');
+        $this->loader->add_action('user_profile_update_errors', $this->common, 'registration_errors_action');
         $this->loader->add_action('edit_user_created_user', $this->common, 'user_register');
+        $this->loader->add_action('edit_user_profile', $this->common, 'populate_registration_fields_form_table');
         
 
     }
@@ -169,9 +170,10 @@ class Volunteer_Management_And_Tracking {
         /*
          * Add further action hooks for the public side
          */
-        $this->loader->add_action('register_form', $this->common, 'registration_fields');
-        $this->loader->add_action('registration_errors', $this->common, 'registration_errors');
+        $this->loader->add_action('register_form', $this->common, 'registration_fields_div');
+        $this->loader->add_filter('registration_errors', $this->common, 'registration_errors_filter');
         $this->loader->add_action('user_register', $this->common, 'user_register');
+        $this->loader->add_action('show_user_profile', $this->common, 'populate_registration_fields_form_table');
 
     }
 
