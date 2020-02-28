@@ -20,6 +20,69 @@ class Volunteer_Management_And_Tracking_Common {
 	 *
 	 */
 	private $version;
+	
+	/*
+	 * Name => [type, label, required] for each common user field
+	 */
+	private $common_user_fields = [
+	    'first_name' => [
+	        'type' => 'text',
+	        'label' => 'First Name',
+	        'required' => true,
+	    ],
+	    'last_name' => [
+	        'type' => 'text',
+	        'label' => 'Last Name',
+	        'required' => false,
+	    ],
+	];
+	
+	/**
+	 * Name => [type, label, required] for each volunteer user field
+	 *
+	 */
+	private $volunteer_user_fields = [
+	    'vmat_is_volunteer' => [
+	        'type' => 'boolean', 
+	        'label' => 'Volunteer',
+	        'required' => false,
+	    ],
+	    'vmat_phone_cell' => [
+	        'type' => 'text', 
+	        'label' => 'Phone (cell]', 
+	        'required' => false,
+	    ],
+	    'vmat_phone_landline' => [
+	        'type' => 'text', 
+	        'label' => 'Phone (landline]', 
+	        'required' => false,
+	    ],
+	    'vmat_address_street' => [
+	        'type' => 'text', 
+	        'label' => 'Street Address', 
+	        'required' => false,
+	    ],
+	    'vmat_address_city' => [
+	        'type' => 'text', 
+	        'label' => 'City', 
+	        'required' => false,
+	    ],
+	    'vmat_address_zipcode' => [
+	        'type' => 'text', 
+	        'label' => 'Zip Code', 
+	        'required' => false,
+	    ],
+	    'vmat_volunteer_skillsets' => [
+	        'type' => 'array', 
+	        'label' => 'Skillsets', 
+	        'required' => false,
+	    ],
+	    'vmat_volunteer_interests' => [
+	        'type' => 'array', 
+	        'label' => 'Interests', 
+	        'required' => false,
+	    ],
+	];
 
 	/**
 	 * Initialize the class and set its properties.
@@ -47,14 +110,14 @@ class Volunteer_Management_And_Tracking_Common {
 	    if ( ! empty( $args['type'] ) ) {
 	        $type = $args['type'];
 	    }
-	    if ( ! empty( $args['value'] ) ) {
+	    if ( array_key_exists( 'value', $args ) ) {
 	        $var_value = boolval($args['value']);
 	    } else {
 	        $var_value = false;
 	        /*
 	         * retain selection values in case of repost due to error
 	         */
-	        if ( ! empty($_POST[$var_name]) ) {
+	        if ( array_key_exists( $var_name, $_POST ) ) {
 	            $var_value = boolval($_POST[$var_name]);
 	        }
 	    }
@@ -93,14 +156,14 @@ class Volunteer_Management_And_Tracking_Common {
 	    if( ! empty( $args['required'] ) ) {
 	       $required = boolval($args['required']);
 	    }
-	    if ( ! empty( $args['value'] ) ) {
+	    if ( array_key_exists( 'value', $args ) ) {
 	        $var_value = strval($args['value']);
 	    } else {
 	        $var_value = '';
 	        /*
 	         * retain selection values in case of repost due to error
 	         */
-	        if ( ! empty($_POST[$var_name]) ) {
+	        if ( array_key_exists( $var_name, $_POST ) ) {
 	            $var_value = strval($_POST[$var_name]);
 	        }
 	    }
@@ -137,356 +200,417 @@ class Volunteer_Management_And_Tracking_Common {
 	    return $page;
 	}
 	
-	private function multiselect_children_of_category_registration_fields($args) {
+	private function multiselect_children_of_category_fields($args) {
 	    /*
 	     * Display a multiselect populated from children of the passed-in $category
 	     * The $category is derived from the post taxonomy 'category'
 	     */
 	    
 	    /*
-	     * retain selection values in case of repost due to error
+	     * retain selection values in c !ase of repost due to error
 	     */
 	    $category = $args['category'];
+	    $subcategories = $args['subcategories'];
 	    $type = 'div';
 	    if ( ! empty( $args['type'] ) ) {
 	        $type = $args['type'];
 	    }
 	    $page = '';
 	    $ms_var_name = 'vmat_volunteer_' . strtolower($category);
-	    if ( ! empty($_POST[$ms_var_name]) ) {
-	        $ms_var = $_POST[$ms_var_name];
-	        $ms_var = array_map(strval, $ms_var);
-	    }
-	    if ( ! empty($_POST['vmat_is_volunteer']) ) {
-	        $is_volunteer = boolval($_POST['vmat_is_volunteer']);
-	    }
-	    if ( ! $is_volunteer ) {
-	        $ms_var = array([]);
-	    }
-	    $category_id = get_cat_ID($category);
-	    if ($category_id) {
-	        $subcategories = get_terms( array(
-	            'taxonomy' => 'category',
-	            'child_of' => $category_id,
-	            'hide_empty' => false,)
-	            );
-	        if ( count($subcategories) ) {
-	            if ( $type != 'div') {
-	                $page .= '<th>Choose your ' . $category . '</th>';
-	                $page .= '<td>';
-	            }
-	            $page .= '<fieldset>';
-    	        if ( $type == 'div' ) {
-    	            $page .= '<legend>Choose your ' . $category . '</legend>';
-    	        }
-    	        foreach ($subcategories as $subcategory) {
-    	            $page .= '<div>';
-    	            $page .= '<input type="checkbox" 
-                        	       id="' . 'vmat-' . esc_attr( $subcategory->slug ) . '" 
-                        	       name="' . $ms_var_name . '[]" 
-                        	       value="' . esc_attr( $subcategory->name ) . '" ';
-                        	       if ( in_array($subcategory->name, $ms_var) ) {
-                        	           $page .= "checked";
-                			       }
-                			       $page .= '/>';
-                			       $page .= '<label for="vmat-' . esc_attr( $subcategory->slug ) . '">' . esc_html( __($subcategory->name, 'vmattd') ) . '</label>';
-                			       $page .= '</div>';
-        	        }
-        	        $page .= '</fieldset>';
-        	    if ( $type != 'div' ) {
-        	        $page .= '</td>';
-        	    }
-	        } // if ( count($subcategories)
-	   } // if ($category_id)
-	   return $page;
-	} // multiselect_children_of_category_registration_fields
-    
-	private function registration_fields($type) {
-	    /*
-	     * display user registration form with extra fields for volunteers
-	     * $type switches between <div> based and <table> based layouts
-	     */
-	    
-	    $page = '';
-	    $is_volunteer = false;
-	    $reg_fields_display = 'none';
-	    if ( $type == 'table' ) {
-	        $section = 'tr';
+	    if ( array_key_exists( 'value', $args ) ) {
+	        $ms_var = array_map(strval, $args['value']);
 	    } else {
-	        $section = 'div';
+	        $ms_var = [];
+	        /*
+	         * retain selection values in case of repost due to error
+	         */
+	        if ( array_key_exists( $ms_var_name, $_POST ) ) {
+	            $ms_var = $_POST[$ms_var_name];
+	            $ms_var = array_map(strval, $ms_var);
+	        }
 	    }
-	    /*
-	     * retain selection values in case of repost due to error
-	     */
-	    if ( ! empty($_POST['vmat_is_volunteer']) ) {
-	        $is_volunteer = boolval($_POST['vmat_is_volunteer']);
-	    }
-	    if ( $is_volunteer ) {
-	        $reg_fields_display = 'show';
-	    }
-	    if ( $type == 'table' ) {
-	        $page .= '<table class="form-table" role="presentation">';
-	    }
-	    $page .= '<' . $section . '>';
-	    $page .= $this->boolean_choice_field(['option_name' => 'vmat_is_volunteer',
-	                                      'label' => 'Volunteer',
-	                                      'type' => $type,
-	                                      'value' => $is_volunteer,
-	                                     ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields" 
-                                    style="display:' . $reg_fields_display . '">';
-	    $page .= $this->text_input_field(['option_name' => 'first_name',
-                                      'label' => 'First Name',
-	                                  'type' => $type,
-	                                  'required' => true,
-                                     ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section .  ' class="vmat-registration-fields"
-	                                 style="display:' . $reg_fields_display . '">';
-	    $page .= $this->text_input_field(['option_name' => 'last_name',
-                            	      'label' => 'Last Name',
-                            	      'type' => $type,
-                            	      ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->text_input_field(['option_name' => 'vmat_phone_cell',
-                                      'label' => 'Phone (cell)',
-	                                  'type' => $type,
-                                     ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->text_input_field(['option_name' => 'vmat_phone_landline',
-                                      'label' => 'Phone (landline)',
-	                                  'type' => $type,
-                                     ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->text_input_field(['option_name' => 'vmat_address_street',
-                                      'label' => 'Street Address',
-	                                  'type' => $type,
-                                     ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->text_input_field(['option_name' => 'vmat_address_city',
-                                      'label' => 'City',
-	                                  'type' => $type,
-                                     ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->text_input_field(['option_name' => 'vmat_address_zipcode',
-                                      'label' => 'Zip Code',
-	                                  'type' => $type,
-                                     ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->multiselect_children_of_category_registration_fields(['category' => 'Skillsets',
-	                                                                          'type' => $type,
-	                                                                          ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->multiselect_children_of_category_registration_fields(['category' => 'Interests',
-                                                                        	  'type' => $type,
-                                                                        	 ]);
-	    $page .= '</' . $section .'>';
-        if ( $type == 'table' ) {
-            $page .= '</table>';
-	    }
+        if ( $type != 'div') {
+            $page .= '<th>Choose your ' . $category . '</th>';
+            $page .= '<td>';
+        }
+        $page .= '<fieldset>';
+        if ( $type == 'div' ) {
+            $page .= '<legend>Choose your ' . $category . '</legend>';
+        }
+        foreach ($subcategories as $subcategory) {
+            $page .= '<div>';
+            $page .= '<input type="checkbox"
+                	       id="' . 'vmat-' . esc_attr( $subcategory->slug ) . '"
+                	       name="' . $ms_var_name . '[]"
+                	       value="' . esc_attr( $subcategory->name ) . '" ';
+            if ( in_array($subcategory->name, $ms_var) ) {
+                $page .= "checked";
+            }
+            $page .= '/>';
+            $page .= '<label for="vmat-' . esc_attr( $subcategory->slug ) . '">' . esc_html( __($subcategory->name, 'vmattd') ) . '</label>';
+            $page .= '</div>';
+        }
+        $page .= '</fieldset>';
+        if ( $type != 'div' ) {
+            $page .= '</td>';
+        }
 	    return $page;
+	} // multiselect_children_of_category_fields
+	
+	private function get_volunteer_values_from_post($post) {
+	    $values = [];
+	    foreach ( $this->volunteer_user_fields as $field => $aspects ) {
+	        if ( $aspects['type'] == 'boolean' ) {
+	            $default = false;
+	        } elseif ($aspects['type'] == 'text' ) {
+	            $default = '';
+	        } elseif ($aspects['type'] == 'array') {
+	            $default = [];
+	        }
+	        $values[$field] = $default;
+	        if ( ! empty( $post[$field] ) ) {
+	            $values[$field] = $post[$field];
+	        }
+	    }
+	    return $values;
 	}
 	
-	private function populate_registration_fields($user, $type) {
+	private function get_common_values_from_post($post) {
+	    $values = [];
+	    foreach ( $this->common_user_fields as $field => $aspects ) {
+	        if ( $aspects['type'] == 'boolean' ) {
+	            $default = false;
+	        } elseif ($aspects['type'] == 'text' ) {
+	            $default = '';
+	        } elseif ($aspects['type'] == 'array') {
+	            $default = [];
+	        }
+	        $values[$field] = $default;
+	        if ( ! empty( $post[$field] ) ) {
+	            $values[$field] = $post[$field];
+	        }
+	    }
+	    return $values;
+	}
+	
+	private function get_default_volunteer_values() {
+	    $values = [];
+	    foreach ( $this->volunteer_user_fields as $field => $aspects ) {
+	        if ( $aspects['type'] == 'boolean' ) {
+	            $default = false;
+	        } elseif ($aspects['type'] == 'text' ) {
+	            $default = '';
+	        } elseif ($aspects['type'] == 'array') {
+	            $default = [];
+	        }
+	        $values[$field] = $default;
+	    }
+	    return $values;
+	}
+	
+	private function get_default_common_values() {
+	    $values = [];
+	    foreach ( $this->common_user_fields as $field => $aspects ) {
+	        if ( $aspects['type'] == 'boolean' ) {
+	            $default = false;
+	        } elseif ($aspects['type'] == 'text' ) {
+	            $default = '';
+	        } elseif ($aspects['type'] == 'array') {
+	            $default = [];
+	        }
+	        $values[$field] = $default;
+	    }
+	    return $values;
+	}
+	
+	private function get_volunteer_values_from_umeta($user) {
+	    $values = [];
+	    foreach ( $this->volunteer_user_fields as $field => $aspects ) {
+	        if ( $aspects['type'] == 'boolean' ) {
+	            $default = false;
+	        } elseif ($aspects['type'] == 'text' ) {
+	            $default = '';
+	        } elseif ($aspects['type'] == 'array') {
+	            $default = [];
+	        }
+	        $values[$field] = $default;
+	        $value = get_the_author_meta( $field, $user->ID );
+	        if ( ! empty( $value ) ) {
+	            $values[$field] = $value;
+	        }
+	    }
+	    return $values;
+	}
+    
+	private function render_volunteer_fields($section_type, $user=null) {
 	    /*
-	     * display user registration form with extra fields for volunteers
-	     * $type switches between <div> based and <table> based layouts
+	     * display user's volunteer meta values
+	     * $section_type switches between <div> based and <table> based layouts
+	     * if $user passed in populate fields with user's meta information
 	     */
 	    
 	    $page = '';
 	    $reg_fields_display = 'none';
-	    $is_volunteer = false;
-	    if ( $type == 'table' ) {
+	    if ( $section_type == 'table' ) {
 	        $section = 'tr';
 	    } else {
 	        $section = 'div';
 	    }
-	    
-	    /*
-	     * Get the values from the $user meta 
-	     */
-	    $capabilities = get_the_author_meta( 'wp_capabilities', $user->ID );
-	    if ( ! empty( $capabilities['Volunteer'] ) ) {
-	        $is_volunteer = $capabilities['Volunteer'];
+	    $is_volunteer = false;
+	    if ( array_key_exists( 'vmat_is_volunteer', $_POST ) ) {
+	        // re-POST due to a form submission error
+	        $is_volunteer = $_POST['vmat_is_volunteer'];
+	        if ( $is_volunteer ) {
+	            $values = $this->get_volunteer_values_from_post( $_POST );
+	        } else {
+	            $values = $this->get_default_volunteer_values();
+	        }
+	    } elseif ( $user ) {
+	        // request to populate fields from a volunteer
+	        $values = $this->get_volunteer_values_from_umeta($user);
+	        $is_volunteer = $values['vmat_is_volunteer'];
+	    } else {
+	        // not a re-POST and not a request to populate fields from a volunteer
+	        $values = $this->get_default_volunteer_values();
 	    }
-	    
-	    /*
-	     * retain selection values in case of repost due to error
-	     */
-	    if ( ! empty($_POST['vmat_is_volunteer']) ) {
-	        $is_volunteer = boolval($_POST['vmat_is_volunteer']);
-	    }
-	    if ( $is_volunteer ) {
+	    if ( $values['vmat_is_volunteer'] ) {
 	        $reg_fields_display = 'show';
 	    }
-	    if ( $type == 'table' ) {
+	    if ( $section_type == 'table' ) {
 	        $page .= '<table class="form-table" role="presentation">';
 	    }
-	    $page .= '<' . $section . '>';
-	    $page .= $this->boolean_choice_field(['option_name' => 'vmat_is_volunteer',
-	        'label' => 'Volunteer',
-	        'type' => $type,
-	        'value' => $is_volunteer,
-	    ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-                                    style="display:' . $reg_fields_display . '>';
-	    $page .= $this->text_input_field(['option_name' => 'vmat_first_name',
-	        'label' => 'First Name',
-	        'type' => $type,
-	        'required' => true,
-	    ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section .  ' class="vmat-registration-fields"
-	                                 style="display:' . $reg_fields_display . '>';
-	    $page .= $this->text_input_field(['option_name' => 'vmat_last_name',
-	        'label' => 'Last Name',
-	        'type' => $type,
-	    ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->text_input_field(['option_name' => 'vmat_phone_cell',
-	        'label' => 'Phone (cell)',
-	        'type' => $type,
-	    ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->text_input_field(['option_name' => 'vmat_phone_landline',
-	        'label' => 'Phone (landline)',
-	        'type' => $type,
-	    ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->text_input_field(['option_name' => 'vmat_address_street',
-	        'label' => 'Street Address',
-	        'type' => $type,
-	    ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->text_input_field(['option_name' => 'vmat_address_city',
-	        'label' => 'City',
-	        'type' => $type,
-	    ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->text_input_field(['option_name' => 'vmat_address_zipcode',
-	        'label' => 'Zip Code',
-	        'type' => $type,
-	    ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->multiselect_children_of_category_registration_fields(['category' => 'Skillsets',
-                                                                	          'type' => $type,
-                                                                	         ]);
-	    $page .= '</' . $section . '>';
-	    $page .= '<' . $section . ' class="vmat-registration-fields"
-	                                style="display:' . $reg_fields_display . '">';
-	    $page .= $this->multiselect_children_of_category_registration_fields(['category' => 'Interests',
-                                                                        	  'type' => $type,
-                                                                        	 ]);
-	    $page .= '</' . $section .'>';
-	    if ( $type == 'table' ) {
+	    foreach ( $this->volunteer_user_fields as $field => $aspects ) {
+	        if ( $field == 'vmat_is_volunteer' ) {
+	            $page .= '<' . $section . '>';
+	        } else {
+	            $page .= '<' . $section .  ' class="vmat-registration-fields"
+	                                         style="display:' . $reg_fields_display . '">';
+	        }
+	        if ( $aspects['type'] == 'boolean' ) {
+	            $page .= $this->boolean_choice_field(['option_name' => $field,
+	                'label' => $aspects['label'],
+	                'type' => $section_type,
+	                'value' => $values[$field],
+	                'required' => $aspects['required'],
+	            ]);
+	        } elseif ( $aspects['type'] == 'text' ) {
+	            $page .= $this->text_input_field(['option_name' => $field,
+	                'label' => $aspects['label'],
+	                'type' => $section_type,
+	                'value' => $values[$field],
+	                'required' => $aspects['required']
+	            ]);
+	        } elseif ( $aspects['type'] == 'array' ) {
+	            $category_id = get_cat_ID( $aspects['label'] );
+	            if ($category_id) {
+	                $subcategories = get_terms( array(
+	                    'taxonomy' => 'category',
+	                    'child_of' => $category_id,
+	                    'hide_empty' => false,)
+	                    );
+	                if ( count ( $subcategories ) ) {
+	                    $page .= $this->multiselect_children_of_category_fields(
+	                        ['category' => $aspects['label'],
+	                            'subcategories' => $subcategories,
+	                            'type' => $section_type,
+	                            'value' => $values[$field],
+	                        ]);
+	                }
+	            }
+	        }
+	        $page .= '</' . $section . '>';
+	    }
+	    if ( $section_type == 'table' ) {
 	        $page .= '</table>';
 	    }
 	    return $page;
 	}
-	
-	private function registration_errors($errors) {
+		
+	private function render_common_fields($section_type) {
+	    /*
+	     * display user's commonb meta values
+	     * $section_type switches between <div> based and <table> based layouts
+	     * if $user passed in populate fields with user's meta information
+	     */
+	    
+	    $page = '';
+	    if ( $section_type == 'table' ) {
+	        $section = 'tr';
+	    } else {
+	        $section = 'div';
+	    }
+	    $values = $this->get_common_values_from_post($_POST);
+	    if ( $section_type == 'table' ) {
+	        $page .= '<table class="form-table" role="presentation">';
+	    }
+	    foreach ( $this->common_user_fields as $field => $aspects ) {
+	        $page .= '<' . $section . '>';
+	        if ( $aspects['type'] == 'boolean' ) {
+	            $page .= $this->boolean_choice_field(['option_name' => $field,
+	                'label' => $aspects['label'],
+	                'type' => $section_type,
+	                'value' => $values[$field],
+	                'required' => $aspects['required'],
+	            ]);
+	        } elseif ( $aspects['type'] == 'text' ) {
+	            $page .= $this->text_input_field(['option_name' => $field,
+	                'label' => $aspects['label'],
+	                'type' => $section_type,
+	                'value' => $values[$field],
+	                'required' => $aspects['required']
+	            ]);
+	        } elseif ( $aspects['type'] == 'array' ) {
+	            $page .= $this->multiselect_children_of_category_registration_fields(
+	                ['category' => $aspects['label'],
+	                    'type' => $section_type,
+	                    'value' => $values[$field],
+	                ]);
+	        }
+	        $page .= '</' . $section . '>';
+	    }
+	    if ( $section_type == 'table' ) {
+	        $page .= '</table>';
+	    }
+	    return $page;
+	}
+		
+	private function volunteer_registration_errors($errors) {
 	    /*
 	     * Check for errors on volunteer user registration
 	     */
-	    
-	    if ( empty( $_POST['first_name'] ) ) {
-	        $errors->add( 'vmat_first_name_error', __( '<strong>ERROR</strong>: Please enter your first name.', 'vmattd' ) );
+	    $is_volunteer = false;
+	    if ( array_key_exists( 'vmat_is_volunteer', $_POST ) ) {
+	        $is_volunteer = $_POST['vmat_is_volunteer'];
+	    }
+	    if ( $is_volunteer ) {
+	        /*
+	         * add error checking here
+	         */
 	    }
 	    return $errors;
 	}
 	
-	public function registration_fields_div() {
-	    echo $this->registration_fields('div');
-	}
-	
-	public function registration_fields_form_table() {
-	    echo $this->registration_fields('table');
-	}
-	
-	public function populate_registration_fields_div( $user ) {
-	    echo $this->populate_registration_fields($user, 'div');
-	}
-	
-	public function populate_registration_fields_form_table( $user ) {
-	    echo $this->populate_registration_fields($user, 'table');
-	}
-	
-	public function registration_errors_filter($errors) {
-	   return $this->registration_errors($errors);
-	}
-	
-	public function registration_errors_action($errors) {
-	    $this->registration_errors($errors);
-	}
-	
-	public function user_register($user_id) {
+	private function common_registration_errors($errors) {
 	    /*
-	     * Register the new volunteer user
+	     * Check for errors on user registration
 	     */
-	    if ( ! empty( $_POST['first_name'] ) ) {
-	        update_user_meta( $user_id, 'first_name', strval( $_POST['first_name'] ) );
+	    if( empty( $_POST['first_name'] ) ) {
+	        $errors->add( 'vmat_first_name_error', __( '<strong>ERROR</strong>: Please enter your first name.', 'vmattd' ) );
 	    }
-	    if ( ! empty( $_POST['last_name'] ) ) {
-	        update_user_meta( $user_id, 'last_name', strval( $_POST['last_name'] ) );
+	    $is_volunteer = false;
+	    if ( array_key_exists( 'vmat_is_volunteer', $_POST ) ) {
+	        $is_volunteer = $_POST['vmat_is_volunteer'];
 	    }
-	    if ( ! empty( $_POST['vmat_phone_cell'] ) ) {
-	        update_user_meta( $user_id, 'phone_cell', strval( $_POST['vmat_phone_cell'] ) );
+	    if ( $is_volunteer ) {
+	        /*
+	         * add error checking here
+	         */
 	    }
-	    if ( ! empty( $_POST['vmat_phone_landline'] ) ) {
-	        update_user_meta( $user_id, 'phone_landline', strval( $_POST['vmat_phone_landline'] ) );
+	    return $errors;
+	}
+	
+	public function update_volunteer_profile_fields( $user_id ) {
+	    $this->update_volunteer_user_meta($user_id);
+	}
+	
+	public function render_volunteer_fields_div() {
+	    echo $this->render_volunteer_fields('div');
+	}
+	
+	public function render_volunteer_fields_form_table() {
+	    echo $this->render_volunteer_fields('table');
+	}
+	
+	public function render_common_fields_div() {
+	    echo $this->render_common_fields('div');
+	}
+	
+	public function render_populated_volunteer_fields_div( $user ) {
+	    echo $this->render_volunteer_fields('div', $user);
+	}
+	
+	public function render_populated_volunteer_fields_form_table( $user ) {
+	    echo $this->render_volunteer_fields('table', $user);
+	}
+	
+	public function volunteer_registration_errors_filter($errors) {
+	   return $this->volunteer_registration_errors($errors);
+	}
+	
+	public function common_registration_errors_filter($errors) {
+	    return $this->common_registration_errors($errors);
+	}
+	
+	public function volunteer_registration_errors_action($errors) {
+	    $this->volunteer_registration_errors($errors);
+	}
+	
+	public function common_registration_errors_action($errors) {
+	    $this->common_registration_errors($errors);
+	}
+	
+	public function update_volunteer_user_meta($user_id) {
+	    /*
+	     * Updae the meta data for a volunteer user
+	     */
+	    if ( ! current_user_can( 'edit_user', $user_id ) ) {
+	        return false;
 	    }
-	    if ( ! empty( $_POST['vmat_address_street'] ) ) {
-	        update_user_meta( $user_id, 'address_street', strval( $_POST['vmat_address_street'] ) );
+	    $is_volunteer = false;
+	    if ( array_key_exists( 'vmat_is_volunteer', $_POST ) ) {
+	        $is_volunteer = boolval($_POST['vmat_is_volunteer']);
 	    }
-	    if ( ! empty( $_POST['vmat_address_city'] ) ) {
-	        update_user_meta( $user_id, 'address_city', strval( $_POST['vmat_address_city'] ) );
-	    }
-	    if ( ! empty( $_POST['vmat_address_zipcode'] ) ) {
-	        update_user_meta( $user_id, 'address_zipcode', strval( $_POST['vmat_address_zipcode'] ) );
-	    }
-	    if ( ! empty( $_POST['vmat_volunteer_skillsets'] ) ) {
-	        $skillset = array_map(strval, $_POST['vmat_volunteer_skillsets']);
-	        update_user_meta( $user_id, 'volunteer_skillsets', $skillset );
-	    }
-	    if ( ! empty( $_POST['volunteer_interests'] ) ) {
-	        $interests = array_map(strval, $_POST['vmat_volunteer_interests']);
-	        update_user_meta( $user_id, 'volunteer_interests', $interests );
-	    }
-	    if ( ! empty( $_POST['vmat_is_volunteer'] ) && boolval($_POST[ 'vmat_is_volunteer'] )) {
-	        $wpuser = get_user_by('id', $user_id);
-	        if ( $wpuser ) {
-	            $wpuser->set_role('Volunteer');
+	    foreach ( $this->volunteer_user_fields as $option => $aspects ) {
+	        if ( array_key_exists( $option, $_POST ) ) {
+	            if ( $is_volunteer ) {
+	                $option_value = $_POST[$option];
+	                if ( $aspects['type'] == 'boolean' ) {
+	                    update_user_meta( $user_id, $option, boolval($option_value) );
+	                } elseif ( $aspects['type'] == 'text' ) {
+	                    update_user_meta( $user_id, $option, strval( $option_value ) );
+	                } elseif ( $aspects['type'] == 'array' ) {
+	                    $selections = array_map(strval, $option_value);
+	                    update_user_meta( $user_id, $option, $selections );
+	                }
+	            } else {
+	                delete_user_meta( $user_id, $option ); 
+	            }
+	        } else {
+	            delete_user_meta( $user_id, $option );
 	        }
 	    }
-	    
+	    $this->add_volunteer_user_role($user_id);
+	}
+	
+	private function add_volunteer_user_role( $user_id ) {
+	    $wpuser = get_user_by('id', $user_id);
+	    if ( $wpuser ) {
+	        $is_volunteer = boolval(get_the_author_meta( 'vmat_is_volunteer', $wpuser->ID ));
+	        if ( $is_volunteer ) {
+	            if ( $wpuser ) {
+	                if( ! in_array('volunteer', $wpuser->roles)) {
+	                    $wpuser->add_role('volunteer');
+	                }
+	            }
+	        } else {
+	            // remove the volunteer role if it exists
+	            if( in_array('volunteer', $wpuser->roles)) {
+	                $wpuser->remove_role('volunteer');
+	            }
+	        }
+	    }
+	}
+	
+	public function get_plugin_name() {
+	    return $this->plugin_name;
+	}
+	
+	public function get_version() {
+	    return $this->version;
+	}
+	
+	public function get_volunteer_fields() {
+	    return $this->volunteer_user_fields;
 	}
 	    
 }

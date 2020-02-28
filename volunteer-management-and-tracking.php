@@ -40,6 +40,15 @@ if ( ! defined( 'WPINC' ) ) {
  */
 define( 'VOLUNTEER_MANAGEMENT_AND_TRACKING_VERSION', '0.0.0' );
 
+/*
+ * Define dependent plugins required in order to use this plugin
+ */
+
+$dependent_plugins = [
+    'events-manager/events-manager.php',
+    'multiple-roles/multiple-roles.php',
+];
+
 /**
  * The code that runs during plugin activation.
  * This action is documented in includes/class-volunteer-management-and-tracking-activator.php
@@ -81,4 +90,36 @@ function run_volunteer_management_and_tracking() {
     $plugin->run();
 
 }
+
+function check_for_prerequisites($dependent_plugins) {
+    $errors = '';
+    foreach ( $dependent_plugins as $plugin ) {
+        if ( is_admin() &&  ! is_plugin_active( $plugin ) ) {
+            $errors .= '<p>' .
+                __( 'The Volunteer Management and Tracking plugin requires the ' . $plugin . ' plugin.', 'vmat' ) .
+                '</p>';
+        } // output an error if missing
+    } // for each dependent plugin
+    if ( ! empty( $errors ) ) {
+        add_action( 'admin_notices',
+            function() use ( $errors ) {
+                echo '<div class="notice notice-error is-dismissible">';
+                echo $errors;
+                echo '<p>' . __('To fix this either activate the missing plugin(s) or deactivate the Volunteer Management and Tracking plugin.', 'vmat') .
+                     '</p></div>';
+            }
+        );
+        if ( isset( $_GET['activate'] ) ) {
+            unset( $_GET['activate'] );
+        }
+    }
+}
+
+// check for prerequisites and if not satisified, show admin error
+add_action('admin_init', 
+    function() use ( $dependent_plugins ) {
+        check_for_prerequisites( $dependent_plugins ); 
+    }
+);
+	
 run_volunteer_management_and_tracking();

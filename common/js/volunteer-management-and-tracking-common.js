@@ -29,25 +29,17 @@
 	 * practising this, we should strive to set a better example in our own work.
 	 */
 	$(function() {
-		// show/hide volunteer registration fields and change selected role
+		// show/hide volunteer registration fields and add or remove volunteer role
 		$("#vmat_is_volunteer").on("change", function() {
+			var role_inputs = $('input[name="md_multiple_roles[]"]');
 			if(this.checked) {
 				$(".vmat-registration-fields").show();
-				$('option:selected', 'select[name="role"]').removeAttr('selected');
-				$('select[name="role"]').find('option[value="volunteer"]').attr("selected",true);
+				var role_inputs = 
+				$(role_inputs).filter('input[value="volunteer"]').attr("checked",true);
 			} else {
 				$(".vmat-registration-fields").hide();
-				$('option:selected', 'select[name="role"]').removeAttr('selected');
-				$('select[name="role"]').find('option[value="subscriber"]').attr("selected",true);
+				$(role_inputs).filter('input[value="volunteer"]').attr("checked",false);
 			}
-		});
-		// link volunteer first name to user first name in add user form
-		$("#first_name").on("change", function() {
-			$("#vmat_first_name").val($(this).val());
-		});
-		// link volunteer first name to user first name in add user form
-		$("#last_name").on("change", function() {
-			$("#vmat_last_name").val($(this).val());
 		});
 	});
 

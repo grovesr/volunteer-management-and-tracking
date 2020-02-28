@@ -31,7 +31,15 @@ class Volunteer_Management_And_Tracking_Admin {
 
 		$this->plugin_name = $plugin_name;
 		$this->version = $version;
+		$this->load_dependencies();
 
+	}
+	
+	private function load_dependencies() {
+	    /**
+	     * The html partials for the admin
+	     */
+	    require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/partials/volunteer-management-and-tracking-admin-display.php';
 	}
 
 	/**
@@ -78,6 +86,18 @@ class Volunteer_Management_And_Tracking_Admin {
 		wp_enqueue_script( $this->plugin_name . '-js-admin', plugin_dir_url( __FILE__ ) . 'js/volunteer-management-and-tracking-admin.js', array( 'jquery' ), $this->version, false );
 		wp_enqueue_script( $this->plugin_name . '-js-common', plugin_dir_url( __FILE__ ) . '../common/js/volunteer-management-and-tracking-common.js', array( 'jquery' ), $this->version, false );
 
+	}
+	
+	public function top_level_options_page() {
+	    $res = add_menu_page(
+	        'Volunteer Management and Tracking',
+	        'Volunteer Options',
+	        'manage_options',
+	        'vmat_top_level_options',
+	        'vmat_top_level_options_page_html',
+	        'dashicons-groups',
+	        20
+	    );
 	}
 
 }

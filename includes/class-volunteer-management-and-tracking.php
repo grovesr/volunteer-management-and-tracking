@@ -62,8 +62,11 @@ class Volunteer_Management_And_Tracking {
 
         $this->load_dependencies();
         $this->set_locale();
-        $this->define_admin_hooks();
-        $this->define_public_hooks();
+        if ( is_admin() ) {
+            $this->define_admin_hooks();
+        } else {
+            $this->define_public_hooks();
+        }
 
     }
 
@@ -101,16 +104,20 @@ class Volunteer_Management_And_Tracking {
          */
         require_once plugin_dir_path( dirname( __FILE__ ) ) . 'common/class-volunteer-management-and-tracking-common.php';
 
-        /**
-         * The class responsible for defining all actions that occur in the admin area.
-         */
-        require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-volunteer-management-and-tracking-admin.php';
-
-        /**
-         * The class responsible for defining all actions that occur in the public-facing
-         * side of the site.
-         */
-        require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-volunteer-management-and-tracking-public.php';
+        if ( is_admin() ) {
+            /**
+             * The class responsible for defining all actions that occur in the admin area.
+             */
+            require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-volunteer-management-and-tracking-admin.php';
+        } else {
+            /**
+             * The class responsible for defining all actions that occur in the public-facing
+             * side of the site.
+             */
+            if ( ! is_admin() ) {
+                require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-volunteer-management-and-tracking-public.php';
+            }
+        }
 
         $this->loader = new Volunteer_Management_And_Tracking_Loader();
         $this->common = new Volunteer_Management_And_Tracking_Common( $this->get_plugin_name(), $this->get_version() );
@@ -144,12 +151,30 @@ class Volunteer_Management_And_Tracking {
 
         $this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
         $this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
-        $this->loader->add_action('user_new_form', $this->common, 'registration_fields_form_table');
-        $this->loader->add_action('user_profile_update_errors', $this->common, 'registration_errors_action');
-        $this->loader->add_action('edit_user_created_user', $this->common, 'user_register');
-        $this->loader->add_action('edit_user_profile', $this->common, 'populate_registration_fields_form_table');
         
-
+        // render the volunteer fields for the wp-admin/user-new.php form
+        $this->loader->add_action('user_new_form', $this->common, 'render_volunteer_fields_form_table');       
+        // render the volunteer fields from the wp-admin/user-edit.php form
+        $this->loader->add_action('edit_user_profile', $this->common, 'render_populated_volunteer_fields_form_table');
+        // render the volunteer fields on the wp-admin/profile.php form
+        $this->loader->add_action('show_user_profile', $this->common, 'render_populated_volunteer_fields_form_table');
+        
+        // check for errors in volunteer fields from wp-admin/user-new.php or wp-admin/user-edit.php or wp-admin/profile.php forms
+        $this->loader->add_action('user_profile_update_errors', $this->common, 'volunteer_registration_errors_action');
+        // check for errors in common fields from wp-admin/user-new.php or wp-admin/user-edit.php or wp-admin/profile.php forms
+        $this->loader->add_action('user_profile_update_errors', $this->common, 'common_registration_errors_action');
+        
+        // update the volunteer fields from the wp-admin/profile.php form
+        $this->loader->add_action('personal_options_update', $this->common, 'update_volunteer_user_meta');
+        // update the volunteer role on the wp-admin/profile.php form
+        $this->loader->add_action('personal_options_update', $this->common, 'add_volunteer_user_role');
+        // update the volunteer fields from the wp-admin/user-edit.php form
+        $this->loader->add_action('edit_user_profile_update', $this->common, 'update_volunteer_user_meta');
+        // update the volunteer fields from the wp-admin/user-new.php form
+        $this->loader->add_action('edit_user_created_user', $this->common, 'update_volunteer_user_meta');
+        
+        // the top level admin dashboard
+        $this->loader->add_action('admin_menu', $plugin_admin, 'top_level_options_page');
     }
 
     /**
@@ -170,10 +195,21 @@ class Volunteer_Management_And_Tracking {
         /*
          * Add further action hooks for the public side
          */
-        $this->loader->add_action('register_form', $this->common, 'registration_fields_div');
-        $this->loader->add_filter('registration_errors', $this->common, 'registration_errors_filter');
-        $this->loader->add_action('user_register', $this->common, 'user_register');
-        $this->loader->add_action('show_user_profile', $this->common, 'populate_registration_fields_form_table');
+        // render the common fields for the wp-login.php?action=register form
+        $this->loader->add_action('register_form', $this->common, 'render_common_fields_div');
+        // render the volunteer fields for the wp-login.php?action=register form
+        $this->loader->add_action('register_form', $this->common, 'render_volunteer_fields_div');
+        
+        // check for errors on fields other than user_login and user_email from the wp-login.php?action=register form
+        $this->loader->add_filter('registration_errors', $this->common, 'volunteer_registration_errors_filter');
+        $this->loader->add_filter('registration_errors', $this->common, 'common_registration_errors_filter');
+        
+        // update the volunteer user meta fields from the wp-login.php?action=register form
+        $this->loader->add_action('user_register', $this->common, 'update_volunteer_user_meta');
+        // update any common user fields from the wp-login.php?action=register form
+        $this->loader->add_action('user_register', $this->common, 'update_common_user_meta');
+        // update the volunteer role on the wp-login.php?action=register form
+        $this->loader->add_action('register_new_user', $this->common, 'add_volunteer_user_role');
 
     }
 
