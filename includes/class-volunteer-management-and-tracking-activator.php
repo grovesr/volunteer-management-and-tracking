@@ -14,10 +14,10 @@ class Volunteer_Management_And_Tracking_Activator {
 	 * Long Description.
 	 *
 	 */
+    
 	public static function activate() {
 	    if ( ! get_role('volunteer') ) {
 	        add_role( 'volunteer', 'Volunteer', array( 'read' => true ) );
 	    }
 	}
-
 }

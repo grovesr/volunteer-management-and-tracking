@@ -39,11 +39,23 @@ class Volunteer_Management_And_Tracking {
     protected $version;
 
     /**
-     * common class
+     * common functions class
      *
      */
     protected $common;
 
+    /**
+     * admin functions class
+     *
+     */
+    protected $admin;
+    
+    /**
+     * public functions class
+     *
+     */
+    protected $public;
+    
     /**
      * Define the core functionality of the plugin.
      *
@@ -97,13 +109,13 @@ class Volunteer_Management_And_Tracking {
          * of the plugin.
          */
         require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-volunteer-management-and-tracking-i18n.php';
-
+        
         /**
          * The class responsible for registering all actions that occur accross public and admin areas
          * of the site.
          */
         require_once plugin_dir_path( dirname( __FILE__ ) ) . 'common/class-volunteer-management-and-tracking-common.php';
-
+        
         if ( is_admin() ) {
             /**
              * The class responsible for defining all actions that occur in the admin area.
@@ -114,14 +126,16 @@ class Volunteer_Management_And_Tracking {
              * The class responsible for defining all actions that occur in the public-facing
              * side of the site.
              */
-            if ( ! is_admin() ) {
-                require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-volunteer-management-and-tracking-public.php';
-            }
+             require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-volunteer-management-and-tracking-public.php';
         }
 
         $this->loader = new Volunteer_Management_And_Tracking_Loader();
         $this->common = new Volunteer_Management_And_Tracking_Common( $this->get_plugin_name(), $this->get_version() );
-
+        if ( is_admin() ) {
+            $this->admin = new Volunteer_Management_And_Tracking_Admin( $this->get_plugin_name(), $this->get_version() );
+        } else {
+            $this->public = new Volunteer_Management_And_Tracking_Public( $this->get_plugin_name(), $this->get_version() );
+        }
     }
 
     /**
@@ -146,11 +160,16 @@ class Volunteer_Management_And_Tracking {
      *
      */
     private function define_admin_hooks() {
-
-        $plugin_admin = new Volunteer_Management_And_Tracking_Admin( $this->get_plugin_name(), $this->get_version() );
-
-        $this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
-        $this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
+        
+        $this->loader->add_action( 'admin_enqueue_scripts', $this->admin, 'enqueue_styles' );
+        $this->loader->add_action( 'admin_enqueue_scripts', $this->admin, 'enqueue_scripts' );
+        
+        // Add ajax handlers. the hook has ajax_ajax because the function called begins with ajax_
+        $this->loader->add_action( 'wp_ajax_ajax_add_volunteers_to_event', $this->admin, 'ajax_add_volunteers_to_event' );
+        $this->loader->add_action( 'wp_ajax_ajax_remove_volunteers_from_event', $this->admin, 'ajax_remove_volunteers_from_event' );
+        $this->loader->add_action( 'wp_ajax_ajax_save_event_volunteers_data', $this->admin, 'ajax_save_event_volunteers_data' );
+        $this->loader->add_action( 'wp_ajax_ajax_approve_volunteers_hours_for_event', $this->admin, 'ajax_approve_volunteers_hours_for_event' );
+        $this->loader->add_action( 'wp_ajax_ajax_set_default_volunteers_hours_for_event', $this->admin, 'ajax_set_default_volunteers_hours_for_event' );
         
         // render the volunteer fields for the wp-admin/user-new.php form
         $this->loader->add_action('user_new_form', $this->common, 'render_volunteer_fields_form_table');       
@@ -173,8 +192,68 @@ class Volunteer_Management_And_Tracking {
         // update the volunteer fields from the wp-admin/user-new.php form
         $this->loader->add_action('edit_user_created_user', $this->common, 'update_volunteer_user_meta');
         
-        // the top level admin dashboard
-        $this->loader->add_action('admin_menu', $plugin_admin, 'top_level_options_page');
+        // dashboard page
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_main_page');
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_dashboard_page');
+        // volunteers list page
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_volunteers_page');
+        // manage hours page
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_hours_page');
+        // reports page
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_reports_page');
+        // settings page
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_settings_page');
+        // manage organizations page
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_organizations_page');
+        // manage funding streams page
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_funding_streams_page');
+        // remove the submenu auto-generated from the main menu
+        $this->loader->add_action('admin_menu', $this->admin, 'remove_admin_main_submenu');
+        // remove the menu auto-generated from adding the CPT hours 
+        $this->loader->add_action('admin_menu', $this->admin, 'remove_admin_hours_menu');
+        // remove the menu auto-generated from adding the CPT organization
+        $this->loader->add_action('admin_menu', $this->admin, 'remove_admin_organization_menu');
+        // remove the menu auto-generated from adding the CPT funding_stream
+        $this->loader->add_action('admin_menu', $this->admin, 'remove_admin_funding_stream_menu');
+        
+        // add Add Hours quick action to Events posts
+        $this->loader->add_filter('post_row_actions', $this->admin, 'modify_event_list_row_actions', 10, 2);
+        
+        // Add organization filtering to Events
+        $this->loader->add_action('restrict_manage_posts',$this->admin, 'organization_filtering',10);
+        $this->loader->add_filter( 'parse_query', $this->admin, 'filter_request_query' , 10);
+        
+        // Add Organizations selection meta box to Events edit page
+        $this->loader->add_action('add_meta_boxes', $this->admin, 'add_em_org_meta_boxes');
+        // Save organizations meta box data into event meta data
+        $this->loader-> add_action('save_post_event',$this->admin, 'update_event_organizations_meta',1,2);
+        
+        // add Orgs column to events listing
+        $this->loader->add_filter( 'manage_posts_columns', $this->admin, 'add_orgs_column_to_em' );
+        $this->loader->add_action( 'manage_posts_custom_column', $this->admin, 'fill_event_orgs_column', 10, 2);
+        
+        // Add Funding Streams selection meta box to Organizations edit page
+        $this->loader->add_action('add_meta_boxes', $this->admin, 'add_org_funding_stream_meta_box');
+        // Save Funding Stream meta box data into Organization meta data
+        $this->loader-> add_action('save_post_vmat_organization',$this->admin, 'update_org_funding_streams_meta',1,2);
+        
+        // Add additional information fields meta box to Organizations edit page
+        $this->loader->add_action('add_meta_boxes', $this->admin, 'add_organization_fields_meta_box');
+        // Save additional information fields meta box data into Organization meta data
+        $this->loader-> add_action('save_post_vmat_organization',$this->admin, 'update_organization_fields_meta',1,2);
+        
+        // Add additional information fields meta box to Funding Streams edit page
+        $this->loader->add_action('add_meta_boxes', $this->admin, 'add_funding_stream_fields_meta_box');
+        // Save additional information fields meta box data into Funding Streams meta data
+        $this->loader-> add_action('save_post_vmat_funding_stream',$this->admin, 'update_funding_stream_fields_meta',1,2);
+        
+        // register custom post type Hours
+        $this->loader->add_action('init', $this->common , 'register_hours_post_type');
+        // register custom post type Funding Streams
+        $this->loader->add_action('init', $this->common , 'register_funding_streams_post_type');
+        // register custom post type Organizations
+        $this->loader->add_action('init', $this->common , 'register_organizations_post_type');
+        
     }
 
     /**
@@ -184,14 +263,12 @@ class Volunteer_Management_And_Tracking {
      */
     private function define_public_hooks() {
 
-        $plugin_public = new Volunteer_Management_And_Tracking_Public( $this->get_plugin_name(), $this->get_version() );
-
-        $this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
-        $this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
+        $this->loader->add_action( 'wp_enqueue_scripts', $this->public, 'enqueue_styles' );
+        $this->loader->add_action( 'wp_enqueue_scripts', $this->public, 'enqueue_scripts' );
         /*
          * we enqueue the login scripts from the public side
          */
-        $this->loader->add_action( 'login_enqueue_scripts', $plugin_public, 'enqueue_scripts');
+        $this->loader->add_action( 'login_enqueue_scripts', $this->public, 'enqueue_scripts');
         /*
          * Add further action hooks for the public side
          */
@@ -210,6 +287,17 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_action('user_register', $this->common, 'update_common_user_meta');
         // update the volunteer role on the wp-login.php?action=register form
         $this->loader->add_action('register_new_user', $this->common, 'add_volunteer_user_role');
+        
+        // register custom post type Hours
+        $this->loader->add_action('init', $this->common , 'register_hours_post_type');
+        // register custom post type Funding Streams
+        $this->loader->add_action('init', $this->common , 'register_funding_streams_post_type');
+        // register custom post type Organizations
+        $this->loader->add_action('init', $this->common , 'register_organizations_post_type');
+        /*
+        // register Events taxonomy Organization
+        $this->loader->add_action('init', $this->common , 'register_taxonomy_organization_for_em');
+        */
 
     }
 
@@ -253,6 +341,22 @@ class Volunteer_Management_And_Tracking {
      */
     public function get_common() {
         return $this->common;
+    }
+    
+    /**
+     * The reference to the admin class that describes functionality in the admin
+     *
+     */
+    public function get_admin() {
+        return $this->admin;
+    }
+    
+    /**
+     * The reference to the admin class that describes functionality on the public side
+     *
+     */
+    public function get_public() {
+        return $this->public;
     }
 
 }

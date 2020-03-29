@@ -43,6 +43,7 @@ define( 'VOLUNTEER_MANAGEMENT_AND_TRACKING_VERSION', '0.0.0' );
 /*
  * Define dependent plugins required in order to use this plugin
  */
+global $vmat_plugin;
 
 $dependent_plugins = [
     'events-manager/events-manager.php',
@@ -85,10 +86,9 @@ require plugin_dir_path( __FILE__ ) . 'includes/class-volunteer-management-and-t
  *
  */
 function run_volunteer_management_and_tracking() {
-
     $plugin = new Volunteer_Management_And_Tracking();
     $plugin->run();
-
+    return $plugin;
 }
 
 function check_for_prerequisites($dependent_plugins) {
@@ -96,7 +96,7 @@ function check_for_prerequisites($dependent_plugins) {
     foreach ( $dependent_plugins as $plugin ) {
         if ( is_admin() &&  ! is_plugin_active( $plugin ) ) {
             $errors .= '<p>' .
-                __( 'The Volunteer Management and Tracking plugin requires the ' . $plugin . ' plugin.', 'vmat' ) .
+                __( 'The Volunteer Management and Tracking plugin requires the ' . $plugin . ' plugin.', 'vmattd' ) .
                 '</p>';
         } // output an error if missing
     } // for each dependent plugin
@@ -105,7 +105,7 @@ function check_for_prerequisites($dependent_plugins) {
             function() use ( $errors ) {
                 echo '<div class="notice notice-error is-dismissible">';
                 echo $errors;
-                echo '<p>' . __('To fix this either activate the missing plugin(s) or deactivate the Volunteer Management and Tracking plugin.', 'vmat') .
+                echo '<p>' . __('To fix this either activate the missing plugin(s) or deactivate the Volunteer Management and Tracking plugin.', 'vmattd') .
                      '</p></div>';
             }
         );
@@ -122,4 +122,4 @@ add_action('admin_init',
     }
 );
 	
-run_volunteer_management_and_tracking();
+$vmat_plugin = run_volunteer_management_and_tracking();

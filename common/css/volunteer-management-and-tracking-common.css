@@ -2,3 +2,8 @@
  * All of the CSS this common to admin, public, login should be
  * included in this file.
  */
+.vmat-link {
+		cursor: pointer;
+		color: #0073aa;
+		white-space: nowrap;
+}
