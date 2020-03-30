@@ -60,7 +60,7 @@ function vmat_get_events_admin( $args=array() ) {
         			    _e($event->post_title . '<br />( duration ' . $event_data['days'] . ' days)', 'vmattd');
         			    echo '</h2>';
         			} else {
-        			    vmat_events_table( $args, $event_data['days'] );
+        			    vmat_events_table( $args );
         			}
         				?>
         			</div><!--  Selected event name or event selection table -->
@@ -127,10 +127,6 @@ function vmat_events_table( $args ) {
     $search = $args['events_search'];
     $this_page_url = admin_url() . 'admin.php';
     $this_page_url = add_query_arg( 'page', 'vmat_admin_hours', $this_page_url );
-    $this_page_filtered_url = add_query_arg( 'scope', $scope, $this_page_url );
-    $this_page_filtered_url = add_query_arg( 'events_search', $search, $this_page_filtered_url );
-    $this_page_filtered_url = add_query_arg( 'form_id', 'events-filter' );
-    $this_page_filtered_url = add_query_arg( 'submit_button', 'paginate', $this_page_filtered_url );
     $organizations = array(
         0 => __('View all organizations', 'vmattd'),
     );
@@ -148,12 +144,20 @@ function vmat_events_table( $args ) {
         $em_scopes,
         $scope
         );
-    $table_nav = $vmat_plugin->get_common()->admin_paginate(
+    $page_name = 'epno';
+    $ajax_args = array(
+        'admin_page' => 'vmat_admin_hours',
+        'scope' => $scope,
+        'vmat_org' => $vmat_org,
+        'events_search' => $search,
+        'posts_per_page' => $args['posts_per_page'],
+    );
+    $table_nav = $vmat_plugin->get_common()->ajax_admin_paginate(
         $found_posts,
         $page,
         $max_num_pages,
-        $this_page_filtered_url,
-        'epno'
+        $page_name,
+        $ajax_args
         );
     ?>
      <form id='events-filter' method="get">
@@ -244,19 +248,22 @@ function vmat_volunteers_table( $args ) {
     $evpno = $args['evpno'];
     $max_num_pages = ceil( $found_users / $args['posts_per_page'] );
     $search = $args['volunteers_search'];
-    $this_page_filtered_url = admin_url() . 'admin.php';
-    $this_page_filtered_url = add_query_arg( 'page', 'vmat_admin_hours', $this_page_filtered_url );
-    $this_page_filtered_url = add_query_arg( 'event_id', $event->ID, $this_page_filtered_url );
-    $this_page_filtered_url = add_query_arg( 'form_id', 'volunteers-filter', $this_page_filtered_url );
-    $this_page_filtered_url = add_query_arg( 'volunteers_search', $search, $this_page_filtered_url );
-    $this_page_filtered_url = add_query_arg( 'submit_button', 'paginate', $this_page_filtered_url );
-    $this_page_filtered_url = add_query_arg( 'evpno', $evpno, $this_page_filtered_url );
-    $table_nav = $vmat_plugin->get_common()->admin_paginate(
+    
+    $page_name = 'vpno';
+    $ajax_args = array(
+        'event_id' => $event->ID,
+        'evpno' => $evpno,
+        'volunteers_search' => $search,
+        'event_volunteers_search' => $args['event_volunteers_search'],
+        'admin_page' => 'vmat_admin_hours',
+        'posts_per_page' => $args['posts_per_page'],
+    );
+    $table_nav = $vmat_plugin->get_common()->ajax_admin_paginate(
         $found_users,
         $page,
         $max_num_pages,
-        $this_page_filtered_url,
-        'vpno'
+        $page_name,
+        $ajax_args
         );
     ?>
 	<div class="row">
@@ -340,19 +347,21 @@ function vmat_event_volunteers_table( $args ) {
     $vpno = $args['vpno'];
     $max_num_pages = ceil( $found_users / $args['posts_per_page'] );
     $search = $args['event_volunteers_search'];
-    $this_page_filtered_url = admin_url() . 'admin.php';
-    $this_page_filtered_url = add_query_arg( 'page', 'vmat_admin_hours', $this_page_filtered_url );
-    $this_page_filtered_url = add_query_arg( 'event_id', $event->ID, $this_page_filtered_url );
-    $this_page_filtered_url = add_query_arg( 'form_id', 'volunteers-filter', $this_page_filtered_url );
-    $this_page_filtered_url = add_query_arg( 'event_volunteers_search', $search, $this_page_filtered_url );
-    $this_page_filtered_url = add_query_arg( 'submit_button', 'paginate', $this_page_filtered_url );
-    $this_page_filtered_url = add_query_arg( 'vpno', $vpno, $this_page_filtered_url );
-    $table_nav = $vmat_plugin->get_common()->admin_paginate(
+    $page_name = 'evpno';
+    $ajax_args = array(
+        'event_id' => $event->ID,
+        'vpno' => $vpno,
+        'admin_page' => 'vmat_admin_hours',
+        'volunteers_search' => $args['volunteers_search'],
+        'event_volunteers_search' => $args['event_volunteers_search'],
+        'posts_per_page' => $args['posts_per_page'],
+    );
+    $table_nav = $vmat_plugin->get_common()->ajax_admin_paginate(
         $found_users,
         $page,
         $max_num_pages,
-        $this_page_filtered_url,
-        'evpno'
+        $page_name,
+        $ajax_args
         );
     ?>
 	<div class="row">

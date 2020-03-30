@@ -512,20 +512,82 @@ class Volunteer_Management_And_Tracking_Admin {
 	    );
 	}
 	
-	function ajax_get_html( $event=null ) {
+	function ajax_get_paginate_vmat_admin_hours_data( $event_id=0 ) {
+	    $errors = array();
+	    $result = array();
+	    if ( array_key_exists( 'posts_per_page', $_POST['data'] ) ) {
+	        $result['posts_per_page'] = $_POST['data']['posts_per_page'];
+	    } else {
+	        $errors[] = __( '<strong>Error</strong>: Missing posts_per_page.', 'vmattd' );
+	    }
+	    if ( $event_id ) {
+	        $event = get_post( $event_id );
+	        if ( !$event ) {
+	            $errors[] = __('<strong>ERROR</strong>: No event found. Please try again', 'vmattd' );
+	        }
+	        // set up the args for the manage_volunteers tables
+	        $result['event'] = $event;   
+	        if ( array_key_exists( 'vpno', $_POST['data'] ) ) {
+	            $result['vpno'] = $_POST['data']['vpno'];
+	        } else {
+	            $errors[] = __( '<strong>Error</strong>: Missing vpno page indicator.', 'vmattd' );
+	        }
+	        if ( array_key_exists( 'evpno', $_POST['data'] ) ) {
+	            $result['evpno'] = $_POST['data']['evpno'];
+	        } else {
+	            $errors[] = __( '<strong>Error</strong>: Missing evpno page indicator.', 'vmattd' );
+	        }
+	        if ( array_key_exists( 'volunteers_search', $_POST['data'] ) ) {
+	            $result['volunteers_search'] = $_POST['data']['volunteers_search'];
+	        } else {
+	            $errors[] = __( '<strong>Error</strong>: Missing volunteers_search filter.', 'vmattd' );
+	        }
+	    } else {
+	        // set up the args for the select event table
+	        if ( array_key_exists( 'epno', $_POST['data'] ) ) {
+	            $result['epno'] = $_POST['data']['epno'];
+	        } else {
+	            $errors[] = __( '<strong>Error</strong>: Missing epno page indicator.', 'vmattd' );
+	        }
+	        if ( array_key_exists( 'vmat_org', $_POST['data'] ) ) {
+	            $result['vmat_org'] = $_POST['data']['vmat_org'];
+	        } else {
+	            $errors[] = __( '<strong>Error</strong>: Missing vmat_org filter.', 'vmattd' );
+	        }
+	        if ( array_key_exists( 'scope', $_POST['data'] ) ) {
+	            $result['scope'] = $_POST['data']['scope'];
+	        } else {
+	            $errors[] = __( '<strong>Error</strong>: Missing scope filter.', 'vmattd' );
+	        }
+	        if ( array_key_exists( 'events_search', $_POST['data'] ) ) {
+	            $result['events_search'] = $_POST['data']['events_search'];
+	        } else {
+	            $errors[] = __( '<strong>Error</strong>: Missing events_search filter.', 'vmattd' );
+	        }
+	    }
+	    $result['errors'] = $errors;
+	    return $result;
+	}
+	
+	function ajax_get_manage_volunteers_html( $args=array() ) {
 	    global $vmat_plugin;
-	    $args = array();
-	    $args['event']= $event;
-	    $args['vpno'] = 1;
-	    $args['evpno'] = 1;
-	    $args['posts_per_page'] = get_option( 'posts_per_page' );
-	    $args['volunteers_search'] = '';
-	    $args['event_volunteers_search'] = '';
+	    
 	    $args['volunteers'] = $vmat_plugin->get_common()->get_volunteers_not_added_to_event( $args );;
 	    $args['event_volunteers'] = $vmat_plugin->get_common()->get_volunteers_added_to_event( $args );
 	    // generate replacement html for the volunteers and event_volunteers tables
 	    ob_start();
 	    vmat_manage_volunteers_admin( $args );
+	    return ob_get_clean();
+	}
+	
+	function ajax_get_select_event_html( $args=array() ) {
+	    global $vmat_plugin;
+	    $args['post_type'] = EM_POST_TYPE_EVENT;
+	    $args['events'] = $this->get_events( $args );
+	    
+	    // generate replacement html for the volunteers and event_volunteers tables
+	    ob_start();
+	    vmat_get_events_admin( $args );
 	    return ob_get_clean();
 	}
 	
@@ -570,7 +632,14 @@ class Volunteer_Management_And_Tracking_Admin {
 	        );
 	        wp_send_json_error( $results );
 	    }
-	    $html = $this->ajax_get_html( $event );
+	    $args = array();
+	    $args['event']= $event;
+	    $args['vpno'] = 1;
+	    $args['evpno'] = 1;
+	    $args['posts_per_page'] = get_option( 'posts_per_page' );
+	    $args['volunteers_search'] = '';
+	    $args['event_volunteers_search'] = '';
+	    $html = $this->ajax_get_manage_volunteers_html( $args );
 	    $message = $volunteers[0]->display_name;
 	    if ( count( $volunteers ) > 1 ) {
 	        $message = count( $volunteers ) . ' Volunteers';
@@ -626,7 +695,14 @@ class Volunteer_Management_And_Tracking_Admin {
 	        );
 	        wp_send_json_error( $results );
 	    }
-	    $html = $this->ajax_get_html( $event );
+	    $args = array();
+	    $args['event']= $event;
+	    $args['vpno'] = 1;
+	    $args['evpno'] = 1;
+	    $args['posts_per_page'] = get_option( 'posts_per_page' );
+	    $args['volunteers_search'] = '';
+	    $args['event_volunteers_search'] = '';
+	    $html = $this->ajax_get_manage_volunteers_html( $args );
 	    $message = $volunteers[0]->display_name;
 	    if ( count( $volunteers ) > 1 ) {
 	        $message = count( $volunteers ) . ' Volunteers';
@@ -681,7 +757,14 @@ class Volunteer_Management_And_Tracking_Admin {
 	        );
 	        wp_send_json_error( $results );
 	    }
-	    $html = $this->ajax_get_html( $event );
+	    $args = array();
+	    $args['event']= $event;
+	    $args['vpno'] = 1;
+	    $args['evpno'] = 1;
+	    $args['posts_per_page'] = get_option( 'posts_per_page' );
+	    $args['volunteers_search'] = '';
+	    $args['event_volunteers_search'] = '';
+	    $html = $this->ajax_get_manage_volunteers_html( $args );
 	    $message = $volunteers[0]->display_name;
 	    if ( count( $volunteers ) > 1 ) {
 	        $message = count( $volunteers ) . ' Volunteers';
@@ -739,7 +822,14 @@ class Volunteer_Management_And_Tracking_Admin {
 	        );
 	        wp_send_json_error( $results );
 	    }
-	    $html = $this->ajax_get_html( $event );
+	    $args = array();
+	    $args['event']= $event;
+	    $args['vpno'] = 1;
+	    $args['evpno'] = 1;
+	    $args['posts_per_page'] = get_option( 'posts_per_page' );
+	    $args['volunteers_search'] = '';
+	    $args['event_volunteers_search'] = '';
+	    $html = $this->ajax_get_manage_volunteers_html( $args );
 	    $message = $volunteers[0]->display_name;
 	    if ( count( $volunteers ) > 1 ) {
 	        $message = count( $volunteers ) . ' Volunteers';
@@ -749,6 +839,70 @@ class Volunteer_Management_And_Tracking_Admin {
 	        'success_notice'=> $this->accumulate_messages(
 	            array( __( 'Updated ' . $message , 'vmattd' ) ),
 	            'notice-success'),
+	        'html' => $html,
+	    );
+	    // ajax request succeeded
+	    wp_send_json_success( $results );
+	}
+	
+	public function ajax_paginate_vmat_admin_hours() {
+	    check_ajax_referer( 'vmat_ajax' );
+	    $data = array();
+	    $event_id = 0;
+	    $errors = array();
+	    if ( ! empty( $_POST['data'] ) ) {
+	        $data = $_POST['data'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No data specified in paginate request. Please try again', 'vmattd' );
+	    }
+	    if ( empty( $errors ) ) {
+	        if ( ! empty( $data['admin_page'] ) ) {
+	            $admin_page = $data['admin_page'];
+	        } else {
+	            $errors[] = __('<strong>ERROR</strong>: No admin_page specified in paginate request. Please try again', 'vmattd' );
+	        }
+	        if ( empty( $errors ) ) {
+	            switch ( $admin_page ) {
+	                case 'vmat_admin_hours':
+	                    if ( ! empty( $data['event_id'] ) ) {
+	                        $event_id = absint( $data['event_id'] );
+	                    }
+	                    if ( ! $event_id ) {
+	                        $target = '#vmat_select_event_admin';
+	                        $args = $this->ajax_get_paginate_vmat_admin_hours_data( $event_id );
+	                        if ( array_key_exists( 'errors' , $args ) ) {
+	                            $errors = array_merge( $errors, $args['errors'] );
+	                        }
+	                        if ( empty( $errors ) ) {
+	                            $html = $this->ajax_get_select_event_html( $args );
+	                        }
+	                    } else {
+	                        $target = '#vmat_manage_volunteers_admin';
+	                        $args = $this->ajax_get_paginate_vmat_admin_hours_data( $event_id );
+	                        if ( array_key_exists( 'errors' , $args ) ) {
+	                            $errors = array_merge( $errors, $args['errors'] );
+	                        }
+	                        if ( empty( $errors ) ) {
+	                            $html = $this->ajax_get_manage_volunteers_html( $args );
+	                        }
+	                    }
+	                    break;
+	                default:
+	                    // default action
+	            }
+	        }
+	    }
+	    if ( ! empty( $errors ) ) {
+	        // ajax request failed
+	        $results = array(
+	            'notice' => $this->accumulate_messages(
+	                $errors,
+	                'notice-error' ),
+	        );
+	        wp_send_json_error( $results );
+	    }
+	    $results = array(
+	        'target' => $target,
 	        'html' => $html,
 	    );
 	    // ajax request succeeded
@@ -1260,7 +1414,7 @@ class Volunteer_Management_And_Tracking_Admin {
                 // found the event
                 $orgs = $vmat_plugin->get_common()->get_event_organizations_string( $event->ID );
                 if ( $orgs == 'None' ) {
-                    $notice = '<strong>INFO</strong>: No organizations associated with this event. Volunteer reports will be assigned to Funding Stream "None". <br />';
+                    $notice = '<strong>WARNING</strong>: No organizations associated with this event. Volunteer reports will be assigned to Funding Stream "None". <br />';
 	                $notice .= 'Click this link to edit the event to add one or more sponsoring organizations ';
 	                $notice .= '<a href="' . add_query_arg( array( 'post'=>$event->ID, 'action'=>'edit' ), admin_url('post.php') ) . '">Edit</a>';
                     $notices[] = __($notice, 'vmattd' );;
@@ -1302,7 +1456,7 @@ class Volunteer_Management_And_Tracking_Admin {
             $args['event_volunteers_search'] = $vmat_plugin->get_common()->var_from_get( 'event_volunteers_search', '' );
             $args['event_volunteers'] = $vmat_plugin->get_common()->get_volunteers_added_to_event( $args );
         }
-        $message = $this->accumulate_messages( $notices, 'notice-info');
+        $message = $this->accumulate_messages( $notices, 'notice-warning');
         $message .= $this->accumulate_messages( $errors, 'notice-error');
         $args['notices'] = $message;
         // remove empty query vars
@@ -1359,7 +1513,7 @@ class Volunteer_Management_And_Tracking_Admin {
         $this->admin_header( $args['notices'] );
         ?>
         <div class="row">
-        	<div class="col">
+        	<div id="vmat_select_event_admin" class="col">
                 <?php 
                 // display the event selection table or the selected event name and organization
                 vmat_get_events_admin( $args );

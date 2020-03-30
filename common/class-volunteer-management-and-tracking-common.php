@@ -787,7 +787,7 @@ class Volunteer_Management_And_Tracking_Common {
 	        $previous_page_button = '<span class="tablenav-pages-navspan button disabled" aria-hidden="true">&lsaquo;</span>';
 	    }
 	    if ($max_num_pages > 1 ) {
-	        $selected_page = '<span class="paging-input"><label for="current-page-selector" class="screen-reader-text">Current Page</label><input class="current-page" id="current-page-selector" type="text" name="pno" value="' . $page . '" size="2" aria-describedby="table-paging"><span class="tablenav-paging-text"> of <span class="total-pages">' . $max_num_pages . '</span></span></span>';
+	        $selected_page = '<span class="paging-input"><label for="current-page-selector" class="screen-reader-text">Current Page</label><input class="current-page" id="current-page-selector" type="text" name="' . $page_id . '" value="' . $page . '" size="2" aria-describedby="table-paging"><span class="tablenav-paging-text"> of <span class="total-pages">' . $max_num_pages . '</span></span></span>';
 	    }
 	    if ($page < $max_num_pages ) {
 	        $next_page_button = ' <a class="next-page button" href="' . $page_link . '&' . $page_id . '=' . absint($page + 1) .'"><span class="screen-reader-text">Next page</span><span aria-hidden="true">&rsaquo;</span></a>';
@@ -796,6 +796,54 @@ class Volunteer_Management_And_Tracking_Common {
 	    }
 	    if ($page < $max_num_pages - 1 ) {
 	        $last_page_button = ' <a class="last-page button" href="' . $page_link . '&' . $page_id. '=' . $max_num_pages .'"><span class="screen-reader-text">Last page</span><span aria-hidden="true">&raquo;</span></a>';
+	    } else {
+	        $last_page_button = '<span class="tablenav-pages-navspan button disabled" aria-hidden="true">&raquo;</span>';
+	    }
+	    $output = '';
+	    $output .= '<div class="tablenav-pages"><span class="displaying-num">' . $num_items . ' items</span>';
+	    $output .= '<span class="pagination-links">';
+	    if ( $max_num_pages > 1 ) {
+	        $output .= $first_page_button;
+	        $output .= $previous_page_button;
+	        $output .= $selected_page;
+	        $output .= $next_page_button;
+	        $output .= $last_page_button;
+	    }
+	    $output .= '</span>';
+	    $output .= '</div>';
+	    return $output;
+	}
+	
+	public function ajax_admin_paginate( $num_items, $page, $max_num_pages, $page_name='vpno', $ajax_args=array() ) {
+	    $ajax_data_attributes = array();
+	    foreach( $ajax_args as $key => $value ) {
+	        $ajax_data_attributes[] = $key . ':' . $value;
+	    }
+	    $ajax_data_attributes = implode( ',', $ajax_data_attributes );
+	    if ($page > 2 ) {
+	        $ajax_data_attributes_first = $ajax_data_attributes . ',' . $page_name . ':' . 1;
+	        $first_page_button = ' <span class="first-page button vmat-ajax-paginate" ajax_data_attributes="' . $ajax_data_attributes_first . '"><span class="screen-reader-text">First page</span><span aria-hidden="true">&laquo;</span></span>';
+	    } else {
+	        $first_page_button = '<span class="tablenav-pages-navspan button disabled" aria-hidden="true">&laquo;</span>';
+	    }
+	    if ($page > 1 ) {
+	        $ajax_data_attributes_previous = $ajax_data_attributes . ',' . $page_name . ':' . absint($page - 1);
+	        $previous_page_button = ' <span class="prev-page button vmat-ajax-paginate" ajax_data_attributes="' . $ajax_data_attributes_previous . '"><span class="screen-reader-text">Previous page</span><span aria-hidden="true">&lsaquo;</span></span>';
+	    } else {
+	        $previous_page_button = '<span class="tablenav-pages-navspan button disabled" aria-hidden="true">&lsaquo;</span>';
+	    }
+	    if ($max_num_pages > 1 ) {
+	        $selected_page = '<span class="paging-input"><label for="current-page-selector" class="screen-reader-text">Current Page</label><input class="current-page vmat-ajax-paginate" id="current-page-selector" type="text" name="' . $page_name . '" value="' . $page . '" size="2" aria-describedby="table-paging"><span class="tablenav-paging-text"> of <span class="total-pages">' . $max_num_pages . '</span></span></span>';
+	    }
+	    if ($page < $max_num_pages ) {
+	        $ajax_data_attributes_next = $ajax_data_attributes . ',' . $page_name . ':' . absint($page + 1);
+	        $next_page_button = ' <span class="next-page button vmat-ajax-paginate" ajax_data_attributes="' . $ajax_data_attributes_next . '"><span class="screen-reader-text">Next page</span><span aria-hidden="true">&rsaquo;</span></span>';
+	    } else {
+	        $next_page_button = '<span class="tablenav-pages-navspan button disabled" aria-hidden="true">&rsaquo;</span>';
+	    }
+	    if ($page < $max_num_pages - 1 ) {
+	        $ajax_data_attributes_last = $ajax_data_attributes .  ',' . $page_name . ':' . $max_num_pages;
+	        $last_page_button = ' <span class="last-page button vmat-ajax-paginate" ajax_data_attributes="' . $ajax_data_attributes_last . '"><span class="screen-reader-text">Last page</span><span aria-hidden="true">&raquo;</span></span>';
 	    } else {
 	        $last_page_button = '<span class="tablenav-pages-navspan button disabled" aria-hidden="true">&raquo;</span>';
 	    }
