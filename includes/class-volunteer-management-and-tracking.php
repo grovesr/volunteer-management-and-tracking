@@ -169,7 +169,7 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_action( 'wp_ajax_ajax_remove_volunteers_from_event', $this->admin, 'ajax_remove_volunteers_from_event' );
         $this->loader->add_action( 'wp_ajax_ajax_save_event_volunteers_data', $this->admin, 'ajax_save_event_volunteers_data' );
         $this->loader->add_action( 'wp_ajax_ajax_approve_volunteers_hours_for_event', $this->admin, 'ajax_approve_volunteers_hours_for_event' );
-        $this->loader->add_action( 'wp_ajax_ajax_set_default_volunteers_hours_for_event', $this->admin, 'ajax_set_default_volunteers_hours_for_event' );
+        $this->loader->add_action( 'wp_ajax_ajax_set_default_event_volunteers_data', $this->admin, 'ajax_set_default_event_volunteers_data' );
         $this->loader->add_action( 'wp_ajax_ajax_paginate_vmat_admin_hours', $this->admin, 'ajax_paginate_vmat_admin_hours' );
         
         // render the volunteer fields for the wp-admin/user-new.php form

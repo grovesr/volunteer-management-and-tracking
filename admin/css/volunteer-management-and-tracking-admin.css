@@ -2,15 +2,12 @@
  * All of the CSS for your admin-specific functionality should be
  * included in this file.
  */
+ 
  #vmat_organizations_checklist, #vmat_funding_streams_checklist {
  	min-height: 42px;
  	max-height: 200px;
  	overflow: auto;
  	padding: 0 .9em;
- }
- 
- .ajax-added-success {
- 	background-color: #ada;
  }
  
  #event_volunteers_added_status .notice {
@@ -23,7 +20,7 @@
  	background-color: #ddd;
  }
  
- .waiting, .waiting * {
+ .waiting {
  	cursor: wait !important;
  }
  
@@ -47,6 +44,16 @@
  	border-style: none none solid none;
  }
  
- input.vmat-event-volunteer-input-changed {
+ input.vmat-event-volunteer-input-changed:valid {
+ 	background-color: #dfd;
+ }
+ 
+ input.vmat-event-volunteer-input-changed:invalid {
  	background-color: #fdf;
  }
+ 
+ .widefat thead td.vmat-check-column, .widefat thead td.vmat-manage-column {
+ 	padding: 11px 0 0 3px;
+ 	width: 2.2em;
+	vertical-align: top; 
+}

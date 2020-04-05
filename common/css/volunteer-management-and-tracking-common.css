@@ -2,8 +2,80 @@
  * All of the CSS this common to admin, public, login should be
  * included in this file.
  */
+
+.vmat-notice {
+	margin: 5px 0 15px;
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	border-left-width: 4px;
+	box-shadow: 0 1px 1px rgba(0,0,0,.04);
+	margin: 5px 0px 2px 0px;
+	padding: 1px 12px;
+}
+
+.vmat-notice-success {
+	border-left-color: green;
+} 
+
+.vmat-notice-info {
+	border-left-color: blue;
+} 
+
+.vmat-notice-warning {
+	border-left-color: yellow;
+}
+ 
+.vmat-notice-error {
+	border-left-color: red;
+}
+
 .vmat-link {
 		cursor: pointer;
 		color: #0073aa;
 		white-space: nowrap;
+}
+
+div.vmat-notice p {
+	display: inline-block;
+	width: 90%;
+}
+
+.vmat-notice > [vmat-notice-dismiss] {
+	float: right;
+    top: 1.3em;
+  	left: 0;
+  	padding-top: 14px;
+  	cursor: pointer; 
+  	background: 0 0;
+  	color: #999;
+  	font: normal 16px/20px dashicons;
+}
+
+.vmat-notice > [vmat-notice-dismiss]:hover { 
+  	color: red;
+}
+
+.clearable-input {
+  position: relative;
+  display: inline-block;
+}
+.clearable-input > input {
+  padding-right: 1.4em;
+}
+.clearable-input > [data-clear-input] {
+  position: absolute;
+  top: 0.3em;
+  right: 0;
+  font-weight: bold;
+  font-size: 1.4em;
+  padding: 0 0.2em;
+  line-height: 1em;
+  cursor: pointer; 
+  background: 0 0;
+  color: #999;
+  font: normal 16px/20px dashicons;
+}
+
+.clearable-input > [data-clear-input]:hover {
+  color: black;
 }

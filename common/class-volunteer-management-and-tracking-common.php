@@ -767,10 +767,14 @@ class Volunteer_Management_And_Tracking_Common {
 	    }
 	    return array( 
 	        'days' => $days, 
-	        'start_date' => date_format( $start_date, 'Y-m-d' ),
-	        'end_date' => date_format( $end_date, 'Y-m-d' ),
-	        'start_time' => date_format( $start_time, 'H:i:s' ),
-	        'end_time' => date_format( $end_time, 'H:i:s' ),
+	        'iso_start_date' => date_format( $start_date, 'Y-m-d' ),
+	        'iso_end_date' => date_format( $end_date, 'Y-m-d' ),
+	        'start_date' => date_format( $start_date, 'M m, Y' ),
+	        'end_date' => date_format( $end_date, 'M m, Y' ),
+	        'iso_start_time' => date_format( $start_time, 'H:i:s' ),
+	        'iso_end_time' => date_format( $end_time, 'H:i:s' ),
+	        'start_time' => date_format( $start_time, 'g:i a' ),
+	        'end_time' => date_format( $end_time, 'g:i a' ),
 	        'hours_per_day' => $hours_per_day,
 	    );
 	}
@@ -833,7 +837,8 @@ class Volunteer_Management_And_Tracking_Common {
 	        $previous_page_button = '<span class="tablenav-pages-navspan button disabled" aria-hidden="true">&lsaquo;</span>';
 	    }
 	    if ($max_num_pages > 1 ) {
-	        $selected_page = '<span class="paging-input"><label for="current-page-selector" class="screen-reader-text">Current Page</label><input class="current-page vmat-ajax-paginate" id="current-page-selector" type="text" name="' . $page_name . '" value="' . $page . '" size="2" aria-describedby="table-paging"><span class="tablenav-paging-text"> of <span class="total-pages">' . $max_num_pages . '</span></span></span>';
+	        $ajax_data_attributes_this_page = $ajax_data_attributes . ',page_name:' . $page_name; 
+	        $selected_page = '<span class="paging-input"><label for="current-page-selector" class="screen-reader-text">Current Page</label><input type="number" min="1" max="' . $max_num_pages . '" class="current-page vmat-ajax-paginate" id="current-page-selector" type="text" ajax_data_attributes="' . $ajax_data_attributes_this_page . '" name="' . $page_name . '" value="' . $page . '" size="2" aria-describedby="table-paging"><span class="tablenav-paging-text"> of <span class="total-pages">' . $max_num_pages . '</span></span></span>';
 	    }
 	    if ($page < $max_num_pages ) {
 	        $ajax_data_attributes_next = $ajax_data_attributes . ',' . $page_name . ':' . absint($page + 1);
@@ -862,11 +867,10 @@ class Volunteer_Management_And_Tracking_Common {
 	    return $output;
 	}
 	
-	public function event_row( $event, $this_page_url, $alternate='' ) {
-	    /* 
-	     * return a table row for an event
+	public function event_display( $event ) {
+	    /*
+	     * return a grid row for an event
 	     * $event = event post object
-	     * $this_page_url = url to the page that will allow take event_id as an arg
 	     */
 	    global $wpdb;
 	    $location_id = get_post_meta( $event->ID, '_location_id', true);
@@ -885,8 +889,87 @@ class Volunteer_Management_And_Tracking_Common {
 	    } else {
 	        $event_end_time = ' - ' . $event_end_time;
 	    }
+	    $event_edit_href = admin_url( 'post.php');
+	    $event_edit_href = add_query_arg( 'post', $event->ID, $event_edit_href );
+	    $event_edit_href = add_query_arg( 'action', 'edit', $event_edit_href );
+	    $location = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . EM_LOCATIONS_TABLE . ' WHERE location_id=%s', $location_id ), ARRAY_A);
+	    // get event sponsoring organizations
+	    $orgs = $this->get_event_organizations_string( $event->ID );
+	    $output = '<table class="widefat">';
+	    $output .= '<thead>';
+	    $output .= '<tr>';
+	    $output .= '<th>';
+	    $output .= 'Event';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Sponsoring Organization';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Volunteers';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Location';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Date &amp; Time';
+	    $output .= '</th>';
+	    $output .= '</tr>';
+	    $output .= '</thead>';
+	    $output .= '<tr>';
+	    $output .= '<td>';
+	    $output .= '<strong>'. $event->post_title . '</strong>';
+	    $output .= '<div>';
+	    $output .= '<a id="vmat_event_' . $event->ID . '" href="' . $event_edit_href . '">' . __('Edit', 'vmattd') . '</a>';
+	    $output .= '</div>';
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= '<strong>' . $orgs . '</strong>';
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $this->get_number_event_volunteers( $event );
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= '<strong>' . $location['location_name'] . '</strong>';
+	    $output .= '<br />';
+	    $output .= $location['location_address'] . ' - ' . $location['location_town'];
+	    $output .= '</td>';
+	    $output .= '<td>'; // dates and time
+	    $output .= $event_start_date . $event_end_date . '<br />';
+	    $output .= $event_start_time . $event_end_time;
+	    $output .= '</td>';
+	    $output .= '</tr>';
+	    $output .= '</table>';
+	    return $output;
+	}
+	
+	public function event_row( $event, $this_page_url, $alternate='' ) {
+	    /* 
+	     * return a table row for an event
+	     * $event = event post object
+	     * $this_page_url = url to the page that will allow take event_id as an arg
+	     */
+	    global $wpdb;
+	    $location_id = get_post_meta( $event->ID, '_location_id', true);
+	    $event_data = $this->get_event_data( $event->ID );
+	    $event_start_date = $event_data['iso_start_date'];
+	    $event_end_date = $event_data['iso_end_date'];
+	    if ( $event_start_date == $event_end_date ) {
+	        $event_end_date = '';
+	    } else {
+	        $event_end_date = ' - ' . $event_end_date;
+	    }
+	    $event_start_time = $event_data['iso_start_time'];
+	    $event_end_time = $event_data['iso_end_time'];
+	    if ( $event_start_time == $event_end_time ) {
+	        $event_end_time = '';
+	    } else {
+	        $event_end_time = ' - ' . $event_end_time;
+	    }
 	    $submit_url = add_query_arg( 'event_id', $event->ID, $this_page_url );
 	    $submit_url = add_query_arg( 'form_id', 'volunteers-filter', $submit_url );
+	    $event_edit_href = admin_url( 'post.php');
+	    $event_edit_href = add_query_arg( 'post', $event->ID, $event_edit_href );
+	    $event_edit_href = add_query_arg( 'action', 'edit', $event_edit_href );
 	    $location = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . EM_LOCATIONS_TABLE . ' WHERE location_id=%s', $location_id ), ARRAY_A);
 	    // get event sponsoring organizations
 	    $orgs = $this->get_event_organizations_string( $event->ID );
@@ -895,6 +978,9 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '<strong>';
 	    $output .= '<a class="row-title" href="' . $submit_url . '">' . $event->post_title . '</a>';
 	    $output .= '</strong>';
+	    $output .= '<div class="row-actions">';
+	    $output .= '<a id="vmat_event_' . $event->ID . '" href="' . $event_edit_href . '">' . __('Edit', 'vmattd') . '</a>';
+	    $output .= '</div>';
 	    $output .= '</td>';
 	    $output .= '<td><b>';
 	    $output .= $orgs;
@@ -930,7 +1016,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= $volunteer->first_name . ' ' . $volunteer->last_name;
 	    $output .= '</strong>';
 	    $output .= '<div class="row-actions">';
-	    $output .= '<span class="vmat-link" id="vmat_selected_volunteer_' . $volunteer->ID . '">' . __('Add Hours ', 'vmattd') . '&raquo;</span>';
+	    $output .= '<span class="vmat-link" id="vmat_selected_volunteer_' . $volunteer->ID . '">' . __('Add ', 'vmattd') . '&raquo;</span>';
 	    $output .= '</div>';
 	    $output .= '</td>';
 	    $output .= '<td>'; // dates and time
@@ -970,34 +1056,37 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '<div class="row-actions">';
 	    $output .= '<span>';
 	    $output .= '<span class="vmat-link" data_action="remove" volunteer_id="' . $volunteer->ID . '" id="vmat_selected_event_volunteer_remove_' . 
-	               $volunteer->ID . '">&laquo;' . __(' Remove', 'vmattd') . '</span>';
+	               $volunteer->ID . '" title="Remove volunteer">&laquo;' . __(' Remove', 'vmattd') . '</span>';
 	    $output .= '&nbsp;|&nbsp;';
-	    $output .= '<span class="vmat-link" data_action="default" volunteer_id="' . $volunteer->ID . '" id="vmat_selected_event_volunteer_default_hrs_' . 
-	               $volunteer->ID . '">' . __('Default', 'vmattd') . '</span>';
-	               $output .= '&nbsp;|&nbsp;';
 	    $output .= '<span class="vmat-link" data_action="save" volunteer_id="' . $volunteer->ID . '" id="vmat_selected_event_volunteer_save_' . 
-	               $volunteer->ID . '">' . __('Save', 'vmattd') . '</span>';
+	               $volunteer->ID . '" title="Save volunteer hours">' . __('Save', 'vmattd') . '</span>';
 	    $output .= '</span>';
+	    $output .= '&nbsp;|&nbsp;';
+	    $output .= '<span class="vmat-link" data_action="default" volunteer_id="' . $volunteer->ID . '" id="vmat_selected_event_volunteer_default_' .
+	   	    $volunteer->ID . '" title="Set to event defaults">' . __('Default', 'vmattd') . '</span>';
+	   	    $output .= '</span>';
 	    $output .= '</div>';
 	    $output .= '</td>';
 	    $output .= '<td>';
-	    $output .= '<input class="vmat-event-volunteer-input" type="number" size="3" min="0" max="24" id="vmat_hours_per_day_' . $event_id . '_' . 
-	               $volunteer->ID . '" value="' . $hours_meta['_hours_per_day'][0] . '">';
+	    $output .= '<input class="vmat-event-volunteer-input" data_name="hours_per_day" type="number" size="3" min="0" max="24" id="vmat_hours_per_day_' . $event_id . '_' . 
+	               $volunteer->ID . '" value="' . $hours_meta['_hours_per_day'][0] . '" required>';
 	    $output .= '</td>';
 	    $output .= '<td>';
-	    $output .= '<input class="vmat-event-volunteer-input" type="date" min="0" id="vmat_start_date_' . $event_id . '_' .
-	   	           $volunteer->ID . '" value="' . $hours_meta['_volunteer_start_date'][0] . '">';
+	    $output .= '<input class="vmat-event-volunteer-input" data_name="volunteer_start_date" min="' . $event_data['iso_start_date'] . 
+	   	            '" max="' . $event_data['iso_end_date'] . '" type="date" id="vmat_start_date_' . 
+	   	           $event_id . '_' . $volunteer->ID . '" value="' . $hours_meta['_volunteer_start_date'][0] . '" required>';
 	    $output .= '</td>';
 	    $output .= '<td>';
-	    $output .= '<input class="vmat-event-volunteer-input" type="number" size="3" min="0" max="' . $days . '" id="vmat_days_' . $event_id . '_' . 
-	               $volunteer->ID . '" value="' . $hours_meta['_volunteer_num_days'][0] . '">';
+	    $output .= '<input class="vmat-event-volunteer-input" data_name="volunteer_days" type="number" size="3" min="0" max="' . $days . '" id="vmat_days_' . $event_id . '_' . 
+	               $volunteer->ID . '" value="' . $hours_meta['_volunteer_num_days'][0] . '" required>';
 	    $output .= '</td>';
-	    $output .= '<td>';
+	    $output .= '<td class="vmat-check-column">';
 	    $checked = '';
 	    if ( $hours_meta['_approved'][0] ) {
 	        $checked = 'checked';
 	    }
-	    $output .= '<input class="vmat-event-volunteer-input" type="checkbox" id="vmat_hours_approved_' . $event_id . '_' . $volunteer->ID . '" ' . $checked . ' />';
+	    $output .= '<input class="vmat-event-volunteer-input" data_name="approved" ' .
+	   	           'id="vmat_hours_approved_' . $event_id . '_' . $volunteer->ID . '" type="checkbox" ' . $checked . '/>';
 	    $output .= '</td>';
 	    return $output;
 	}
@@ -1051,6 +1140,52 @@ class Volunteer_Management_And_Tracking_Common {
 	
 	public function validate_month($month, $format = 'M' ) {
 	    return $this->validate_date( $month, $format );
+	}
+	
+	public function validate_input( $input=array() ) {
+	    /*
+	     * expect an input with the following format
+	     * $input['val'] : value
+	     * $input['type'] : type if input value ('text','number','checkbox', ...)
+	     * $input['selector'] : CSS selector of input element
+	     * $input['min'] : minimum value (may be null depending on type) 
+	     * $input['max'] : maximum value (may be null depending on type) 
+	     */
+	    $message = '';
+	    switch( $input['type'] ) {
+	        case 'text':
+	            break;
+	        case 'number':
+	            if( ! $this->check_numeric_input( $input ) ) {
+	                $message = 'invalid input. Type should be "' . $input['type'] . '" and range=[' . $input['min'] . '-' . $input['max'] . ']';
+	            }
+	            break;
+	        case 'date':
+	            break;
+	        case 'checkbox':
+	            break;
+	        default:
+	    }
+	    return $message;
+	}
+	
+	public function check_numeric_input( $input=array() ) {
+	    /*
+	     * expect an input with the following format
+	     * $input['val'] : value
+	     * $input['type'] : type if input value ('text','number','checkbox', ...)
+	     * $input['selector'] : CSS selector of input element
+	     * $input['min'] : minimum value (may be null depending on type)
+	     * $input['max'] : maximum value (may be null depending on type)
+	     */
+	    $success = false;
+	    if ( is_numeric($input['val'] ) ) {
+	        if ( $input['min'] > $input['val'] || $input['max'] < $input['val'] ) {
+	            $success = false;
+	        }
+	        $success = true;
+	    }
+	    return $success;
 	}
 	
 	public function var_from_get( $key, $default='' ) {

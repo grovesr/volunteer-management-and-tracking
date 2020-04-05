@@ -10,11 +10,9 @@
 function vmat_get_events_admin( $args=array() ) {
     global $vmat_plugin;
     $event = $args['event'];
-    $orgs = $args['orgs'];
     $event_select_prefix = ' Select ';
     if ( $event ) {
         $event_select_prefix = 'Selected ';
-        $event_data = $vmat_plugin->get_common()->get_event_data( $event->ID );
     }
     ?>
     <div class="row">
@@ -39,42 +37,23 @@ function vmat_get_events_admin( $args=array() ) {
         		    <div class="col">
                 		<h2><?php _e( $event_select_prefix . 'Event:', 'vmattd' ); ?></h2>
                 	</div><!-- Event header -->
-                	<?php
-                	if ( $event ) {?>
-            			<div class="col">
-            				<h2><?php
-            				
-            				    _e( 'Sponsoring Organization(s):', 'vmattd' );
-            				    ?>
-            				</h2>
-            			</div><!-- Organization header -->
-            			<?php
-                	}
-                	?>
         		</div><!-- row -->
         		<div class="row">
         			<div class="col">
         				<?php
-        			if ( $event ) {
-        			    echo '<h2>';
-        			    _e($event->post_title . '<br />( duration ' . $event_data['days'] . ' days)', 'vmattd');
-        			    echo '</h2>';
-        			} else {
-        			    vmat_events_table( $args );
-        			}
-        				?>
-        			</div><!--  Selected event name or event selection table -->
-        			<?php
             			if ( $event ) {
+            			    _e( $vmat_plugin->get_common()->event_display( $event ), 'vmattd');
+            			} else {
             			    ?>
-                			<div class="col">
-                				<h2>
-                    			    <?php _e($orgs, 'vmattd'); ?>
-                    			</h2>
-                			</div><!-- Selected organization -->
-                			<?php
+            			    <div id="vmat_events_table">
+            			    <?php 
+            			    vmat_events_table( $args );
+            			    ?>
+            			    </div>
+            			    <?php
             			}
-            			?>
+        				?>
+        			</div><!--  Selected event display or event selection table -->
         		</div><!-- row -->
           	</form><!-- form -->
       	</div>
@@ -93,18 +72,22 @@ function vmat_manage_volunteers_admin( $args=array() ) {
             	<input type="hidden" name="event_id" value="<?php echo $event->ID; ?>">
         		<div class="row">
         			<div class="col-lg-4">
-        				<h2><?php _e( 'Add Volunteers:', 'vmattd' ); ?></h2>
+        				<h2><?php _e( 'Add Volunteers to Event:', 'vmattd' ); ?></h2>
+        				<div id="vmat_volunteers_table">
         				<?php
         			    vmat_volunteers_table( $args );
         				?>
+        				</div>
         			</div><!--  volunteer selection table -->
         			<div class="col">
         				<h2><?php _e( 'Manage Event Volunteer Hours:', 'vmattd' ); ?></h2>
+        				<div id="vmat_event_volunteers_table">
         				<?php
         			    vmat_event_volunteers_table( $args );
         				?>
+        				</div>
         			</div><!--  manage hours table -->
-    		</div><!-- row -->
+    			</div><!-- row -->
     		</form>
       	</div>
   	</div>
@@ -151,6 +134,7 @@ function vmat_events_table( $args ) {
         'vmat_org' => $vmat_org,
         'events_search' => $search,
         'posts_per_page' => $args['posts_per_page'],
+        'target' => 'vmat_events_table',
     );
     $table_nav = $vmat_plugin->get_common()->ajax_admin_paginate(
         $found_posts,
@@ -164,18 +148,27 @@ function vmat_events_table( $args ) {
     	<input type="hidden" name="page" value="vmat_admin_hours">
     	<input type="hidden" name="form_id" value="events-filter">
         <div>
-        	<p class="search-box">
-        	<label class="screen-reader-text" for="post-search-input"><?php _e('Search Events:', 'vmattd')?></label>
-        	<input type="text" id="event-search-input" name="events_search" value="<?php 
-        	if ( ! empty( $search) ) {
-        	    echo $search;
-        	} else {
-        	    echo '';
-        	}
-        	?>">&nbsp;
-        	</input>
-        	<button class="button" name="submit_button" type="submit" value="search_events"><?php _e('Search Events', 'vmattd'); ?></button>
-        	</p>
+        	<div class="alignright">
+        		<button class="button" 
+        		        name="submit_button" 
+        		        type="submit" 
+        		        value="search_events"><?php _e('Search Events', 'vmattd'); ?>
+        		</button>
+        	</div>
+        	<div class="clearable-input alignright">
+            	<label class="screen-reader-text" 
+            	       for="post-search-input">
+            		<?php _e('Search Events:', 'vmattd')?>
+            	</label>
+            	<input type="text" id="event-search-input" name="events_search" value="<?php 
+            	if ( ! empty( $search) ) {
+            	    echo $search;
+            	} else {
+            	    echo '';
+            	}
+            	?>" />
+            	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
+        	</div>
         	<div class="alignleft">
         	<?php
         	echo $org_pulldown;
@@ -245,18 +238,16 @@ function vmat_volunteers_table( $args ) {
     $volunteers = $user_query->results;
     $found_users = $user_query->total_users;
     $page = $args['vpno'];
-    $evpno = $args['evpno'];
     $max_num_pages = ceil( $found_users / $args['posts_per_page'] );
     $search = $args['volunteers_search'];
     
     $page_name = 'vpno';
     $ajax_args = array(
         'event_id' => $event->ID,
-        'evpno' => $evpno,
         'volunteers_search' => $search,
-        'event_volunteers_search' => $args['event_volunteers_search'],
         'admin_page' => 'vmat_admin_hours',
         'posts_per_page' => $args['posts_per_page'],
+        'target' => 'vmat_volunteers_table',
     );
     $table_nav = $vmat_plugin->get_common()->ajax_admin_paginate(
         $found_users,
@@ -267,23 +258,37 @@ function vmat_volunteers_table( $args ) {
         );
     ?>
 	<div class="row">
-		<div class="col-md-auto search-box">
-        	<label class="screen-reader-text" for="volunteer-search-input"><?php _e('Search', 'vmattd')?></label>
-        	<input type="text" id="post-search-input" name="volunteers_search" value="<?php 
-        	if ( ! empty( $search) ) {
-        	    echo $search;
-        	} else {
-        	    echo '';
-        	}
-        	?>">&nbsp;
-        	</input>
-        	<button class="button" name="submit_button" type="submit" value="search_volunteers"><?php _e('Search', 'vmattd'); ?></button>
+		<div class="col-md-auto">
+			<div class="alignright">
+        		<button class="button" 
+        		        name="submit_button" 
+        		        type="submit" 
+        		        value="search_volunteers"><?php _e('Search', 'vmattd'); ?>
+        		</button>
+        	</div>
+        	<div class="clearable-input alignright">
+            	<label class="screen-reader-text" 
+            	       for="volunteer-search-input">
+            		<?php _e('Search Events:', 'vmattd')?>
+            	</label>
+            	<input type="text" id="volunteer-search-input" name="volunteers_search" value="<?php 
+            	if ( ! empty( $search) ) {
+            	    echo $search;
+            	} else {
+            	    echo '';
+            	}
+            	?>" />
+            	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
+        	</div>
 		</div>
 	</div>
     <div class="row">
     	<div class="col">
     		<div class="alignleft actions bulkactions">
-				<button id="do_volunteers_bulk_action" class="button action" type="button" value="bulk_add_volunteers_to_event" disabled><?php _e( 'Bulk Add Hours ', 'vmattd')?>&raquo;</button>
+				<button id="do_volunteers_bulk_action" class="button action" type="button" value="bulk_add_volunteers_to_event" disabled><?php _e( 'Bulk Add Vols ', 'vmattd')?>&raquo;</button>
+			</div>
+			<div class="alignright">
+				<button id="vmat_register_new_volunteer" class="button action" type="button" value="register_new_volunteer" title="Register a new volunteer"><?php _e( 'Register New Vol.', 'vmattd')?></button>
 			</div>
     	</div>
     </div>
@@ -294,6 +299,13 @@ function vmat_volunteers_table( $args ) {
     			echo $table_nav;
     			?>
     			<br class="clear"/>
+    		</div>
+    	</div>
+    </div>
+    <div class="row">
+    	<div class="col pr-1">
+    		<div id="event_volunteers_added_status">
+    			<?php $vmat_plugin->get_admin()->admin_notice(); ?>
     		</div>
     	</div>
     </div>
@@ -344,17 +356,15 @@ function vmat_event_volunteers_table( $args ) {
     $volunteers = $ev_query->results;
     $found_users = $ev_query->total_users;
     $page = $args['evpno'];
-    $vpno = $args['vpno'];
     $max_num_pages = ceil( $found_users / $args['posts_per_page'] );
     $search = $args['event_volunteers_search'];
     $page_name = 'evpno';
     $ajax_args = array(
         'event_id' => $event->ID,
-        'vpno' => $vpno,
         'admin_page' => 'vmat_admin_hours',
-        'volunteers_search' => $args['volunteers_search'],
         'event_volunteers_search' => $args['event_volunteers_search'],
         'posts_per_page' => $args['posts_per_page'],
+        'target' => 'vmat_event_volunteers_table',
     );
     $table_nav = $vmat_plugin->get_common()->ajax_admin_paginate(
         $found_users,
@@ -365,38 +375,41 @@ function vmat_event_volunteers_table( $args ) {
         );
     ?>
 	<div class="row">
-		<div class="col-md-auto search-box">
-        	<label class="screen-reader-text" for="post-search-input"><?php _e('Search', 'vmattd')?></label>
-        	<input type="text" id="event-volunteer-search-input" name="event_volunteers_search" value="<?php 
-        	if ( ! empty( $search) ) {
-        	    echo $search;
-        	} else {
-        	    echo '';
-        	}
-        	?>">&nbsp;
-        	</input>
-        	<button class="button" name="submit_button" type="submit" value="search_event_volunteers"><?php _e('Search', 'vmattd'); ?></button>
-		</div>
-	</div>
+		<div class="col-md-auto">
+        	<div class="alignright">
+        		<button class="button" 
+        		        name="submit_button" 
+        		        type="submit" 
+        		        value="search_event_volunteers"><?php _e('Search', 'vmattd'); ?>
+        		</button>
+        	</div>
+        	<div class="clearable-input alignright">
+            	<label class="screen-reader-text" 
+            	       for="event-volunteer-search-input">
+            		<?php _e('Search Events:', 'vmattd')?>
+            	</label>
+            	<input type="text" id="event-volunteer-search-input" name="event_volunteers_search" value="<?php 
+            	if ( ! empty( $search) ) {
+            	    echo $search;
+            	} else {
+            	    echo '';
+            	}
+            	?>" />
+            	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
+        	</div>
+		</div><!-- col-md-auto -->
+	</div><!-- row -->
     <div class="row">
     	<div class="col">
-    		<div class="alignleft actions bulkactions">
-				<label for="event-volunteers-bulk-action-selector-top" class="screen-reader-text">' <?php _e( 'Select bulk action', 'vmattd' ); ?>'</label>
-				<select name="event_volunteers_bulk_action" id="event-volunteers-bulk-action-selector">
-                	<option value="-1">Bulk Actions</option>
-                	<option value="default" ><?php _e( 'Set Default Hours', 'vmattd' ); ?></option>
-                	<option value="approve" ><?php _e( 'Approve Hours', 'vmattd' ); ?></option>
-                	<option value="remove" ><?php _e( 'Remove Hours', 'vmattd' ); ?></option>
-                	<option value="save" ><?php _e( 'Save Changes', 'vmattd' ); ?></option>
-                </select>
-				<button id="do_event_volunteers_bulk_action" class="button action" type="button" value="bulk_event_volunteers_action" disabled><?php _e( 'Apply', 'vmattd')?></button>
+			<div class="alignleft actions bulkactions">
+				<button id="event_volunteers_bulk_remove" class="button action" type="button" value="bulk_event_volunteers_remove" disabled>&laquo;&nbsp;<?php _e( 'Bulk Remove Vols', 'vmattd')?></button>
+			</div>
+			<div class="alignleft actions bulkactions">
+				<button id="event_volunteers_bulk_save" class="button action" type="button" value="bulk_event_volunteers_save" disabled><?php _e( 'Bulk Save Hours', 'vmattd')?></button>
 			</div>
     	</div>
     </div>
     <div class="row">
-    	<div class="col">
-    		<div id="event_volunteers_added_status">&nbsp;</div>
-    	</div>
     	<div class="col">
     		<div class="tablenav alignright">
     			<?php
@@ -406,17 +419,24 @@ function vmat_event_volunteers_table( $args ) {
     		</div>
     	</div>
     </div>
+     <div class="row">
+    	<div class="col">
+    		<div id="event_volunteers_updated_status">
+    			<?php $vmat_plugin->get_admin()->admin_notice(); ?>
+    		</div>
+    	</div>
+    </div>
     <div class="row">
     	<div class="col">
     		<table class="widefat" id="vmat_event_volunteers_table">
     			<thead>
     				<tr>
-    					<td class="manage-column column-cb check-column"><input id="vmat_event_volunteers_select_all" type=checkbox></td>
+    					<td class="manage-column column-cb check-column"><input id="vmat_event_volunteers_select_all" type=checkbox></th>
     					<td class="manage-column"><?php _e('User', 'vmattd' );?></td>
-    					<td class="manage-column"><?php _e('Hours/Day', 'vmattd' );?></td>
-    					<td class="manage-column"><?php _e('Start', 'vmattd' );?></td>
+    					<td class="manage-column"><?php _e('Hours/Day (' . $event_data['hours_per_day'] . ')', 'vmattd' );?></td>
+    					<td class="manage-column"><?php _e('Start (mm/dd/yyyy)', 'vmattd' );?></td>
     					<td class="manage-column"><?php _e('Vol. Days (' . $event_data['days'] . ')', 'vmattd' );?></td>
-    					<td class="manage-column"><?php _e('Approved', 'vmattd' );?></td>
+    					<td class="vmat-manage-column"><?php _e('Approved', 'vmattd' );?><input id="vmat_event_volunteers_approve_all" type=checkbox></td>
     				</tr>
     			</thead>
     			<tbody>
