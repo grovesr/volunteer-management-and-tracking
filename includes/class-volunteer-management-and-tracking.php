@@ -164,13 +164,25 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_action( 'admin_enqueue_scripts', $this->admin, 'enqueue_styles' );
         $this->loader->add_action( 'admin_enqueue_scripts', $this->admin, 'enqueue_scripts' );
         
-        // Add ajax handlers. the hook has ajax_ajax because the function called begins with ajax_
+        // Add ajax handlers. the hook has wp_ajax_ajax because the function called begins with ajax_
         $this->loader->add_action( 'wp_ajax_ajax_add_volunteers_to_event', $this->admin, 'ajax_add_volunteers_to_event' );
         $this->loader->add_action( 'wp_ajax_ajax_remove_volunteers_from_event', $this->admin, 'ajax_remove_volunteers_from_event' );
         $this->loader->add_action( 'wp_ajax_ajax_save_event_volunteers_data', $this->admin, 'ajax_save_event_volunteers_data' );
         $this->loader->add_action( 'wp_ajax_ajax_approve_volunteers_hours_for_event', $this->admin, 'ajax_approve_volunteers_hours_for_event' );
         $this->loader->add_action( 'wp_ajax_ajax_set_default_event_volunteers_data', $this->admin, 'ajax_set_default_event_volunteers_data' );
-        $this->loader->add_action( 'wp_ajax_ajax_paginate_vmat_admin_hours', $this->admin, 'ajax_paginate_vmat_admin_hours' );
+        $this->loader->add_action( 'wp_ajax_ajax_paginate_vmat_admin_page', $this->admin, 'ajax_paginate_vmat_admin_page' );
+        $this->loader->add_action( 'wp_ajax_ajax_filter_events', $this->admin, 'ajax_filter_events' );
+        $this->loader->add_action( 'wp_ajax_ajax_search_volunteers', $this->admin, 'ajax_search_volunteers' );
+        $this->loader->add_action( 'wp_ajax_ajax_search_manage_volunteers', $this->admin, 'ajax_search_manage_volunteers' );
+        $this->loader->add_action( 'wp_ajax_ajax_search_event_volunteers', $this->admin, 'ajax_search_event_volunteers' );
+        $this->loader->add_action( 'wp_ajax_ajax_update_volunteer', $this->admin, 'ajax_update_volunteer' );
+        $this->loader->add_action( 'wp_ajax_ajax_save_volunteer_hours_data', $this->admin, 'ajax_save_volunteer_hours_data' );
+        $this->loader->add_action( 'wp_ajax_ajax_remove_hours_from_volunteer', $this->admin, 'ajax_remove_hours_from_volunteer' );
+        $this->loader->add_action( 'wp_ajax_ajax_remove_volunteers', $this->admin, 'ajax_remove_volunteers' );
+        
+        
+        // add vmat settings page
+        $this->loader->add_action( 'admin_init', $this->admin, 'settings_init' );
         
         // render the volunteer fields for the wp-admin/user-new.php form
         $this->loader->add_action('user_new_form', $this->common, 'render_volunteer_fields_form_table');       
@@ -194,28 +206,30 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_action('edit_user_created_user', $this->common, 'update_volunteer_user_meta');
         
         // dashboard page
-        $this->loader->add_action('admin_menu', $this->admin, 'admin_main_page');
-        $this->loader->add_action('admin_menu', $this->admin, 'admin_dashboard_page');
-        // volunteers list page
-        $this->loader->add_action('admin_menu', $this->admin, 'admin_volunteers_page');
-        // manage hours page
-        $this->loader->add_action('admin_menu', $this->admin, 'admin_hours_page');
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_main_page', 5);
+        // manage volunteer participation page
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_volunteer_participation_page', 6);
+        // manage volunteers list page
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_manage_volunteers_page', 7);
         // reports page
-        $this->loader->add_action('admin_menu', $this->admin, 'admin_reports_page');
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_reports_page', 8);
         // settings page
-        $this->loader->add_action('admin_menu', $this->admin, 'admin_settings_page');
-        // manage organizations page
-        $this->loader->add_action('admin_menu', $this->admin, 'admin_organizations_page');
-        // manage funding streams page
-        $this->loader->add_action('admin_menu', $this->admin, 'admin_funding_streams_page');
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_settings_page', 9);
         // remove the submenu auto-generated from the main menu
         $this->loader->add_action('admin_menu', $this->admin, 'remove_admin_main_submenu');
-        // remove the menu auto-generated from adding the CPT hours 
-        $this->loader->add_action('admin_menu', $this->admin, 'remove_admin_hours_menu');
-        // remove the menu auto-generated from adding the CPT organization
-        $this->loader->add_action('admin_menu', $this->admin, 'remove_admin_organization_menu');
-        // remove the menu auto-generated from adding the CPT funding_stream
-        $this->loader->add_action('admin_menu', $this->admin, 'remove_admin_funding_stream_menu');
+        
+        // add nav tabs to the top of the all vmat cpt edit post pages
+        $this->loader->add_action('all_admin_notices', $this->admin, 'add_nav_to_vmat_cpt_edit_page');
+        
+        // add set role to volunteer to users bulk actions
+        $this->loader->add_filter( 'bulk_actions-users', $this->admin, 'register_bulk_add_volunteer_role' );
+        $this->loader->add_filter( 'handle_bulk_actions-users', $this->admin, 'add_volunteer_role_handler', 10, 3 );
+        $this->loader->add_action('admin_notices', $this->admin, 'bulk_add_volunteer_role_admin_notice');
+        
+        // add Add Volunteer role quick action to Users posts
+        $this->loader->add_filter('user_row_actions', $this->admin, 'modify_user_list_row_actions', 10, 2);
+        // Add volunteer row action handler
+        $this->loader->add_action('in_admin_header', $this->admin, 'add_volunteer_role_action');     
         
         // add Add Hours quick action to Events posts
         $this->loader->add_filter('post_row_actions', $this->admin, 'modify_event_list_row_actions', 10, 2);
@@ -246,14 +260,19 @@ class Volunteer_Management_And_Tracking {
         // Add additional information fields meta box to Funding Streams edit page
         $this->loader->add_action('add_meta_boxes', $this->admin, 'add_funding_stream_fields_meta_box');
         // Save additional information fields meta box data into Funding Streams meta data
-        $this->loader-> add_action('save_post_vmat_funding_stream',$this->admin, 'update_funding_stream_fields_meta',1,2);
+        $this->loader->add_action('save_post_vmat_funding_stream',$this->admin, 'update_funding_stream_fields_meta',1,2);
+        
+        // action to remove vmat_hours from user when user is deleted
+        $this->loader->add_action( 'delete_user', $this->admin, 'post_remove_volunteer_action');
         
         // register custom post type Hours
         $this->loader->add_action('init', $this->common , 'register_hours_post_type');
         // register custom post type Funding Streams
-        $this->loader->add_action('init', $this->common , 'register_funding_streams_post_type');
+        $this->loader->add_action('init', $this->common , 'register_funding_stream_post_type');
         // register custom post type Organizations
-        $this->loader->add_action('init', $this->common , 'register_organizations_post_type');
+        $this->loader->add_action('init', $this->common , 'register_organization_post_type');
+        // register custom post type Volunteer Type
+        $this->loader->add_action('init', $this->common , 'register_volunteer_type_post_type');
         
     }
 

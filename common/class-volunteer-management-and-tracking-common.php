@@ -24,6 +24,22 @@ class Volunteer_Management_And_Tracking_Common {
 	/*
 	 * Name => [type, label, required] for each common user field
 	 */
+	private $wp_required_user_fields = [
+	    'user_login' => [
+	        'type' => 'text',
+	        'label' => 'Username',
+	        'required' => true,
+	    ],
+	    'email' => [
+	        'type' => 'email',
+	        'label' => 'Email',
+	        'required' => true,
+	    ],
+	];
+	
+	/*
+	 * Name => [type, label, required] for each common user field
+	 */
 	private $common_user_fields = [
 	    'first_name' => [
 	        'type' => 'text',
@@ -45,6 +61,11 @@ class Volunteer_Management_And_Tracking_Common {
 	    'vmat_is_volunteer' => [
 	        'type' => 'boolean', 
 	        'label' => 'Volunteer',
+	        'required' => false,
+	    ],
+	    'vmat_volunteer_type' => [
+	        'type' => 'array',
+	        'label' => 'Volunteer Type',
 	        'required' => false,
 	    ],
 	    'vmat_phone_cell' => [
@@ -163,6 +184,22 @@ class Volunteer_Management_And_Tracking_Common {
 	    return $values;
 	}
 	
+	private function get_default_wp_required_values() {
+	    $values = [];
+	    foreach ( $this->wp_required_user_fields as $field => $aspects ) {
+	        if ( $aspects['type'] == 'boolean' ) {
+	            $default = false;
+	        } elseif ($aspects['type'] == 'text' ||
+	            $aspects['type'] == 'email') {
+	            $default = '';
+	        } elseif ($aspects['type'] == 'array') {
+	            $default = [];
+	        }
+	        $values[$field] = $default;
+	    }
+	    return $values;
+	}
+	
 	private function get_volunteer_values_from_umeta($user) {
 	    $values = [];
 	    foreach ( $this->volunteer_user_fields as $field => $aspects ) {
@@ -181,6 +218,48 @@ class Volunteer_Management_And_Tracking_Common {
 	    }
 	    return $values;
 	}
+	
+	private function get_common_values_from_user($user) {
+	    $values = [];
+	    foreach ( $this->common_user_fields as $field => $aspects ) {
+	        if ( $aspects['type'] == 'boolean' ) {
+	            $default = false;
+	        } elseif ($aspects['type'] == 'text' ) {
+	            $default = '';
+	        } elseif ($aspects['type'] == 'array') {
+	            $default = [];
+	        }
+	        $values[$field] = $default;
+	        $value = $user->{ $field };
+	        if ( ! empty( $value ) ) {
+	            $values[$field] = $value;
+	        }
+	    }
+	    return $values;
+	}
+	
+	private function get_wp_required_values_from_user($user) {
+	    $values = [];
+	    foreach ( $this->wp_required_user_fields as $field => $aspects ) {
+	        if ( $aspects['type'] == 'boolean' ) {
+	            $default = false;
+	        } elseif ($aspects['type'] == 'text' ) {
+	            $default = '';
+	        } elseif ($aspects['type'] == 'array') {
+	            $default = [];
+	        }
+	        $values[$field] = $default;
+	        $user_field = $field;
+	        if ( $field == 'email' ) {
+	            $user_field = 'user_email';
+	        }
+	        $value = $user->{ $user_field };
+	        if ( ! empty( $value ) ) {
+	            $values[$field] = $value;
+	        }
+	    }
+	    return $values;
+	}
     
 	private function render_volunteer_fields($section_type, $user=null) {
 	    /*
@@ -188,7 +267,6 @@ class Volunteer_Management_And_Tracking_Common {
 	     * $section_type switches between <div> based and <table> based layouts
 	     * if $user passed in populate fields with user's meta information
 	     */
-	    
 	    $page = '';
 	    $reg_fields_display = 'none';
 	    if ( $section_type == 'table' ) {
@@ -220,10 +298,15 @@ class Volunteer_Management_And_Tracking_Common {
 	        $page .= '<table class="form-table" role="presentation">';
 	    }
 	    foreach ( $this->volunteer_user_fields as $field => $aspects ) {
+	        $field_class = '';
+	        if ( $aspects['type'] == 'text' ||
+	            $aspects['type'] == 'email' ) {
+	                $field_class='form-field';
+	            }
 	        if ( $field == 'vmat_is_volunteer' ) {
-	            $page .= '<' . $section . '>';
+	            $page .= '<' . $section . ' class="' . $field_class . '">';
 	        } else {
-	            $page .= '<' . $section .  ' class="vmat-registration-fields"
+	            $page .= '<' . $section .  ' class="vmat-registration-fields ' . $field_class . '"
 	                                         style="display:' . $reg_fields_display . '">';
 	        }
 	        if ( $aspects['type'] == 'boolean' ) {
@@ -256,6 +339,11 @@ class Volunteer_Management_And_Tracking_Common {
 	                            'value' => $values[$field],
 	                        ]);
 	                }
+	            } else if ( current_user_can( 'create_users' ) && $field = 'vmat_volunteer_type' ) {
+	                // this is not a category
+	                ob_start();
+	                $this->link_posts_to_user_pulldown( $field, $section_type, $user );
+	                $page .= ob_get_clean();
 	            }
 	        }
 	        $page .= '</' . $section . '>';
@@ -284,7 +372,12 @@ class Volunteer_Management_And_Tracking_Common {
 	        $page .= '<table class="form-table" role="presentation">';
 	    }
 	    foreach ( $this->common_user_fields as $field => $aspects ) {
-	        $page .= '<' . $section . '>';
+	        $field_class = '';
+	        if ( $aspects['type'] == 'text' ||
+	            $aspects['type'] == 'email' ) {
+	                $field_class='form-field';
+	            }
+	        $page .= '<' . $section . ' class="' . $field_class . '">';
 	        if ( $aspects['type'] == 'boolean' ) {
 	            $page .= $this->boolean_choice_field(['option_name' => $field,
 	                'label' => $aspects['label'],
@@ -296,6 +389,207 @@ class Volunteer_Management_And_Tracking_Common {
 	            $page .= $this->text_input_field(['option_name' => $field,
 	                'label' => $aspects['label'],
 	                'type' => $section_type,
+	                'value' => $values[$field],
+	                'required' => $aspects['required']
+	            ]);
+	        } elseif ( $aspects['type'] == 'array' ) {
+	            $page .= $this->multiselect_children_of_category_registration_fields(
+	                ['category' => $aspects['label'],
+	                    'type' => $section_type,
+	                    'value' => $values[$field],
+	                ]);
+	        }
+	        $page .= '</' . $section . '>';
+	    }
+	    if ( $section_type == 'table' ) {
+	        $page .= '</table>';
+	    }
+	    return $page;
+	}
+	
+	private function render_volunteer_fields_for_ajax($section_type, $user=null ) {
+	    /*
+	     * display user's volunteer meta values
+	     * $section_type switches between <div> based and <table> based layouts
+	     */
+	    $page = '';
+	    $reg_fields_display = 'none';
+	    if ( $section_type == 'table' ) {
+	        $section = 'tr';
+	    } else {
+	        $section = 'div';
+	    }
+	    $is_volunteer = true;
+	    if( $user ) {
+	        $values = $this->get_volunteer_values_from_umeta($user);
+	    } else {
+	        $values = $this->get_default_volunteer_values();
+	    }
+	    if ( $is_volunteer ) {
+	        $reg_fields_display = 'show';
+	    }
+	    if ( $section_type == 'table' ) {
+	        $page .= '<table class="form-table" role="presentation">';
+	    }
+	    foreach ( $this->volunteer_user_fields as $field => $aspects ) {
+	        $field_class = '';
+	        if ( $aspects['type'] == 'text' ||
+	            $aspects['type'] == 'email' ) {
+	                $field_class='form-field';
+	            }
+	        if ( $field == 'vmat_is_volunteer' ) {
+	            $page .= '<' . $section . ' class="' . $field_class . '">';
+	        } else {
+	            $page .= '<' . $section .  ' class="vmat-registration-fields ' . $field_class . '"
+	                                         style="display:' . $reg_fields_display . '">';
+	        }
+	        if ( $aspects['type'] == 'boolean' ) {
+	            $page .= $this->boolean_choice_field(['option_name' => $field,
+	                'label' => $aspects['label'],
+	                'type' => $section_type,
+	                'value' => $values[$field],
+	                'required' => $aspects['required'],
+	            ]);
+	        } elseif ( $aspects['type'] == 'text' ||
+	                   $aspects['type'] == 'email' ) {
+	            $page .= $this->text_input_field(['option_name' => $field,
+	                'label' => $aspects['label'],
+	                'type' => $section_type,
+	                'input_type' => $aspects['type'],
+	                'value' => $values[$field],
+	                'required' => $aspects['required']
+	            ]);
+	        } elseif ( $aspects['type'] == 'array' ) {
+	            $category_id = get_cat_ID( $aspects['label'] );
+	            if ($category_id) {
+	                $subcategories = get_terms( array(
+	                    'taxonomy' => 'category',
+	                    'child_of' => $category_id,
+	                    'hide_empty' => false,)
+	                    );
+	                if ( count ( $subcategories ) ) {
+	                    $page .= $this->multiselect_children_of_category_fields(
+	                        ['category' => $aspects['label'],
+	                            'subcategories' => $subcategories,
+	                            'type' => $section_type,
+	                            'value' => $values[$field],
+	                        ]);
+	                }
+	            } else if ( current_user_can( 'create_users' ) && $field = 'vmat_volunteer_type' ) {
+	                // this is not a category
+	                ob_start();
+	                $this->link_posts_to_user_pulldown( $field, $section_type, $user );
+	                $page .= ob_get_clean();
+	            }
+	        }
+	        $page .= '</' . $section . '>';
+	    }
+	    if ( $section_type == 'table' ) {
+	        $page .= '</table>';
+	    }
+	    return $page;
+	}
+	
+	private function render_wp_required_fields_for_ajax( $section_type, $user=null ) {
+	    /*
+	     * display user's WP required meta values
+	     * $section_type switches between <div> based and <table> based layouts
+	     * if $user passed in populate fields with user's meta information
+	     */
+	    
+	    $page = '';
+	    if ( $section_type == 'table' ) {
+	        $section = 'tr';
+	    } else {
+	        $section = 'div';
+	    }
+	    if( $user ) {
+	        $values = $this->get_wp_required_values_from_user($user);
+	    } else {
+	        $values = $this->get_default_wp_required_values();
+	    }
+	    if ( $section_type == 'table' ) {
+	        $page .= '<table class="form-table" role="presentation">';
+	    }
+	    foreach ( $this->wp_required_user_fields as $field => $aspects ) {
+	        $field_class = '';
+	        if ( $aspects['type'] == 'text' ||
+	            $aspects['type'] == 'email' ) {
+	            $field_class='form-field';
+	        }
+	        $page .= '<' . $section . ' class="' . $field_class . '">';
+	        if ( $aspects['type'] == 'boolean' ) {
+	            $page .= $this->boolean_choice_field(['option_name' => $field,
+	                'label' => $aspects['label'],
+	                'type' => $section_type,
+	                'value' => $values[$field],
+	                'required' => $aspects['required'],
+	            ]);
+	        } elseif ( $aspects['type'] == 'text' ||
+	                   $aspects['type'] == 'email' ) {
+	            $page .= $this->text_input_field(['option_name' => $field,
+	                'label' => $aspects['label'],
+	                'type' => $section_type,
+	                'input_type' => $aspects['type'],
+	                'value' => $values[$field],
+	                'required' => $aspects['required']
+	            ]);
+	        } elseif ( $aspects['type'] == 'array' ) {
+	            $page .= $this->multiselect_children_of_category_registration_fields(
+	                ['category' => $aspects['label'],
+	                    'type' => $section_type,
+	                    'value' => $values[$field],
+	                ]);
+	        }
+	        $page .= '</' . $section . '>';
+	    }
+	    if ( $section_type == 'table' ) {
+	        $page .= '</table>';
+	    }
+	    return $page;
+	}
+	
+	private function render_common_fields_for_ajax( $section_type, $user=null ) {
+	    /*
+	     * display user's common meta values
+	     * $section_type switches between <div> based and <table> based layouts
+	     * if $user passed in populate fields with user's meta information
+	     */
+	    
+	    $page = '';
+	    if ( $section_type == 'table' ) {
+	        $section = 'tr';
+	    } else {
+	        $section = 'div';
+	    }
+	    if( $user ) {
+	        $values = $this->get_common_values_from_user($user);
+	    } else {
+	        $values = $this->get_default_common_values();
+	    }
+	    if ( $section_type == 'table' ) {
+	        $page .= '<table class="form-table" role="presentation">';
+	    }
+	    foreach ( $this->common_user_fields as $field => $aspects ) {
+	        $field_class = '';
+	        if ( $aspects['type'] == 'text' ||
+	            $aspects['type'] == 'email' ) {
+	                $field_class='form-field';
+	            }
+	        $page .= '<' . $section . ' class="' . $field_class . '">';
+	        if ( $aspects['type'] == 'boolean' ) {
+	            $page .= $this->boolean_choice_field(['option_name' => $field,
+	                'label' => $aspects['label'],
+	                'type' => $section_type,
+	                'value' => $values[$field],
+	                'required' => $aspects['required'],
+	            ]);
+	        } elseif ( $aspects['type'] == 'text' ||
+	                   $aspects['type'] == 'email' ) {
+	            $page .= $this->text_input_field(['option_name' => $field,
+	                'label' => $aspects['label'],
+	                'type' => $section_type,
+	                'input_type' => $aspects['type'],
 	                'value' => $values[$field],
 	                'required' => $aspects['required']
 	            ]);
@@ -349,23 +643,89 @@ class Volunteer_Management_And_Tracking_Common {
 	    return $errors;
 	}
 	
-	private function add_volunteer_user_role( $user_id ) {
-	    $wpuser = get_user_by('id', $user_id);
-	    if ( $wpuser ) {
-	        $is_volunteer = boolval(get_the_author_meta( 'vmat_is_volunteer', $wpuser->ID ));
-	        if ( $is_volunteer ) {
-	            if ( $wpuser ) {
-	                if( ! in_array('volunteer', $wpuser->roles)) {
-	                    $wpuser->add_role('volunteer');
+	public function add_volunteer_user_role( $user_id ) {
+	    if( current_user_can( 'edit_users' ) ) {
+	        $wpuser = get_user_by('id', $user_id);
+	        if ( $wpuser ) {
+	            $is_volunteer = boolval(get_the_author_meta( 'vmat_is_volunteer', $wpuser->ID ));
+	            if ( $is_volunteer ) {
+	                if ( $wpuser ) {
+	                    if( ! in_array('volunteer', $wpuser->roles)) {
+	                        $wpuser->add_role('volunteer');
+	                    }
 	                }
-	            }
-	        } else {
-	            // remove the volunteer role if it exists
-	            if( in_array('volunteer', $wpuser->roles)) {
-	                $wpuser->remove_role('volunteer');
+	            } else {
+	                // remove the volunteer role if it exists
+	                if( in_array('volunteer', $wpuser->roles)) {
+	                    $wpuser->remove_role('volunteer');
+	                }
 	            }
 	        }
 	    }
+	}
+	
+	public function link_posts_to_user_pulldown( $type='vmat_organization', $section_type='div', $user=null ) {
+	    /*
+	     * Generic function to create a list for selecting multiple $type
+	     * CPT posts to a user
+	     */
+	    if ( ! $type ) {
+	        return false;
+	    }
+	    global $vmat_plugin;
+	    $posts_to_link = array();
+	    $selected_posts_to_link = array();
+	    $unselected_posts_to_link = array();
+	    foreach ( $vmat_plugin->get_common()->get_post_type($type)->posts as $post_to_link ) {
+	        if ( $user && in_array( absint($post_to_link->ID), get_post_meta( $user->ID, '_' . $type , true ) ) ) {
+	            $selected_posts_to_link[] = array(
+	                'id' => $post_to_link->ID,
+	                'name' => __($post_to_link->post_title, 'vmattd')
+	            );
+	        } else {
+	            $unselected_posts_to_link[] = array(
+	                'id' => $post_to_link->ID,
+	                'name' => __($post_to_link->post_title, 'vmattd')
+	            );
+	        }
+	    }
+	    foreach( $selected_posts_to_link as $post_to_link ) {
+	        $posts_to_link[] = $post_to_link;
+	    }
+	    foreach( $unselected_posts_to_link as $post_to_link ) {
+	        $posts_to_link[] = $post_to_link;
+	    }
+	    if ( $section_type != 'div') {?>
+	        <th><?php _e( 'Choose Volunteer Type', 'vmattd' ); ?></th>
+	        <td><?php
+	    }
+	    ?>
+	    <fieldset>
+	    <?php
+	    if ( $section_type == 'div' ) {?>
+	        <legend><?php _e( 'Choose your type', 'vmattd' ); ?></legend>
+	        <?php
+	    }?>
+	    <div id="<?php echo $type; ?>_checklist">
+	    <?php
+	    foreach( $posts_to_link as $post_to_link ){
+	        ?>
+            <label>
+            <input type="checkbox" name="<?php echo $type; ?>[]" 
+            value="<?php echo $post_to_link['id']; ?>" 
+            <?php if ( $user && in_array( absint($post_to_link['id']), get_user_meta( $user->ID, $type , true ) ) ) { echo 'checked="checked"';} ?> /> 
+            <?php echo $post_to_link['name'] ?>
+            </label><br />          
+            <?php
+        }
+        ?>
+        </div>
+		</fieldset>
+		<?php
+        if ( $section_type != 'div' ) {?>
+            </td>
+            <?php
+        }
 	}
 	
 	public function  boolean_choice_field($args) {
@@ -443,7 +803,7 @@ class Volunteer_Management_And_Tracking_Common {
 	   	        __($label, 'vmattd');
 	   	        if ( $required )
 	   	        {
-	   	            $page .= '*';
+	   	            $page .= '<span class="description"> (required)</span>';
 	   	        }
 	   	        $page .= '</label>';
 	    } else {
@@ -451,13 +811,13 @@ class Volunteer_Management_And_Tracking_Common {
 	   	        __($label, 'vmattd');
 	   	        if ( $required )
 	   	        {
-	   	            $page .= '*';
+	   	            $page .= '<span class="description"> (required)</span>';
 	   	        }
 	   	        $page .= '</th>';
 	   	        $page .= '<td>';
 	    }
 	    
-	    $page .= '<input type="text"
+	    $page .= '<input class="input vmat-event-volunteer-input" type="' . $args['input_type'] . '"
 		       id="' . esc_attr($var_name) . '"
 		       name="' . esc_attr($var_name) . '"
 		       value="' . $var_value . '" ';
@@ -605,6 +965,24 @@ class Volunteer_Management_And_Tracking_Common {
 	    return new WP_User_Query( $user_query_args );
 	}
 	
+	public function get_volunteer_hours( $args=array() ) {
+	    // find the hours that are already associated with this volunteer, nopaging=true the results
+	    $volunteer = $args['volunteer'];
+	    $search = '';
+	    if ( array_key_exists( 'hours_search', $args ) ) {
+	        $search = $args['hours_search'];
+	    }
+	    $hours_args = array(
+	        'count_total' => true,
+	        'post_type' => 'vmat_hours',
+	        'author' => $volunteer->ID,
+	        'paged' => $args['hpno'],
+	        's' => $search,
+	    );
+	    $hours_query = new WP_Query( $hours_args );
+	    return $hours_query;
+	}
+	
 	public function filter_volunteers( $volunteers, $volunteers_search='' ) {
 
 	    $volunteers = array_map( function ( $a ) { return array('WP_User'=>$a);}, $volunteers);
@@ -707,12 +1085,16 @@ class Volunteer_Management_And_Tracking_Common {
 	
 	public function get_event_organizations_string( $event_id ) {
 	    $organizations = get_post_meta( $event_id, '_vmat_organizations', true );
+	    return $this->get_organizations_string_from_array( $organizations );
+	}
+	
+	public function get_organizations_string_from_array( $organizations ) {
 	    if ( is_array( $organizations ) && count($organizations) > 0 ) {
 	        // found the organizations, only select the first one for the pulldown
 	        $organizations = get_posts(array(
-	            'post_type' => 'vmat_organization',
-	            'include' => $organizations,
-	            'nopaging' =>  true
+	        'post_type' => 'vmat_organization',
+	        'include' => $organizations,
+	        'nopaging' =>  true
 	        ));
 	        if ( is_array( $organizations ) && count($organizations) > 0 ) {
 	            $orgs = array();
@@ -764,6 +1146,10 @@ class Volunteer_Management_And_Tracking_Common {
 	        $end_time=date_create_from_format('H:i:s', $event_meta['_event_end_time'][0]);
 	        $days = $end_date->diff($start_date)->days + 1;
 	        $hours_per_day = $end_time->diff($start_time)->h;
+	        $organizations = get_post_meta( $event_id, '_vmat_organizations', true );
+	        if( empty( $organizations ) ) {
+	           $organizations = array();
+	        }
 	    }
 	    return array( 
 	        'days' => $days, 
@@ -776,6 +1162,83 @@ class Volunteer_Management_And_Tracking_Common {
 	        'start_time' => date_format( $start_time, 'g:i a' ),
 	        'end_time' => date_format( $end_time, 'g:i a' ),
 	        'hours_per_day' => $hours_per_day,
+	        'organizations' => $organizations,
+	    );
+	}
+	
+	public function get_volunteer_data( $volunteer_id=0 ) {
+	    $args = array(
+	        'post_type' => 'vmat_hours',
+	        'author' => $volunteer_id,
+	        'nopaging' => true,
+	        'fields' => 'id',
+	        'meta_query' => array(
+	            array(
+	                'key' => '_approved',
+	                'value' => 1,
+	            )
+	        ),
+	    );
+	    $orgs = array();
+	    $approved_num_events = 0;
+	    $approved_num_days = 0;
+	    $approved_num_hours = 0;
+	    $unapproved_num_events = 0;
+	    $unapproved_num_days = 0;
+	    $unapproved_num_hours = 0;
+	    $volunteer_approved_hours_query = new WP_Query( $args );
+	    $volunteer_approved_hours = array();
+	    foreach( $volunteer_approved_hours_query->posts as $hour) {
+	        $volunteer_approved_hours[$hour->ID] = array();
+	        $volunteer_approved_hours[$hour->ID]['WP_Post'] = $hour;
+	        $volunteer_approved_hours[$hour->ID]['postmeta'] = array_map( function( $meta ) { return $meta[0]; }, get_post_meta( $hour->ID ) );
+	        $volunteer_approved_hours[$hour->ID]['eventdata'] = $this->get_event_data( $volunteer_approved_hours[$hour->ID]['postmeta']['_event_id'] );
+	        $orgs = array_merge( $orgs, $volunteer_approved_hours[$hour->ID]['eventdata']['organizations'] );
+	        $approved_num_days = $approved_num_days + absint( $volunteer_approved_hours[$hour->ID]['postmeta']['_volunteer_num_days'] );
+	        $approved_num_hours = $approved_num_hours + absint( $volunteer_approved_hours[$hour->ID]['postmeta']['_volunteer_num_days'] ) * absint( $volunteer_approved_hours[$hour->ID]['postmeta']['_hours_per_day'] );
+	        if( $approved_num_hours > 0 ) {
+	            $approved_num_events = $approved_num_events + 1;
+	        }
+	    }
+	    $args = array(
+	        'post_type' => 'vmat_hours',
+	        'author' => $volunteer_id,
+	        'nopaging' => true,
+	        'fields' => 'id',
+	        'meta_query' => array(
+	            array(
+	                'key' => '_approved',
+	                'value' => 0,
+	            )
+	        ),
+	    );
+	    
+	    $volunteer_unapproved_hours_query = new WP_Query( $args );
+	    $volunteer_unapproved_hours = array();
+	    foreach( $volunteer_unapproved_hours_query->posts as $hour) {
+	        $volunteer_unapproved_hours[$hour->ID] = array();
+	        $volunteer_unapproved_hours[$hour->ID]['WP_Post'] = $hour;
+	        $volunteer_unapproved_hours[$hour->ID]['postmeta'] = array_map( function( $meta ) { return $meta[0]; }, get_post_meta( $hour->ID ) );
+	        $volunteer_unapproved_hours[$hour->ID]['eventdata'] = $this->get_event_data( $volunteer_unapproved_hours[$hour->ID]['postmeta']['_event_id'] );
+	        $orgs = array_merge( $orgs, $volunteer_unapproved_hours[$hour->ID]['eventdata']['organizations'] );
+	        $unapproved_num_days = $unapproved_num_days + absint($volunteer_unapproved_hours[$hour->ID]['postmeta']['_volunteer_num_days'] );
+	        $unapproved_num_hours = $unapproved_num_hours + absint($volunteer_unapproved_hours[$hour->ID]['postmeta']['_volunteer_num_days'] ) * absint( $volunteer_unapproved_hours[$hour->ID]['postmeta']['_hours_per_day'] );
+	        if( $unapproved_num_hours > 0 ) {
+	            $unapproved_num_events = $unapproved_num_events +1;
+	        }
+	    }
+	    return array(
+	        'orgs' => $orgs,
+	        'approved' => array(
+	            'num_events' => $approved_num_events,
+	            'num_hours' => $approved_num_hours,
+	            'num_days' => $approved_num_days,
+	        ),
+	        'unapproved' => array(
+	            'num_events' => $unapproved_num_events,
+	            'num_hours' => $unapproved_num_hours,
+	            'num_days' => $unapproved_num_days,
+	        ),
 	    );
 	}
 	
@@ -895,7 +1358,8 @@ class Volunteer_Management_And_Tracking_Common {
 	    $location = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . EM_LOCATIONS_TABLE . ' WHERE location_id=%s', $location_id ), ARRAY_A);
 	    // get event sponsoring organizations
 	    $orgs = $this->get_event_organizations_string( $event->ID );
-	    $output = '<table class="widefat">';
+	    $output = '<div id="vmat_event_display_admin">';
+	    $output .= '<table class="widefat">';
 	    $output .= '<thead>';
 	    $output .= '<tr>';
 	    $output .= '<th>';
@@ -939,7 +1403,106 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '</td>';
 	    $output .= '</tr>';
 	    $output .= '</table>';
+	    $output .= '</div>';
 	    return $output;
+	}
+	
+	public function volunteer_display( $volunteer ) {
+	    /*
+	     * return a grid row for a volunteer
+	     * $event = event post object
+	     */
+	    $output = '<div id="vmat_volunteer_display_admin">';
+	    $output .= '<table class="widefat">';
+	    $output .= '<thead>';
+	    $output .= '<tr>';
+	    $output .= '<th>';
+	    $output .= 'Volunteer';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Email';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Orgs.';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Events Vol. (apprvd)';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Days Vol. (apprvd)';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Hours. Vol. (apprvd)';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Events Vol. (not apprvd)';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Days Vol. (not apprvd)';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Hours. Vol. (not apprvd)';
+	    $output .= '</th>';
+	    $output .= '</tr>';
+	    $output .= '</thead>';
+	    $output .= $this->volunteer_row( $volunteer );
+	    $output .= '</table>';
+	    $output .= '</div>';
+	    return $output;
+	}
+	
+	public function volunteer_row( $volunteer, $submit_url='', $alternate='' ) {
+	    $volunteer_data = $this->get_volunteer_data( $volunteer->ID );
+	    $orgs = $volunteer_data['orgs'];
+	    $approved_events = $volunteer_data['approved']['num_events'];
+	    $approved_hours = $volunteer_data['approved']['num_hours'];
+	    $approved_days = $volunteer_data['approved']['num_days'];
+	    $unapproved_events = $volunteer_data['unapproved']['num_events'];
+	    $unapproved_hours = $volunteer_data['unapproved']['num_hours'];
+	    $unapproved_days = $volunteer_data['unapproved']['num_days'];
+	    $output = '<tr class="' . $alternate . '" id="volunteer_' . $volunteer->ID . '">';
+	    if( $submit_url != '' ) {
+	        $output .= '<th class="check-column">';
+	        $output .= '<input type="checkbox" id="vmat_manage_volunteer_cb_' . $volunteer->ID . '" name="manage_volunteers_checked[]">';
+	        $output .= '</th>';
+	    }
+	    $output .= '<td>';
+	    if( $submit_url != '' ) {
+	        $output .= '<a class="row-title" href="' . $submit_url . '">' . $volunteer->first_name . ' ' . $volunteer->last_name . '</a>';
+	    } else {
+	        $output .= '<strong>'. $volunteer->first_name . ' ' . $volunteer->last_name . '</strong>';
+	        $output .= '<div class="row-actions">';
+	        $output .= '<span class="vmat-link vmat-quick-link" id="show_update_volunteer_form" title="Edit volunteer">' . __('Edit', 'vmattd') . '</span>';
+	        $output .= '</div>';
+	    }
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $volunteer->data->user_email;
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $this->get_organizations_string_from_array( $orgs );
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $approved_events;
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $approved_days;
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $approved_hours;
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $unapproved_events;
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $unapproved_days;
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $unapproved_hours;
+	    $output .= '</td>';
+	    $output .= '</tr>';
+	    return $output;
+	   
 	}
 	
 	public function event_row( $event, $this_page_url, $alternate='' ) {
@@ -966,7 +1529,6 @@ class Volunteer_Management_And_Tracking_Common {
 	        $event_end_time = ' - ' . $event_end_time;
 	    }
 	    $submit_url = add_query_arg( 'event_id', $event->ID, $this_page_url );
-	    $submit_url = add_query_arg( 'form_id', 'volunteers-filter', $submit_url );
 	    $event_edit_href = admin_url( 'post.php');
 	    $event_edit_href = add_query_arg( 'post', $event->ID, $event_edit_href );
 	    $event_edit_href = add_query_arg( 'action', 'edit', $event_edit_href );
@@ -979,7 +1541,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '<a class="row-title" href="' . $submit_url . '">' . $event->post_title . '</a>';
 	    $output .= '</strong>';
 	    $output .= '<div class="row-actions">';
-	    $output .= '<a id="vmat_event_' . $event->ID . '" href="' . $event_edit_href . '">' . __('Edit', 'vmattd') . '</a>';
+	    $output .= '<a id="vmat_event_' . $event->ID . '" href="' . $event_edit_href . '"><span class="vmat-quick-link">' . __('Edit', 'vmattd') . '</span></a>';
 	    $output .= '</div>';
 	    $output .= '</td>';
 	    $output .= '<td><b>';
@@ -1001,12 +1563,95 @@ class Volunteer_Management_And_Tracking_Common {
 	    return $output;
 	}
 	
-	public function volunteer_row( $volunteer, $event_id, $alternate='' ) {
+	public function manage_volunteers_row( $volunteer, $this_page_url='#', $alternate='' ) {
+	    /*
+	     * return a table row for a manage volunteers table
+	     * $volunteer = volunteer user object
+	     * $this_page_url = url to the page that will allow take event_id as an arg
+	     */
+	    $submit_url = add_query_arg( 'volunteer_id', $volunteer->ID, $this_page_url );
+	    $volunteer_edit_href = admin_url( 'user-edit.php');
+	    $volunteer_edit_href = add_query_arg( 'user_id', $volunteer->ID, $volunteer_edit_href );
+	    return $this->volunteer_row( $volunteer, $submit_url, $alternate );
+	}
+	
+	public function volunteer_hour_row( $hour, $alternate='' ) {
 	    /*
 	     * return a table row for a volunteer
 	     * $volunteer = volunteer user object
 	     * $this_page_url = url to the page that will allow take event_id as an arg
-	     */ 
+	     */
+	    $hour_post = $hour['WP_Post'];
+	    $hour_meta = $hour['postmeta'];
+	    $event = $hour['event'];
+	    $event_data = $this->get_event_data( $event->ID );
+	    $event_manage_participation_href = admin_url('admin.php');
+	    $event_manage_participation_href = add_query_arg( array(
+	        'page' => 'vmat_admin_volunteer_participation',
+	        'event_id' => $event->ID,
+	        ),
+	        $event_manage_participation_href
+	    );
+	    $output = '<tr class="' . $alternate . '" id="hour_' . $hour_post->ID . '">';
+	    $output .= '<th class="check-column">';
+	    $output .= '<input type="checkbox" id="vmat_hour_cb_' . $hour_post->ID . '" name="hours_checked[]">';
+	    $output .= '</th>';
+	    $output .= '<td>';
+	    $output .= '<strong>';
+	    $output .= $event->post_title;
+	    $output .= '</strong>';
+	    $output .= '<div class="row-actions">';
+	    $output .= '<span class="vmat-link vmat-quick-link" data_action="remove" hour_id="' . $hour_post->ID . 
+	   	            '" volunteer_id="' . $hour_post->post_author . '" id="vmat_selected_hour_remove_' . $hour_post->ID . 
+	                '" title="Remove hours" data_action="remove">' . __(' Remove', 'vmattd') . '</span>';
+   	    $output .= '&nbsp;|&nbsp;';
+   	    $output .= '<span class="vmat-link vmat-quick-link" data_action="save" hour_id="' . $hour_post->ID . 
+   	   	           '" volunteer_id="' . $hour_post->post_author . '" id="vmat_selected_hour_save_' . $hour_post->ID . 
+   	               '" title="Save volunteer hours" data_action="save">' . __('Save', 'vmattd') . '</span>';
+   	    $output .= '</span>';
+   	    $output .= '&nbsp;|&nbsp;';
+   	    $output .= '<a id="vmat_hour_' . $hour_post->ID . '" href="' . $event_manage_participation_href . 
+   	               '"><span class="vmat-quick-link">' . __('Manage Event Participation', 'vmattd') . '</span></a>';
+   	    $output .= '</span>';
+   	    $output .= '</div>';
+   	    $output .= '</td>';
+   	    $output .= '<td>';
+   	    $output .= '<input class="vmat-event-volunteer-input" data_name="hours_per_day" type="number" size="3" min="0" max="24" id="vmat_hours_per_day_' . $hour_post->post_author . '_' .
+   	    $hour_post->ID . '" value="' . $hour_meta['_hours_per_day'] . '" required>';
+   	    $output .= '</td>';
+   	    $output .= '<td>';
+   	    $output .= '<input class="vmat-event-volunteer-input" data_name="volunteer_start_date" min="' . $event_data['iso_start_date'] .
+   	    '" max="' . $event_data['iso_end_date'] . '" type="date" id="vmat_start_date_' .
+   	    $hour_post->post_author . '_' . $hour_post->ID . '" value="' . $hour_meta['_volunteer_start_date'] . '" required>';
+   	    $output .= '</td>';
+   	    $output .= '<td>';
+   	    $output .= '<input class="vmat-event-volunteer-input" data_name="volunteer_days" type="number" size="3" min="0" max="' . $event_data['days'] . 
+   	   	           '" id="vmat_days_' . $hour_post->post_author . '_' . $hour_post->ID . '" value="' . $hour_meta['_volunteer_num_days'] . '" required>';
+   	    $output .= '</td>';
+   	    $output .= '<td class="vmat-check-column">';
+   	    $checked = '';
+   	    if ( $hour_meta['_approved'] ) {
+   	        $checked = 'checked';
+   	    }
+   	    $output .= '<input class="vmat-event-volunteer-input" data_name="approved" ' .
+   	   	    'id="vmat_hour_approved_' . $hour_post->post_author . '_' . $hour_post->ID . '" type="checkbox" ' . $checked . '/>';
+   	    $output .= '</td>';
+   	    return $output;
+	}
+	
+	public function volunteer_participation_volunteers_row( $volunteer, $this_page_url='#', $alternate='' ) {
+	    /*
+	     * return a table row for a manage volunteers table
+	     * $volunteer = volunteer user object
+	     * $this_page_url = url to the page that will allow take event_id as an arg
+	     */
+	    $volunteer_edit_href = admin_url('admin.php');
+	    $volunteer_edit_href = add_query_arg( array(
+	        'page' => 'vmat_admin_manage_volunteers',
+	        'volunteer_id' => $volunteer->ID,
+	        $volunteer_edit_href
+	       )
+	    );
 	    $output = '<tr class="' . $alternate . '" id="volunteer_' . $volunteer->ID . '">';
 	    $output .= '<th class="check-column">';
 	    $output .= '<input type="checkbox" id="vmat_volunteer_cb_' . $volunteer->ID . '" name="volunteers_checked[]">';
@@ -1016,16 +1661,21 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= $volunteer->first_name . ' ' . $volunteer->last_name;
 	    $output .= '</strong>';
 	    $output .= '<div class="row-actions">';
-	    $output .= '<span class="vmat-link" id="vmat_selected_volunteer_' . $volunteer->ID . '">' . __('Add ', 'vmattd') . '&raquo;</span>';
-	    $output .= '</div>';
-	    $output .= '</td>';
+	    $output .= '<a id="vmat_volunteer_' . $volunteer->ID . '" title="' . __( 'Manage Volunteer', 'vmattd' ) . 
+	               '" href="' . $volunteer_edit_href . '"><span class="vmat-quick-link">' . __('Manage Vol.', 'vmattd') . '</span></a>';
+	    $output .= '</span>';
+	    $output .= '&nbsp;|&nbsp;';
+	    $output .= '<span class="vmat-link vmat-quick-link" data_action="add" volunteer_id="' . $volunteer->ID . 
+	   	           '" id="vmat_selected_volunteer_' . $volunteer->ID . '" title="Add volunteer">&raquo;' . __(' Add', 'vmattd') . '</span>';
+   	    $output .= '</div>';
+   	    $output .= '</td>';
 	    $output .= '<td>'; // dates and time
 	    $output .= $volunteer->user_email;
 	    $output .= '</td>';
 	    return $output;
 	}
 	
-	public function event_volunteer_row( $volunteer, $event_id, $alternate='' ) {
+	public function volunteer_participation_event_volunteer_row( $volunteer, $event_id, $alternate='' ) {
 	    /*
 	     * return a table row for a volunteer in the event volunteers table
 	     * $volunteer = volunteer user object
@@ -1044,6 +1694,13 @@ class Volunteer_Management_And_Tracking_Common {
 	    $meta_query = new WP_Query( $hours_args );
 	    $hours_meta = get_post_meta( $meta_query->post->ID ); 
 	    $event_data = $this->get_event_data( $event_id );
+	    $volunteer_edit_href = admin_url('admin.php');
+	    $volunteer_edit_href = add_query_arg( array(
+	        'page' => 'vmat_admin_manage_volunteers',
+	        'volunteer_id' => $volunteer->ID
+	       ),
+	        $volunteer_edit_href
+	    );
 	    $days = $event_data['days'];
 	    $output = '<tr class="' . $alternate . '" id="event_volunteer_' . $volunteer->ID . '">';
 	    $output .= '<th class="check-column">';
@@ -1055,16 +1712,19 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '</strong>';
 	    $output .= '<div class="row-actions">';
 	    $output .= '<span>';
-	    $output .= '<span class="vmat-link" data_action="remove" volunteer_id="' . $volunteer->ID . '" id="vmat_selected_event_volunteer_remove_' . 
+	    $output .= '<span class="vmat-link vmat-quick-link" data_action="remove" volunteer_id="' . $volunteer->ID . '" id="vmat_selected_event_volunteer_remove_' . 
 	               $volunteer->ID . '" title="Remove volunteer">&laquo;' . __(' Remove', 'vmattd') . '</span>';
 	    $output .= '&nbsp;|&nbsp;';
-	    $output .= '<span class="vmat-link" data_action="save" volunteer_id="' . $volunteer->ID . '" id="vmat_selected_event_volunteer_save_' . 
+	    $output .= '<span class="vmat-link vmat-quick-link" data_action="save" volunteer_id="' . $volunteer->ID . '" id="vmat_selected_event_volunteer_save_' . 
 	               $volunteer->ID . '" title="Save volunteer hours">' . __('Save', 'vmattd') . '</span>';
 	    $output .= '</span>';
 	    $output .= '&nbsp;|&nbsp;';
-	    $output .= '<span class="vmat-link" data_action="default" volunteer_id="' . $volunteer->ID . '" id="vmat_selected_event_volunteer_default_' .
+	    $output .= '<span class="vmat-link vmat-quick-link" data_action="default" volunteer_id="' . $volunteer->ID . '" id="vmat_selected_event_volunteer_default_' .
 	   	    $volunteer->ID . '" title="Set to event defaults">' . __('Default', 'vmattd') . '</span>';
-	   	    $output .= '</span>';
+   	    $output .= '</span>';
+   	    $output .= '&nbsp;|&nbsp;';
+   	    $output .= '<a id="vmat_volunteer_' . $volunteer->ID . '" title="' . __( 'Manage Volunteer', 'vmattd' ) . '" href="' . $volunteer_edit_href . '"><span class="vmat-quick-link">' . __('Manage Vol.', 'vmattd') . '</span></a>';
+   	    $output .= '</span>';
 	    $output .= '</div>';
 	    $output .= '</td>';
 	    $output .= '<td>';
@@ -1103,8 +1763,36 @@ class Volunteer_Management_And_Tracking_Common {
 	    echo $this->render_volunteer_fields('table');
 	}
 	
+	public function render_volunteer_fields_for_ajax_div( $volunteer=null ) {
+	    echo $this->render_volunteer_fields_for_ajax('div',  $volunteer );
+	}
+	
+	public function render_volunteer_fields_for_ajax_form_table( $volunteer=null ) {
+	    echo $this->render_volunteer_fields_for_ajax('table',  $volunteer );
+	}
+	
+	public function render_wp_required_fields_for_ajax_div( $volunteer=null ) {
+	    echo $this->render_wp_required_fields_for_ajax('div',  $volunteer );
+	}
+	
+	public function render_wp_required_fields_for_ajax_form_table( $volunteer=null ) {
+	    echo $this->render_wp_required_fields_for_ajax('table',  $volunteer );
+	}
+	
 	public function render_common_fields_div() {
 	    echo $this->render_common_fields('div');
+	}
+	
+	public function render_common_fields_form_table() {
+	    echo $this->render_common_fields('table');
+	}
+	
+	public function render_common_fields_for_ajax_div( $volunteer=null ) {
+	    echo $this->render_common_fields_for_ajax('div',  $volunteer );
+	}
+	
+	public function render_common_fields_for_ajax_form_table( $volunteer=null ) {
+	    echo $this->render_common_fields_for_ajax('table',  $volunteer );
 	}
 	
 	public function render_populated_volunteer_fields_div( $user ) {
@@ -1235,17 +1923,16 @@ class Volunteer_Management_And_Tracking_Common {
 	                'name'          => __('Hours', 'vmattd'),
 	                'singular_name' => __('Hours', 'vmattd'),
 	            ),
+	            'capability_type' => array( 'vmat_hour', 'vmat_hours' ),
+	            'map_meta_cap' => true,
 	            'public'      => false,
-	            'show_ui' => true,
-	            'show-in-menu' => false,
-	            'show-in-nav-menus' => false,
-	            'show-in-admin-bar' => false,
+	            'show_ui' => false,
 	            'has_archive' => false,
 	        )
 	    );
 	}
 	
-	public function register_funding_streams_post_type() {
+	public function register_funding_stream_post_type() {
 	    register_post_type('vmat_funding_stream',
 	        array(
 	            'labels'      => array(
@@ -1254,18 +1941,37 @@ class Volunteer_Management_And_Tracking_Common {
 	                'edit_item' => __('Edit Funding Stream', 'vmattd'),
 	                'add_new_item' => __('Add New Funding Stream', 'vmattd'),
 	            ),
+	            'capability_type' => 'vmat_funding_stream',
+	            'map_meta_cap' => true,
 	            'public'      => false,
 	            'supports' => array('title'),
+	            'show_in_menu' => 'vmat_admin_main',
 	            'show_ui' => true,
-	            'show-in-menu' => 'admin.php?vmat_admin_funding_streams',
-	            'show-in-nav-menus' => false,
-	            'show-in-admin-bar' => false,
 	            'has_archive' => false,
 	        )
 	        );
 	}
 	
-	public function register_organizations_post_type() {
+	public function register_volunteer_type_post_type() {
+	    register_post_type('vmat_volunteer_type',
+	        array(
+	            'labels'      => array(
+	                'name'          => __('Volunteer Types', 'vmattd'),
+	                'singular_name' => __('Volunteer Type', 'vmattd'),
+	                'edit_item' => __('Edit Volunteer Type', 'vmattd'),
+	                'add_new_item' => __('Add New Volunteer Type', 'vmattd'),
+	            ),
+	            //'capability_type' => 'vmat_volunteer_type',
+	            'public'      => false,
+	            'supports' => array('title'),
+	            'show_in_menu' => 'vmat_admin_main',
+	            'show_ui' => true,
+	            'has_archive' => false,
+	        )
+	        );
+	}
+	
+	public function register_organization_post_type() {
 	    register_post_type('vmat_organization',
 	        array(
 	            'labels'      => array(
@@ -1274,12 +1980,11 @@ class Volunteer_Management_And_Tracking_Common {
 	                'edit_item' => __('Edit Organization', 'vmattd'),
 	                'add_new_item' => __('Add New Organization', 'vmattd'),
 	            ),
+	            //'capability_type' => 'vmat_organization',
 	            'public'      => false,
 	            'supports' => array('title' ),
+	            'show_in_menu' => 'vmat_admin_main',
 	            'show_ui' => true,
-	            'show-in-menu' => 'admin.php?vmat_admin_organizations',
-	            'show-in-nav-menus' => false,
-	            'show-in-admin-bar' => false,
 	            'has_archive' => false,
 	        )
 	        );

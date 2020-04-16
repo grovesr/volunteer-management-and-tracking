@@ -4,7 +4,7 @@
  * The admin-specific functionality of the plugin.
  *
  * Defines the plugin name, version, and two examples hooks for how to
- * enqueue the admin-specific stylesheet and JavaScript.
+ * enqueue the admin-specific stylesheeFt and JavaScript.
  *
  */
 class Volunteer_Management_And_Tracking_Admin {
@@ -57,7 +57,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	        'post_type' => EM_POST_TYPE_EVENT,
 	        'scope' => 'future',
 	        'pno' => 1,
-	        'posts_per_page' => get_option( 'posts_per_page' ),
+	        'posts_per_page' => get_option( 'vmat_options' )['vmat_posts_per_page'],
 	        'taxonomy' => '',
 	        'field' => '',
 	        'terms' => array(),
@@ -297,7 +297,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    
 		wp_enqueue_style( $this->plugin_name . '-css-admin', plugin_dir_url( __FILE__ ) . 'css/volunteer-management-and-tracking-admin.css', array(), $this->version, 'all' );
 		wp_enqueue_style( $this->plugin_name . '-css-common', plugin_dir_url( __FILE__ ) . '../common/css/volunteer-management-and-tracking-common.css', array(), $this->version, 'all' );
-		wp_enqueue_style( $this->plugin_name . '-css-bootstrap-grid', plugin_dir_url( __FILE__ ) . '../common/css/bootstrap-grid.css', array(), $this->version, 'all' );
+		wp_enqueue_style( $this->plugin_name . '-css-bootstrap', plugin_dir_url( __FILE__ ) . '../common/css/bootstrap.css', array(), $this->version, 'all' );
 	}
 
 	/**
@@ -320,24 +320,24 @@ class Volunteer_Management_And_Tracking_Admin {
 
 		wp_enqueue_script( $this->plugin_name . '-js-admin', plugin_dir_url( __FILE__ ) . 'js/volunteer-management-and-tracking-admin.js', array( 'jquery' ), $this->version, false );
 		wp_enqueue_script( $this->plugin_name . '-js-common', plugin_dir_url( __FILE__ ) . '../common/js/volunteer-management-and-tracking-common.js', array( 'jquery' ), $this->version, false );
-		// don't enqueue ajax scripts on the frontend
-		if( 'volunteer-mgmnt_page_vmat_admin_hours' != $hook ) {
-		  return;
-		}
-		
+		// only enqueue ajax scripts where they're needed
+		if( 'volunteer-mgmnt_page_vmat_admin_volunteer_participation' == $hook ||
+		    'volunteer-mgmnt_page_vmat_admin_volunteers' == $hook ||
+		    'volunteer-mgmnt_page_vmat_admin_manage_volunteers' == $hook ) {
 		//wp_deregister_script('heartbeat');
-		wp_enqueue_script( 'ajax-script',
-		    plugin_dir_url( __FILE__ ) . 'js/volunteer-management-and-tracking-admin-ajax.js',
-		    array( 'jquery' )
-		    );
-		$ajax_nonce = wp_create_nonce( 'vmat_ajax' );
-		wp_localize_script( 
-		    'ajax-script', 'my_ajax_obj', 
-		    array(
-		        'ajax_url' => admin_url( 'admin-ajax.php' ),
-		        'nonce'    => $ajax_nonce,
-		    ) 
-		);
+    		wp_enqueue_script( 'ajax-script',
+    		    plugin_dir_url( __FILE__ ) . 'js/volunteer-management-and-tracking-admin-ajax.js',
+    		    array( 'jquery' )
+    		    );
+    		$ajax_nonce = wp_create_nonce( 'vmat_ajax' );
+    		wp_localize_script( 
+    		    'ajax-script', 'my_ajax_obj', 
+    		    array(
+    		        'ajax_url' => admin_url( 'admin-ajax.php' ),
+    		        'nonce'    => $ajax_nonce,
+    		    ) 
+    		);
+		}
 
 	}
 	
@@ -357,6 +357,11 @@ class Volunteer_Management_And_Tracking_Admin {
 	    global $vmat_plugin;
 	    check_ajax_referer( 'vmat_ajax' );
 	    $errors = array();
+	    if ( ! empty( $_POST['action'] ) ) {
+	        $action = $_POST['action'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No action provided in ajax request. Please try again', 'vmattd' );
+	    }
 	    if ( ! empty( $_POST['notice_id'] ) ) {
 	        $notice_id = $_POST['notice_id'];
 	    } else {
@@ -376,6 +381,11 @@ class Volunteer_Management_And_Tracking_Admin {
 	        $volunteer_ids = $_POST['volunteer_ids'];
 	    } else {
 	        $errors[] = __('<strong>ERROR</strong>: No volunteer_id provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['display_target'] ) ) {
+	        $display_target = $_POST['display_target'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No display_target provided in ajax request. Please try again', 'vmattd' );
 	    }
 	    if ( empty( $errors ) ) {
 	        $event = get_post( $event_id );
@@ -445,15 +455,16 @@ class Volunteer_Management_And_Tracking_Admin {
 	    $args['event']= $event;
 	    $args['vpno'] = 1;
 	    $args['evpno'] = 1;
-	    $args['posts_per_page'] = get_option( 'posts_per_page' );
+	    $args['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
 	    $args['volunteers_search'] = '';
 	    $args['event_volunteers_search'] = '';
 	    $args['volunteers'] = $vmat_plugin->get_common()->get_volunteers_not_added_to_event( $args );;
 	    $args['event_volunteers'] = $vmat_plugin->get_common()->get_volunteers_added_to_event( $args );
 	    // generate replacement html for the volunteers and event_volunteers tables
 	    ob_start();
-	    vmat_manage_volunteers_admin( $args );
+	    $this->html_part_volunteer_participation_admin( $args );
 	    $html = ob_get_clean();
+	    $display_target_html = $vmat_plugin->get_common()->event_display( $event );
 	    $message = $volunteers[0]->display_name;
 	    if ( count( $volunteers ) > 1 ) {
 	        $message = count( $volunteers ) . ' Volunteers';
@@ -463,7 +474,138 @@ class Volunteer_Management_And_Tracking_Admin {
 	        'ajax_notice'=> $this->accumulate_messages( array( __( '<strong>SUCCESS</strong>: Added ' . $message , 'vmattd' ) ) ),
 	        'notice_id' => $notice_id,
 	        'target' => $target,
+	        'action' => $action,
 	        'html' => $html,
+	        'display_target' => $display_target,
+	        'display_target_html' => $display_target_html,
+	    );
+	    // ajax request succeeded
+	    wp_send_json_success( $results );
+	}
+	function ajax_update_volunteer() {
+	    global $vmat_plugin;
+	    $check = $this->ajax_check_input();
+	    $errors = $check['errors'];
+	    // filter the errors since we don't need event_id or volunteer
+	    $errors = array_filter( $errors, function( $error ) {
+	        return strpos( $error, 'event_id' ) == false && 
+	               strpos( $error, 'volunteer' ) == false;
+	    });
+	    
+	    $register_notice_id = '';
+	    if ( ! empty( $_POST['register_notice_id'] ) ) {
+	        $register_notice_id = $_POST['register_notice_id'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No register_notice_id provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( empty( $errors ) ) {
+	        $volunteer_data = $check['volunteer_data']['fields'];
+	        $notice_id = $check['notice_id'];
+	        $action = $check['action'];
+	        $target = $check['target'];
+	        $user_fields = array();
+	        $user_fields['user_login'] = 'user_login';
+	        $user_fields['user_email'] = 'email';
+	        $user_fields['first_name'] = 'first_name';
+	        $user_fields['last_name'] = 'last_name';
+	        // remove empty fields from the registration data
+	        $clean_data = array_filter( $volunteer_data, function( $data, $field )  {
+	            if( array_key_exists( 'val', $data ) ) {
+	                return ! empty ($data['val']);
+	            }
+	            return false;
+	        }, ARRAY_FILTER_USE_BOTH);
+	        // register a volunteer 
+	        // this provides a mapping between wp and vmat field names
+	        // wp_field_name => vmat_field_name
+	        $reg_args = array();
+	        foreach( $user_fields as $wp_field_name => $vmat_field_name ) {
+	            if( array_key_exists( $vmat_field_name, $clean_data ) ) {
+	                $reg_args[$wp_field_name] = $clean_data[$vmat_field_name]['val'];
+	            }
+	        }
+	        $reg_args['role'] = 'volunteer';
+	        if( ! empty( $volunteer_data['volunteer_id'] ) ) {
+	            // update rather than create new
+	            $reg_args['ID'] = $volunteer_data['volunteer_id']['val'];
+	        }
+	        $new_volunteer_id = wp_insert_user( $reg_args );
+	        if( is_wp_error( $new_volunteer_id ) ) {
+	            foreach( $new_volunteer_id->errors as $error ) {
+	                foreach( $error as $error_piece ) {
+	                   $errors[] = __('<strong>ERROR</strong>: ' . $error_piece .'. Please try again', 'vmattd' );
+	                }
+	            }
+	        }
+	        if( empty( $errors ) ) {
+	            $volunteer = get_user_by( 'id', $new_volunteer_id);
+	            if( ! $volunteer ) {
+	                $errors[] = __('<strong>ERROR</strong>: Problem registering new user. Please try again', 'vmattd' );
+	            }
+	            if ( empty( $errors ) ) {
+    	            // update the user metadata
+	                $user_meta_fields = array();
+	                foreach( $clean_data as $vmat_field_name => $data ) {
+	                    if( ! in_array( $vmat_field_name, $user_fields ) && $vmat_field_name !== 'volunteer_id' ) {
+	                        $user_meta_fields[$vmat_field_name] = $clean_data[$vmat_field_name]['val'];
+	                    }
+	                }
+                    foreach( $user_meta_fields as $field => $data ) {
+                        $result = update_user_meta($new_volunteer_id, $field, $data);
+                        if( is_wp_error( $result ) ) {
+                            foreach( $result->errors as $error ) {
+                                foreach( $error as $error_piece ) {
+                                    $errors[] = __('<strong>ERROR</strong>: ' . $error_piece .'. Please try again', 'vmattd' );
+                                }
+                            }
+                        }
+                    }
+	            }
+	        }
+	    }
+	    
+	    if ( ! empty( $errors ) ) {
+	        // ajax request failed
+	        $results = array(
+	            'ajax_notice' => $this->accumulate_messages( $errors ),
+	            'notice_id' => $register_notice_id,
+	        );
+	        wp_send_json_error( $results );
+	    }
+	    $html = '';
+	    switch( $target ) {
+	        case 'vmat_manage_volunteers_table':
+	            $args = array();
+	            $args['vpno'] = 1;
+	            $args['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
+	            $args['manage_volunteers_search'] = '';
+	            $html = $this->ajax_get_manage_volunteers_table_html( $args );
+	            $update_type = 'Added';
+	            break;
+	        case 'vmat_manage_volunteer_table':
+    	        $args = array();
+    	        $args['hpno'] = 1;
+    	        $args['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
+    	        $args['manage_hours_search'] = '';
+    	        // we are updating so there is a volunteer_id
+    	        $args['volunteer'] = get_user_by( 'id', $volunteer_data['volunteer_id']['val'] );
+    	        $args['hours'] = $vmat_plugin->get_common()->get_volunteer_hours( $args );
+    	        $html = $this->ajax_get_manage_volunteer_table_html( $args );
+    	        $update_type = 'Updated';
+    	        break;
+	        case 'vmat_volunteer_participation_admin':
+	            $html = '';
+	            $update_type = 'Added';
+	        default:
+	    }
+	    $results = array(
+	        'notice' => '',
+	        'ajax_notice'=> $this->accumulate_messages( array( __( '<strong>SUCCESS</strong>: ' . $update_type . ' volunteer', 'vmattd' ) ) ),
+	        'notice_id' => $notice_id,
+	        'target' => $target,
+	        'action' => $action,
+	        'html' => $html,
+	        'volunteer_id' => $volunteer->ID,
 	    );
 	    // ajax request succeeded
 	    wp_send_json_success( $results );
@@ -472,52 +614,49 @@ class Volunteer_Management_And_Tracking_Admin {
 	function ajax_check_input() {
 	    global $vmat_plugin;
 	    check_ajax_referer( 'vmat_ajax' );
-	    $event = null;
-	    $target = null;
-	    $volunteers = array();
-	    $volunteer_data = array();
+	    $return = array();
 	    $errors = array();
 	    if ( ! empty( $_POST['target'] ) ) {
-	        $target = $_POST['target'];
+	        $return['target'] = $_POST['target'];
 	    } else {
 	        $errors[] = __('<strong>ERROR</strong>: No target provided in ajax request. Please try again', 'vmattd' );
 	    }
 	    if ( ! empty( $_POST['action'] ) ) {
-	        $action = $_POST['action'];
+	        $return['action'] = $_POST['action'];
 	    } else {
 	        $errors[] = __('<strong>ERROR</strong>: No action provided in ajax request. Please try again', 'vmattd' );
 	    }
 	    if ( ! empty( $_POST['notice_id'] ) ) {
-	        $notice_id = $_POST['notice_id'];
+	        $return['notice_id'] = $_POST['notice_id'];
 	    } else {
 	        $errors[] = __('<strong>ERROR</strong>: No notice_id provided in ajax request. Please try again', 'vmattd' );
 	    }
 	    if ( ! empty( $_POST['event_id'] ) ) {
-	        $event_id = $_POST['event_id'];
+	        $return['event_id'] = $_POST['event_id'];
 	    } else {
 	        $errors[] = __('<strong>ERROR</strong>: No event_id provided in ajax request. Please try again', 'vmattd' );
 	    }
 	    if ( ! empty( $_POST['volunteer_data'] ) ) {
-	        $volunteer_data = $_POST['volunteer_data'];
+	        $return['volunteer_data'] = $_POST['volunteer_data'];
 	    } else {
 	        $errors[] = __('<strong>ERROR</strong>: No volunteer_data provided in ajax request. Please try again', 'vmattd' );
 	    }
 	    if ( empty( $errors ) ) {
-	        $event = get_post( $event_id );
-	        if ( !$event ) {
+	        $return['event'] = get_post( $return['event_id'] );
+	        if ( !$return['event'] ) {
 	            $errors[] = __('<strong>ERROR</strong>: No event found. Please try again', 'vmattd' );
 	        }
-	        $volunteers = array();
-	        foreach ( $volunteer_data as $volunteer_id=>$data ) {
+	        $return['volunteers'] = array();
+	        foreach ( $return['volunteer_data'] as $volunteer_id=>$data ) {
 	            $volunteer = get_user_by( 'id',  $volunteer_id );
 	            if ( !$volunteer ) {
 	                $errors[] = __('<strong>ERROR</strong>: No volunteer found. Please try again', 'vmattd' );
 	            } else {
-	                $volunteers[] = $volunteer;
+	                $return['volunteers'][] = $volunteer;
 	            }
 	            if ( empty( $errors ) ) {
-	                $event_volunteers = $vmat_plugin->get_common()->get_event_volunteers( array( 'event_id' => $event->ID ) );
-	                $found_event_volunteer = ! empty( array_filter( $event_volunteers, function( $event_volunteer ) use( $volunteer ) {
+	                $return['event_volunteers'] = $vmat_plugin->get_common()->get_event_volunteers( array( 'event_id' => $return['event']->ID ) );
+	                $found_event_volunteer = ! empty( array_filter( $return['event_volunteers'], function( $event_volunteer ) use( $volunteer ) {
 	                    return $event_volunteer['WP_User']->ID == $volunteer->ID;
 	                }));
 	                    if ( ! $found_event_volunteer ) {
@@ -526,18 +665,99 @@ class Volunteer_Management_And_Tracking_Admin {
 	            }
 	        }
 	    }
-	    return array( 
-	        'errors' => $errors, 
-	        'volunteers' => $volunteers,
-	        'volunteer_data' => $volunteer_data,
-	        'notice_id' => $notice_id,
-	        'action' => $action,
-	        'event' => $event,
-	        'target' => $target,
-	    );
+	    $return['errors'] = $errors;
+	    return $return;
 	}
 	
-	function ajax_get_paginate_vmat_admin_hours_data( ) {
+	
+	function ajax_check_remove_volunteers_input() {
+	    check_ajax_referer( 'vmat_ajax' );
+	    $return = array();
+	    $errors = array();
+	    if ( ! empty( $_POST['target'] ) ) {
+	        $return['target'] = $_POST['target'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No target provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['action'] ) ) {
+	        $return['action'] = $_POST['action'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No action provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['notice_id'] ) ) {
+	        $return['notice_id'] = $_POST['notice_id'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No notice_id provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['volunteer_ids'] ) ) {
+	        $return['volunteer_ids'] = $_POST['volunteer_ids'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No volunteer_ids provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( empty( $errors ) ) {
+	        $return['volunteers'] = array();
+	        foreach ( $return['volunteer_ids'] as $volunteer_id ) {
+	            $volunteer = get_user_by( 'id',  $volunteer_id );
+	            if ( !$volunteer ) {
+	                $errors[] = __('<strong>ERROR</strong>: No volunteer found. Please try again', 'vmattd' );
+	            } else {
+	                $return['volunteers'][] = $volunteer;
+	            }
+	        }
+	    }
+	    $return['errors'] = $errors;
+	    return $return;
+	}
+	
+	function ajax_check_hours_input() {
+	    check_ajax_referer( 'vmat_ajax' );
+	    $return = array();
+	    $errors = array();
+	    if ( ! empty( $_POST['target'] ) ) {
+	        $return['target'] = $_POST['target'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No target provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['action'] ) ) {
+	        $return['action'] = $_POST['action'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No action provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['notice_id'] ) ) {
+	        $return['notice_id'] = $_POST['notice_id'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No notice_id provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['volunteer_id'] ) ) {
+	        $return['volunteer_id'] = $_POST['volunteer_id'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No volunteer_id provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['volunteer_data'] ) ) {
+	        $return['volunteer_data'] = $_POST['volunteer_data'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No volunteer_data provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( empty( $errors ) ) {
+	        $return['volunteer'] = get_user_by( 'id', $return['volunteer_id'] );
+	        if ( !$return['volunteer'] ) {
+	            $errors[] = __('<strong>ERROR</strong>: No volunteer found. Please try again', 'vmattd' );
+	        }
+	        $return['hours'] = array();
+	        foreach ( $return['volunteer_data'] as $hour_id=>$data ) {
+	            $hour = get_post( $hour_id );
+	            if ( !$hour ) {
+	                $errors[] = __('<strong>ERROR</strong>: No volunteer hour found. Please try again', 'vmattd' );
+	            } else {
+	                $return['hours'][] = $hour;
+	            }
+	        }
+	    }
+	    $return['errors'] = $errors;
+	    return $return;
+	}
+	
+	function ajax_get_paginate_vmat_admin_page_data( ) {
 	    $errors = array();
 	    $result = array();
 	    if ( ! empty( $_POST['action'] ) ) {
@@ -566,6 +786,11 @@ class Volunteer_Management_And_Tracking_Admin {
 	        } else {
 	            $errors[] = __('<strong>ERROR</strong>: No admin_page specified in paginate request. Please try again', 'vmattd' );
 	        }
+	        if ( ! empty( $data['notice_id'] ) ) {
+	            $result['notice_id'] = $data['notice_id'];
+	        } else {
+	            $errors[] = __('<strong>ERROR</strong>: No notice_id specified in paginate request. Please try again', 'vmattd' );
+	        }
 	    }
 	    if ( empty( $errors ) ) {
 	        switch ( $result['target'] ) {
@@ -590,6 +815,18 @@ class Volunteer_Management_And_Tracking_Admin {
                     } else {
                         $errors[] = __( '<strong>ERROR</strong>: Missing events_search filter.', 'vmattd' );
                     }
+	                break;
+	            case 'vmat_manage_volunteers_table':
+	                if ( array_key_exists( 'vpno', $data ) ) {
+	                    $result['vpno'] = $data['vpno'];
+	                } else {
+	                    $errors[] = __( '<strong>ERROR</strong>: Missing vpno page indicator.', 'vmattd' );
+	                }
+	                if ( array_key_exists( 'volunteers_search', $data ) ) {
+	                    $result['volunteers_search'] = $data['volunteers_search'];
+	                } else {
+	                    $errors[] = __( '<strong>ERROR</strong>: Missing volunteers_search filter.', 'vmattd' );
+	                }
 	                break;
 	            case 'vmat_volunteers_table':
 	                if ( empty( $data['event_id'] ) ) {
@@ -644,6 +881,116 @@ class Volunteer_Management_And_Tracking_Admin {
 	    return $result;
 	}
 	
+	function ajax_get_events_filter_data( ) {
+	    $errors = array();
+	    $result = array();
+	    $result['epno'] = 1;
+	    if ( ! empty( $_POST['notice_id'] ) ) {
+	        $result['notice_id'] = $_POST['notice_id'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No notice_id provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['target'] ) ) {
+	        $result['target'] = $_POST['target'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No target provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['action'] ) ) {
+	        $result['action'] = $_POST['action'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No action provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( array_key_exists( 'events_search', $_POST ) ) {
+	        $result['events_search'] = $_POST['events_search'];
+	    } else {
+	        $errors[] = __( '<strong>ERROR</strong>: Missing events_search filter.', 'vmattd' );
+	    }
+	    if ( array_key_exists( 'vmat_org', $_POST ) ) {
+	        $result['vmat_org'] = $_POST['vmat_org'];
+	    } else {
+	        $errors[] = __( '<strong>ERROR</strong>: Missing vmat_org filter.', 'vmattd' );
+	    }
+	    if ( array_key_exists( 'scope', $_POST ) ) {
+	        $result['scope'] = $_POST['scope'];
+	    } else {
+	        $errors[] = __( '<strong>ERROR</strong>: Missing scope filter.', 'vmattd' );
+	    }
+	    $result['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
+	    $result['errors'] = $errors;
+	    return $result;
+	}
+	
+	function ajax_get_volunteers_search_data( ) {
+	    $errors = array();
+	    $result = array();
+	    if ( ! empty( $_POST['notice_id'] ) ) {
+	        $result['notice_id'] = $_POST['notice_id'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No notice_id provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['target'] ) ) {
+	        $result['target'] = $_POST['target'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No target provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['action'] ) ) {
+	        $result['action'] = $_POST['action'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No action provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( empty( $errors ) ) {
+	        switch ( $result['target'] ) {
+	            case 'vmat_manage_volunteers_table':
+                    if ( array_key_exists( 'volunteers_search', $_POST ) ) {
+                        $result['volunteers_search'] = $_POST['volunteers_search'];
+                    } else {
+                        $errors[] = __( '<strong>ERROR</strong>: Missing volunteers_search filter.', 'vmattd' );
+                    }
+	                break;
+	            case 'vmat_volunteers_table':
+	                if ( empty( $_POST['event_id'] ) ) {
+	                    $errors[] = __('<strong>ERROR</strong>: No event_id specified in paginate request. Please try again', 'vmattd' );
+	                } else {
+	                    $result['event_id'] = absint( $_POST['event_id'] );
+	                    $event = get_post( $result['event_id'] );
+	                    if ( !$event ) {
+	                        $errors[] = __('<strong>ERROR</strong>: No event found. Please try again', 'vmattd' );
+	                    } else {
+	                        $result['event'] = $event;
+	                        if ( array_key_exists( 'volunteers_search', $_POST ) ) {
+	                            $result['volunteers_search'] = $_POST['volunteers_search'];
+	                        } else {
+	                            $errors[] = __( '<strong>ERROR</strong>: Missing volunteers_search filter.', 'vmattd' );
+	                        }
+	                    }
+	                }
+	                break;
+	            case 'vmat_event_volunteers_table':
+	                if ( empty( $_POST['event_id'] ) ) {
+	                    $errors[] = __('<strong>ERROR</strong>: No event_id specified in paginate request. Please try again', 'vmattd' );
+	                } else {
+	                    $result['event_id'] = absint( $_POST['event_id'] );
+	                    $event = get_post( $result['event_id'] );
+	                    if ( !$event ) {
+	                        $errors[] = __('<strong>ERROR</strong>: No event found. Please try again', 'vmattd' );
+	                    } else {
+	                        $result['event'] = $event;
+	                        if ( array_key_exists( 'event_volunteers_search', $_POST ) ) {
+	                            $result['event_volunteers_search'] = $_POST['event_volunteers_search'];
+	                        } else {
+	                            $errors[] = __( '<strong>ERROR</strong>: Missing event_volunteers_search filter.', 'vmattd' );
+	                        }
+	                    }
+	                }
+	                break;
+	            default:
+	        }
+	    }
+	    $result['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
+	    $result['errors'] = $errors;
+	    return $result;
+	}
+	
 	function ajax_get_manage_volunteers_html( $args=array() ) {
 	    global $vmat_plugin;
 	    
@@ -651,7 +998,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    $args['event_volunteers'] = $vmat_plugin->get_common()->get_volunteers_added_to_event( $args );
 	    // generate replacement html for the volunteers and event_volunteers tables
 	    ob_start();
-	    vmat_manage_volunteers_admin( $args );
+	    $this->html_part_manage_volunteers_admin( $args );
 	    return ob_get_clean();
 	}
 	
@@ -660,7 +1007,27 @@ class Volunteer_Management_And_Tracking_Admin {
 	    $args['event_volunteers'] = $vmat_plugin->get_common()->get_volunteers_added_to_event( $args );
 	    // generate replacement html for the volunteers and event_volunteers tables
 	    ob_start();
-	    vmat_event_volunteers_table( $args );
+	    $this->html_part_volunteer_participation_event_volunteers_table( $args );
+	    return ob_get_clean();
+	}
+	
+	function ajax_get_manage_volunteers_table_html( $args=array() ) {
+	    global $vmat_plugin;
+	    
+	    $args['volunteers'] = $vmat_plugin->get_common()->get_volunteers_not_added_to_event( $args );
+	    // generate replacement html for the volunteers and event_volunteers tables
+	    ob_start();
+	    $this->html_part_manage_volunteers_table( $args );
+	    return ob_get_clean();
+	}
+	
+	function ajax_get_manage_volunteer_table_html( $args=array() ) {
+	    global $vmat_plugin;
+	    
+	    $args['hours'] = $vmat_plugin->get_common()->get_volunteer_hours( $args );
+	    // generate replacement html for the volunteers and event_volunteers tables
+	    ob_start();
+	    $this->html_part_manage_volunteer_table( $args );
 	    return ob_get_clean();
 	}
 	
@@ -670,7 +1037,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    $args['volunteers'] = $vmat_plugin->get_common()->get_volunteers_not_added_to_event( $args );
 	    // generate replacement html for the volunteers and event_volunteers tables
 	    ob_start();
-	    vmat_volunteers_table( $args );
+	    $this->html_part_volunteer_participation_volunteers_table( $args );
 	    return ob_get_clean();
 	}
 	
@@ -680,13 +1047,19 @@ class Volunteer_Management_And_Tracking_Admin {
 	    
 	    // generate replacement html for the volunteers and event_volunteers tables
 	    ob_start();
-	    vmat_events_table( $args );
+	    $this->html_part_events_table( $args );
 	    return ob_get_clean();
 	}
 	
 	function ajax_remove_volunteers_from_event() {
+	    global $vmat_plugin;
 	    $check = $this->ajax_check_input();
 	    $errors = $check['errors'];
+	    if ( ! empty( $_POST['display_target'] ) ) {
+	        $display_target = $_POST['display_target'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No display_target provided in ajax request. Please try again', 'vmattd' );
+	    }
 	    $volunteers = $check['volunteers'];
 	    $event = $check['event'];
 	    $notice_id = $check['notice_id'];
@@ -732,10 +1105,15 @@ class Volunteer_Management_And_Tracking_Admin {
 	    $args['event']= $event;
 	    $args['vpno'] = 1;
 	    $args['evpno'] = 1;
-	    $args['posts_per_page'] = get_option( 'posts_per_page' );
+	    $args['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
 	    $args['volunteers_search'] = '';
 	    $args['event_volunteers_search'] = '';
-	    $html = $this->ajax_get_manage_volunteers_html( $args );
+	    $args['volunteers'] = $vmat_plugin->get_common()->get_volunteers_not_added_to_event( $args );;
+	    $args['event_volunteers'] = $vmat_plugin->get_common()->get_volunteers_added_to_event( $args );
+	    ob_start();
+	    $this->html_part_volunteer_participation_admin( $args );
+	    $html = ob_get_clean();
+	    $display_target_html = $vmat_plugin->get_common()->event_display( $event );
 	    $message = $volunteers[0]->display_name;
 	    if ( count( $volunteers ) > 1 ) {
 	        $message = count( $volunteers ) . ' Volunteers';
@@ -747,6 +1125,8 @@ class Volunteer_Management_And_Tracking_Admin {
 	        'notice_id' => $notice_id,
 	        'action' => $action,
 	        'target' => $target,
+	        'display_target' => $display_target,
+	        'display_target_html' => $display_target_html,
 	    );
 	    // ajax request succeeded
 	    wp_send_json_success( $results );
@@ -756,6 +1136,16 @@ class Volunteer_Management_And_Tracking_Admin {
 	    global $vmat_plugin;
 	    $check = $this->ajax_check_input();
 	    $errors = $check['errors'];
+	    if ( ! empty( $_POST['evpno'] ) ) {
+	        $check['evpno'] = $_POST['evpno'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No evpno provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( array_key_exists( 'event_volunteers_search', $_POST ) ) {
+	        $check['event_volunteers_search'] = $_POST['event_volunteers_search'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No event_volunteers_search provided in ajax request. Please try again', 'vmattd' );
+	    }
 	    $volunteers = $check['volunteers'];
 	    $volunteer_data = $check['volunteer_data'];
 	    $event = $check['event'];
@@ -804,11 +1194,9 @@ class Volunteer_Management_And_Tracking_Admin {
 	    }
 	    $args = array();
 	    $args['event']= $event;
-	    $args['vpno'] = 1;
-	    $args['evpno'] = 1;
-	    $args['posts_per_page'] = get_option( 'posts_per_page' );
-	    $args['volunteers_search'] = '';
-	    $args['event_volunteers_search'] = '';
+	    $args['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
+	    $args['evpno'] = $check['evpno'];
+	    $args['event_volunteers_search'] = $check['event_volunteers_search'];
 	    $html = $this->ajax_get_event_volunteers_table_html( $args );
 	    $message = $volunteers[0]->display_name;
 	    if ( count( $volunteers ) > 1 ) {
@@ -817,6 +1205,171 @@ class Volunteer_Management_And_Tracking_Admin {
 	    $results = array(
 	        'notice' => '',
 	        'ajax_notice'=> $this->accumulate_messages( array( __( '<strong>SUCCESS</strong>: Updated ' . $message , 'vmattd' ) ) ),
+	        'notice_id' => $notice_id,
+	        'action' => $action,
+	        'html' => $html,
+	        'target' => $target,
+	    );
+	    // ajax request succeeded
+	    wp_send_json_success( $results );
+	}
+	
+	function ajax_save_volunteer_hours_data() {
+	    global $vmat_plugin;
+	    $check = $this->ajax_check_hours_input();
+	    $errors = $check['errors'];
+	    if ( ! empty( $_POST['hpno'] ) ) {
+	        $check['hpno'] = $_POST['hpno'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No hpno provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['display_target'] ) ) {
+	        $display_target = $_POST['display_target'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No display_target provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    $hours = $check['hours'];
+	    $volunteer_data = $check['volunteer_data'];
+	    $volunteer = $check['volunteer'];
+	    $notice_id = $check['notice_id'];
+	    $action = $check['action'];
+	    $target = $check['target'];
+	    if ( empty( $errors ) ) {
+	        // Save the meta_data associated with this volounteer hours entry
+	        foreach ( $hours as $hour ) {;
+                foreach ( $volunteer_data[$hour->ID] as $key=>$value ) {
+                    $message = $vmat_plugin->get_common()->validate_input( $value );
+                    if ( $message == '' ) {
+                        update_post_meta( $hour->ID, $key, $value['val'] );
+                    } else {
+                        $errors[] = __('<strong>ERROR</strong>: updating hours data for ' . $volunteer->first_name . ' ' . $volunteer->last_name . '. ' . $message, 'vmattd' );
+                    }
+                    
+                }
+	        }
+	    }
+	    
+	    if ( ! empty( $errors ) ) {
+	        // ajax request failed
+	        $results = array(
+	            'ajax_notice' => $this->accumulate_messages( $errors ),
+	            'notice_id' => $notice_id,
+	            'action' => $action,
+	        );
+	        wp_send_json_error( $results );
+	    }
+	    $args = array();
+	    $args['volunteer']= $volunteer;
+	    $args['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
+	    $args['hpno'] = $check['hpno'];
+	    $args['manage_hours_search'] = $check['manage_hours_search'];
+	    $html = $this->ajax_get_manage_volunteer_table_html( $args );
+	    $display_target_html = $vmat_plugin->get_common()->volunteer_display( $volunteer );
+	    $message = 'hours for ' . $volunteer->display_name;
+	    $results = array(
+	        'notice' => '',
+	        'ajax_notice'=> $this->accumulate_messages( array( __( '<strong>SUCCESS</strong>: Updated ' . $message , 'vmattd' ) ) ),
+	        'notice_id' => $notice_id,
+	        'action' => $action,
+	        'html' => $html,
+	        'target' => $target,
+	        'display_target' => $display_target,
+	        'display_target_html' => $display_target_html
+	    );
+	    // ajax request succeeded
+	    wp_send_json_success( $results );
+	}
+	
+	function ajax_remove_hours_from_volunteer() {
+	    global $vmat_plugin;
+	    $check = $this->ajax_check_hours_input();
+	    $errors = $check['errors'];
+	    if ( ! empty( $_POST['display_target'] ) ) {
+	        $display_target = $_POST['display_target'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No display_target provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    $hours = $check['hours'];
+	    $volunteer = $check['volunteer'];
+	    $notice_id = $check['notice_id'];
+	    $action = $check['action'];
+	    $target = $check['target'];
+	    if ( empty( $errors ) ) {
+	        // Delete vmat_hours posts associated with this event and with post_author == volunteer
+	        foreach ( $hours as $hour ) {
+                if ( ! wp_delete_post( $hour->ID, true) ) {
+                    $errors[] = __('<strong>ERROR</strong>: removing hours from volunteer.', 'vmattd' );
+                }
+	        }
+	    }
+	    
+	    if ( ! empty( $errors ) ) {
+	        // ajax request failed
+	        $results = array(
+	            'ajax_notice' => $this->accumulate_messages( $errors ),
+	            'notice_id' => $notice_id,
+	            'action' => $action,
+	        );
+	        wp_send_json_error( $results );
+	    }
+	    $args = array();
+	    $args['volunteer']= $volunteer;
+	    $args['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
+	    $args['hpno'] = 1;
+	    $args['manage_hours_search'] = '';
+	    $html = $this->ajax_get_manage_volunteer_table_html( $args );
+	    $display_target_html = $vmat_plugin->get_common()->volunteer_display( $volunteer );
+	    $message = 'hours for ' . $volunteer->display_name;
+	    $results = array(
+	        'notice' => '',
+	        'ajax_notice'=> $this->accumulate_messages( array( __( '<strong>SUCCESS</strong>: Removed ' . $message , 'vmattd' ) ) ),
+	        'notice_id' => $notice_id,
+	        'action' => $action,
+	        'html' => $html,
+	        'target' => $target,
+	        'display_target' => $display_target,
+	        'display_target_html' => $display_target_html
+	    );
+	    // ajax request succeeded
+	    wp_send_json_success( $results );
+	}
+	
+	function ajax_remove_volunteers() {
+	    global $vmat_plugin;
+	    $check = $this->ajax_check_remove_volunteers_input();
+	    $errors = $check['errors'];
+	    $volunteer_ids = $check['volunteer_ids'];
+	    $notice_id = $check['notice_id'];
+	    $action = $check['action'];
+	    $target = $check['target'];
+	    if ( empty( $errors ) ) {
+	        // Delete vmat_hours posts associated with this event and with post_author == volunteer
+	        foreach ( $volunteer_ids as $volunteer_id ) {
+	            if ( ! wp_delete_user( $volunteer_id ) ) {
+	                $errors[] = __('<strong>ERROR</strong>: removing volunteers.', 'vmattd' );
+	            }
+	        }
+	    }
+	    
+	    if ( ! empty( $errors ) ) {
+	        // ajax request failed
+	        $results = array(
+	            'ajax_notice' => $this->accumulate_messages( $errors ),
+	            'notice_id' => $notice_id,
+	            'action' => $action,
+	        );
+	        wp_send_json_error( $results );
+	    }
+	    $args = array();
+	    $args['volunteers']= $args['volunteers'] = $vmat_plugin->get_common()->get_volunteers_not_added_to_event();
+	    $args['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
+	    $args['vpno'] = 1;
+	    $args['manage_volunteers_search'] = '';
+	    $html = $this->ajax_get_manage_volunteers_table_html( $args );
+	    $message = count( $volunteer_ids ) . ' volunteers.';
+	    $results = array(
+	        'notice' => '',
+	        'ajax_notice'=> $this->accumulate_messages( array( __( '<strong>SUCCESS</strong>: Removed ' . $message , 'vmattd' ) ) ),
 	        'notice_id' => $notice_id,
 	        'action' => $action,
 	        'html' => $html,
@@ -837,7 +1390,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    $action = $check['action'];
 	    if ( empty( $errors ) ) {
 	        $event_data = $vmat_plugin->get_common()->get_event_data( $event->ID );
-	        // Save the meta_data associated with this event and with post_author == volunteer
+	        // Set the meta_data associated with this event and with post_author == volunteer
 	        foreach ( $volunteers as $volunteer ) {
 	            $hours_args = array(
 	                'nopaging' => true,
@@ -882,9 +1435,9 @@ class Volunteer_Management_And_Tracking_Admin {
 	    wp_send_json_success( $results );
 	}
 	
-	public function ajax_paginate_vmat_admin_hours() {
+	function ajax_paginate_vmat_admin_page() {
 	    check_ajax_referer( 'vmat_ajax' );
-	    $args = $this->ajax_get_paginate_vmat_admin_hours_data();
+	    $args = $this->ajax_get_paginate_vmat_admin_page_data();
 	    if ( empty( $args['errors'] ) ) {
             switch ( $args['target'] ) {
                 case 'vmat_events_table':
@@ -896,6 +1449,9 @@ class Volunteer_Management_And_Tracking_Admin {
                 case 'vmat_event_volunteers_table':
                     $html = $this->ajax_get_event_volunteers_table_html( $args );
                     break;
+                case 'vmat_manage_volunteers_table':
+                    $html = $this->ajax_get_manage_volunteers_table_html( $args );
+                    break;
                 default:
                     // default action
             }
@@ -903,7 +1459,8 @@ class Volunteer_Management_And_Tracking_Admin {
 	    if ( ! empty( $args['errors'] ) ) {
 	        // ajax request failed
 	        $results = array(
-	            'notice' => $this->accumulate_messages( $args['errors'] ),
+	            'ajax_notice' => $this->accumulate_messages( $args['errors'] ),
+	            'notice_id' => $args['notice_id'],
 	            'action' => $args['action'],
 	        );
 	        wp_send_json_error( $results );
@@ -917,13 +1474,124 @@ class Volunteer_Management_And_Tracking_Admin {
 	    wp_send_json_success( $results );
 	}
 	
+	public function ajax_filter_events() {
+	    check_ajax_referer( 'vmat_ajax' );
+	    $args = $this->ajax_get_events_filter_data();
+	    if ( empty( $args['errors'] ) ) {
+	        $html = $this->ajax_get_events_table_html( $args );
+	    }
+	    if ( ! empty( $args['errors'] ) ) {
+	        // ajax request failed
+	        $results = array(
+	            'ajax_notice' => $this->accumulate_messages( $args['errors'] ),
+	            'action' => $args['action'],
+	            'notice_id' => $args['notice_id'],
+	        );
+	        wp_send_json_error( $results );
+	    }
+	    $results = array(
+	        'target' => $args['target'],
+	        'html' => $html,
+	        'action' => $args['action'],
+	        'ajax_notice'=> $this->accumulate_messages( array( __( '<strong>SUCCESS</strong>: Filtered events', 'vmattd' ) ) ),
+	        'notice_id' => $args['notice_id'],
+	        'target' => $args['target'],
+	    );
+	    // ajax request succeeded
+	    wp_send_json_success( $results );
+	}
+	
+	public function ajax_search_volunteers() {
+	    check_ajax_referer( 'vmat_ajax' );
+	    $args = $this->ajax_get_volunteers_search_data();
+	    $args['vpno'] = 1;
+	    if ( empty( $args['errors'] ) ) {
+	        $html = $this->ajax_get_volunteers_table_html( $args );
+	    }
+	    if ( ! empty( $args['errors'] ) ) {
+	        // ajax request failed
+	        $results = array(
+	            'ajax_notice' => $this->accumulate_messages( $args['errors'] ),
+	            'action' => $args['action'],
+	            'notice_id' => $args['notice_id'],
+	        );
+	        wp_send_json_error( $results );
+	    }
+	    $results = array(
+	        'target' => $args['target'],
+	        'html' => $html,
+	        'action' => $args['action'],
+	        'ajax_notice'=> $this->accumulate_messages( array( __( '<strong>SUCCESS</strong>: Filtered volunteers', 'vmattd' ) ) ),
+	        'notice_id' => $args['notice_id'],
+	        'target' => $args['target'],
+	    );
+	    // ajax request succeeded
+	    wp_send_json_success( $results );
+	}
+	
+	public function ajax_search_manage_volunteers() {
+	    check_ajax_referer( 'vmat_ajax' );
+	    $args = $this->ajax_get_volunteers_search_data();
+	    $args['vpno'] = 1;
+	    if ( empty( $args['errors'] ) ) {
+	        $html = $this->ajax_get_manage_volunteers_table_html( $args );
+	    }
+	    if ( ! empty( $args['errors'] ) ) {
+	        // ajax request failed
+	        $results = array(
+	            'ajax_notice' => $this->accumulate_messages( $args['errors'] ),
+	            'action' => $args['action'],
+	            'notice_id' => $args['notice_id'],
+	        );
+	        wp_send_json_error( $results );
+	    }
+	    $results = array(
+	        'target' => $args['target'],
+	        'html' => $html,
+	        'action' => $args['action'],
+	        'ajax_notice'=> $this->accumulate_messages( array( __( '<strong>SUCCESS</strong>: Filtered volunteers', 'vmattd' ) ) ),
+	        'notice_id' => $args['notice_id'],
+	        'target' => $args['target'],
+	    );
+	    // ajax request succeeded
+	    wp_send_json_success( $results );
+	}
+	
+	public function ajax_search_event_volunteers() {
+	    check_ajax_referer( 'vmat_ajax' );
+	    $args = $this->ajax_get_volunteers_search_data();
+	    $args['evpno'] = 1;
+	    if ( empty( $args['errors'] ) ) {
+	        $html = $this->ajax_get_event_volunteers_table_html( $args );
+	    }
+	    if ( ! empty( $args['errors'] ) ) {
+	        // ajax request failed
+	        $results = array(
+	            'ajax_notice' => $this->accumulate_messages( $args['errors'] ),
+	            'action' => $args['action'],
+	            'notice_id' => $args['notice_id'],
+	        );
+	        wp_send_json_error( $results );
+	    }
+	    $results = array(
+	        'target' => $args['target'],
+	        'html' => $html,
+	        'action' => $args['action'],
+	        'ajax_notice'=> $this->accumulate_messages( array( __( '<strong>SUCCESS</strong>: Filtered event volunteers', 'vmattd' ) ) ),
+	        'notice_id' => $args['notice_id'],
+	        'target' => $args['target'],
+	    );
+	    // ajax request succeeded
+	    wp_send_json_success( $results );
+	}
+	
 	public function admin_main_page() { 
 	    add_menu_page(
 	        '',
 	        'Volunteer Mgmnt',
-	        'manage_options',
+	        'edit_posts',
 	        'vmat_admin_main',
-	        array($this, 'vmat_admin_dashboard_html'),
+	        array($this, 'html_page_admin_volunteer_participation'),
 	        'dashicons-groups',
 	        26
 	    );
@@ -936,54 +1604,25 @@ class Volunteer_Management_And_Tracking_Admin {
 	        );
 	}
 	
-	public function remove_admin_hours_menu() {
-	    remove_menu_page(
-	        'edit.php?post_type=vmat_hours'
-	        );
-	}
-	
-	public function remove_admin_organization_menu() {
-	    remove_menu_page(
-	        'edit.php?post_type=vmat_organization'
-	        );
-	}
-	
-	public function remove_admin_funding_stream_menu() {
-	    remove_menu_page(
-	        'edit.php?post_type=vmat_funding_stream'
-	        );
-	}
-	
-	public function admin_dashboard_page() {
+	public function admin_manage_volunteers_page() {
 	    add_submenu_page(
 	        'vmat_admin_main',
-	        'Volunteer Management and Tracking - Dashboard',
-	        'Dashboard',
-	        'manage_options',
-	        'vmat_admin_dashboard',
-	        array($this, 'vmat_admin_dashboard_html')
+	        'Volunteer Management and Tracking - Manage Volunteers',
+	        'Manage Volunteers',
+	        'edit_users',
+	        'vmat_admin_manage_volunteers',
+	        array($this, 'html_page_admin_manage_volunteers')
 	        );
 	}
 	
-	public function admin_volunteers_page() {
+	public function admin_volunteer_participation_page() {
 	    add_submenu_page(
 	        'vmat_admin_main',
-	        'Volunteer Management and Tracking - Volunteers',
-	        'Volunteers',
-	        'manage_options',
-	        'vmat_admin_volunteers',
-	        array($this, 'vmat_admin_volunteers_html')
-	        );
-	}
-	
-	public function admin_hours_page() {
-	    add_submenu_page(
-	        'vmat_admin_main',
-	        'Volunteer Management and Tracking - Volunteer Hours',
-	        'Add Hours',
-	        'manage_options',
-	        'vmat_admin_hours',
-	        array($this, 'vmat_admin_hours_html')
+	        'Volunteer Management and Tracking - Volunteer Participation',
+	        'Volunteer Participation',
+	        'edit_vmat_hours',
+	        'vmat_admin_volunteer_participation',
+	        array($this, 'html_page_admin_volunteer_participation')
 	        );
 	}
 	
@@ -992,9 +1631,9 @@ class Volunteer_Management_And_Tracking_Admin {
 	        'vmat_admin_main',
 	        'Volunteer Management and Tracking - Reports',
 	        'Reports',
-	        'manage_options',
+	        'publish_vmat_hours',
 	        'vmat_admin_reports',
-	        array($this, 'vmat_admin_reports_html')
+	        array($this, 'html_page_admin_reports')
 	        );
 	}
 	
@@ -1005,62 +1644,154 @@ class Volunteer_Management_And_Tracking_Admin {
 	        'Settings',
 	        'manage_options',
 	        'vmat_admin_settings',
-	        array($this, 'vmat_admin_settings_html')
+	        array($this, 'html_page_admin_settings')
 	        );
 	}
-	
-	public function admin_organizations_page() {
-	    add_submenu_page(
-	        'vmat_admin_main',
-	        'Volunteer Management and Tracking - Organizations',
-	        'Organizations',
-	        'manage_options',
-	        'edit.php?post_type=vmat_organization'
-	        );
-	}
-	
-	public function admin_funding_streams_page() {
-	    add_submenu_page(
-	        'vmat_admin_main',
-	        'Volunteer Management and Tracking - Funding Streams',
-	        'Funding Streams',
-	        'manage_options',
-	        'edit.php?post_type=vmat_funding_stream'
-	        );
-	}
-	
+		
 	public function modify_event_list_row_actions( $actions, $post ) {
 	    /*
 	     * Add custom actions to the quick links that appear in the Events list
 	     *     Add Hours - go to VMAT Hours page and add volunteer hours to this event
 	     */
-	    if ( $post->post_type == EM_POST_TYPE_EVENT || $post->post_type == 'event-recurring' ) {
-	        
-	        // Build your links URL.
-	        $add_link = admin_url( 'admin.php' );
-	        $query_vars = array(
-	            'page' => 'vmat_admin_hours',
-	            'event_id' => $post->ID,
-	        );
-	        $add_link = add_query_arg( $query_vars, $add_link );
-	        
-	        
-	        // You can check if the current user has some custom rights.
-            // Include a nonce in this link
-            $add_link = wp_nonce_url( add_query_arg( array( 'action' => 'add_hours' ), $add_link ), 'add_event_hours_nonce' );
-            
-            // Add the new Copy quick link.
-            $actions = array_merge( $actions, array(
-                'add' => sprintf( '<a href="%1$s" title="Add volunteer hours">%2$s</a>',
-                    esc_url( $add_link ),
-                    esc_html( __( 'Add Hours', 'vmattd' ) )
-                    )
-	            ) 
-                );
+	    if( current_user_can( 'edit_vmat_hours' ) ) {
+	        if ( $post->post_type == EM_POST_TYPE_EVENT || $post->post_type == 'event-recurring' ) {
 	            
+	            // Build your links URL.
+	            $add_link = admin_url( 'admin.php' );
+	            $query_vars = array(
+	                'page' => 'vmat_admin_volunteer_participation',
+	                'event_id' => $post->ID,
+	            );
+	            $add_link = add_query_arg( $query_vars, $add_link );
+	            
+	            
+	            // You can check if the current user has some custom rights.
+	            // Include a nonce in this link
+	            $add_link = wp_nonce_url( add_query_arg( array( 'action' => 'add_hours' ), $add_link ), 'add_event_hours_nonce' );
+	            
+	            // Add the new quick link.
+	            $actions = array_merge( $actions, array(
+	                'add' => sprintf( '<a href="%1$s" title="Manage volunteer participatio for event"><span class="vmat-quick-link">%2$s</span></a>',
+	                    esc_url( $add_link ),
+	                    __( 'Manage Volunteer Participation', 'vmattd' )
+	                    )
+	            )
+	                );
+	            
+	        }
 	    }
 	    
 	    return $actions;
+	}
+	
+	public function modify_user_list_row_actions( $actions, $user ) {
+	    /*
+	     * Add custom actions to the quick links that appear in the Events list
+	     *     Add Hours - go to VMAT Hours page and add volunteer hours to this event
+	     */
+	    if( current_user_can( 'edit_users' ) ) {
+            // Build your links URL.
+            $add_link = admin_url( 'users.php' );
+            
+            // You can check if the current user has some custom rights.
+            // Include a nonce in this link
+            $add_link = wp_nonce_url( add_query_arg( 
+                array( 
+                    'action' => 'add_volunteer_role',
+                    'volunteer_id' => $user->ID,
+                ), 
+                $add_link ), 
+                'add_volunteer_role_nonce' );
+            // Add the new quick link.
+            $actions = array_merge( $actions, array(
+                'add' => sprintf( '<a href="%1$s" title="Add volunteer role"><span class="vmat-quick-link">%2$s</span></a>',
+                    esc_url( $add_link ),
+                    __( 'Add Volunteer Role', 'vmattd' )
+                    )
+            )
+                );
+	   }
+	   return $actions;
+	}
+	
+	public function add_volunteer_role_action( ) {
+	    $screen = get_current_screen();
+	    if( 'users' ==  $screen->id ) {
+	        $action = '';
+	        if( array_key_exists( 'action', $_GET ) ) {
+	            $action = $_GET['action'];
+	        }
+	        if( 'add_volunteer_role' == $action  ) {
+                $nonce = '';
+                if( array_key_exists( '_wpnonce', $_GET ) ) {
+                    $nonce = $_GET['_wpnonce'];
+                }
+                if( wp_verify_nonce( $nonce, 'add_volunteer_role_nonce' ) &&
+                    current_user_can( 'edit_users' ) ) {
+                    $volunteer_id = '';
+                    if( array_key_exists( 'volunteer_id', $_GET ) ) {
+                        $volunteer_id = absint( $_GET['volunteer_id'] );
+                    }
+                    if ( $volunteer_id ) {
+                        $user = get_user_by( 'id', $volunteer_id );
+                        if( false !== $user ) {
+                            $user->add_role( 'volunteer' );
+                        }
+                    }
+                }
+	        }
+	    }
+	}
+	
+	public function register_bulk_add_volunteer_role( $bulk_actions) {
+	    $bulk_actions['add_volunteer_role'] = __( 'Add Volunteer Role', 'add_volunteer_role');
+	    return $bulk_actions;
+	}
+	
+	public function add_volunteer_role_handler( $redirect_to, $doaction, $user_ids ) {
+	    $changed = 0;
+	    if( $doaction === 'add_volunteer_role' && current_user_can( 'edit_users' ) ) {
+	       foreach ( $user_ids as $user_id ) {
+	            $wpuser = get_user_by('id', $user_id);
+	            if ( $wpuser ) {
+                    if( ! in_array('volunteer', $wpuser->roles)) {
+                        $wpuser->add_role('volunteer');
+                        $changed = $changed + 1;
+                    }
+	            }
+	       }
+	       $redirect_to = add_query_arg( 'bulk_added_volunteer_role', $changed, $redirect_to );
+	    }
+	    return $redirect_to;
+	}
+	
+	public function bulk_add_volunteer_role_admin_notice() {
+	    if ( ! empty( $_REQUEST['bulk_added_volunteer_role'] ) ) {
+	        $volunteer_role_added_count = intval( $_REQUEST['bulk_added_volunteer_role'] );
+	        ?>
+	        <div class="notice notice-success is-dismissible">
+	        <p>
+	        <?php 
+	        _e( 'Added Volunteer role to ' . $volunteer_role_added_count . ' Users.', 'vmattd');
+	        ?>
+	        </p>
+	   	    </div>
+	   	    <?php 
+	    }
+	}
+	
+	public function post_remove_volunteer_action( $user_id ) {
+	   // remove vmat_hours posts authored by this user when deleting user
+	   $args = array(
+	       'nopaging' => true,
+	       'post_type' => 'vmat_hours',
+	       'author' => $user_id,
+	       
+	   );
+	   $vmat_hours_query = new WP_Query( $args );
+	   foreach( $vmat_hours_query->posts as $vmat_hour ) {
+	       wp_delete_post( $vmat_hour->ID );
+	   }
 	}
 	
 	public function add_em_org_meta_boxes(){
@@ -1136,6 +1867,7 @@ class Volunteer_Management_And_Tracking_Admin {
         </div>
         <?php
 	}
+	
 	public function organization_fields_meta_box( $organization ) {
     	?>
     	<label for="post_name">
@@ -1252,7 +1984,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	     * Updae the organization meta data by adding any selected funding stream ids
 	     * to the organization meta data
 	     */
-	    if ( ! current_user_can( 'edit_posts' ) ) {
+	    if ( ! current_user_can( 'edit_vmat_organizations' ) ) {
 	        return false;
 	    }
 	    if ( array_key_exists( 'vmat_funding_streams', $_POST ) ) {
@@ -1269,7 +2001,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    /*
 	     * Updae the organization meta data 
 	     */
-	    if ( ! current_user_can( 'edit_posts' ) ) {
+	    if ( ! current_user_can( 'edit_vmat_organizations' ) ) {
 	        return false;
 	    }
 	    /*
@@ -1283,7 +2015,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	     * Updae the funding stream meta data 
 	     */
 	    global $vmat_plugin;
-	    if ( ! current_user_can( 'edit_posts' ) ) {
+	    if ( ! current_user_can( 'edit_vmat_funding_streams' ) ) {
 	        return false;
 	    }
 	    if ( array_key_exists(
@@ -1404,9 +2136,130 @@ class Volunteer_Management_And_Tracking_Admin {
         }
     }
     
-    public function admin_hours_prep_args() {
+    public function settings_init() {
+        // register a new setting for "vmat" page
+        register_setting( 'vmat', 'vmat_options' );
+        
+        // register a new section in the "vmat_admin_settings" page
+        add_settings_section(
+        'vmat_section_view',
+            '<h4>' . __( 'View Settings.', 'vmat' ) . '</h4>',
+            array( 
+                $this, 'section_view_cb' 
+	        ),
+            'vmat_admin_settings'
+	     );
+        // register a new section in the "vmat_admin_settings" page
+        add_settings_section(
+            'vmat_section_email',
+            '<h4>' . __( 'Email Settings.', 'vmat' ) . '</h4>',
+            array( 
+                $this, 
+                'section_email_cb' 
+	        ),
+            'vmat_admin_settings'
+	    );
+        
+        // register a new field in the "section_view" section, inside the "admin_vmat_settings" page
+        add_settings_field(
+            'vmat_posts_per_page', // as of WP 4.6 this value is used only internally
+            // use $args' label_for to populate the id inside the callback
+            __( 'Posts Per Page', 'vmattd' ),
+            array( 
+                $this, 
+                'vmat_posts_per_page_cb' ),
+            'vmat_admin_settings',
+            'vmat_section_view', 
+            array(
+                'label_for' => 'vmat_posts_per_page',
+                'class' => 'vmat_row',
+                'custom_data' => 'custom',
+            )
+        );
+        // register a new field in the "section_view" section, inside the "admin_vmat_settings" page
+        add_settings_field(
+            'vmat_new_user_notification_email', // as of WP 4.6 this value is used only internally
+            // use $args' label_for to populate the id inside the callback
+            __( 'Send To: Email When New Users Are Created', 'vmattd' ),
+            array( 
+                $this, 
+                'vmat_new_user_notification_email_cb' 
+    	    ),
+            'vmat_admin_settings',
+            'vmat_section_email',
+            array(
+                'label_for' => 'vmat_new_user_notification_email',
+                'class' => 'vmat_row',
+                'custom_data' => 'custom',
+            )
+        );
+    }
+    
+    // view section cb
+    
+    // section callbacks can accept an $args parameter, which is an array.
+    // $args have the following keys defined: title, id, callback.
+    // the values are defined at the add_settings_section() function.
+    public function section_view_cb( $args ) {
+        ?>
+         <p id="<?php echo esc_attr( $args['id'] ); ?>"><?php esc_html_e( 'Settings for Admin Views.', 'vmattd' ); ?></p>
+         <?php
+    }
+    
+    public function section_email_cb( $args ) {
+        ?>
+         <p id="<?php echo esc_attr( $args['id'] ); ?>"><?php esc_html_e( 'Settings for Email Notificationss.', 'vmattd' ); ?></p>
+         <?php
+    }
+    
+    // posts_per_page field cb
+    
+    // field callbacks can accept an $args parameter, which is an array.
+    // $args is defined at the add_settings_field() function.
+    // wordpress has magic interaction with the following keys: label_for, class.
+    // the "label_for" key value is used for the "for" attribute of the <label>.
+    // the "class" key value is used for the "class" attribute of the <tr> containing the field.
+    // you can add custom key value pairs to be used inside your callbacks.
+    function vmat_posts_per_page_cb( $args ) {
+        // get the value of the setting we've registered with register_setting()
+        $options = get_option( 'vmat_options' );
+        // output the field
+        ?>
+         <input type="number" 
+         id="<?php echo esc_attr( $args['label_for'] ); ?>"
+         data-custom="<?php echo esc_attr( $args['custom_data'] ); ?>"
+         name="vmat_options[<?php echo esc_attr( $args['label_for'] ); ?>]"
+         value="<?php 
+         echo isset( $options[ $args['label_for'] ] ) ? $options[ $args['label_for'] ]: 6;
+         ?>"
+         >
+         <p class="description">
+         <?php esc_html_e( 'Set the number of items that show up on each page of table views', 'vmattd' ); ?>
+         </p>
+         <?php
+    }
+    
+    function vmat_new_user_notification_email_cb( $args ) {
+        // get the value of the setting we've registered with register_setting()
+        $options = get_option( 'vmat_options' );
+        // output the field
+        ?>
+         <input type="email" 
+         id="<?php echo esc_attr( $args['label_for'] ); ?>"
+         data-custom="<?php echo esc_attr( $args['custom_data'] ); ?>"
+         name="vmat_options[<?php echo esc_attr( $args['label_for'] ); ?>]"
+         value="<?php 
+         echo isset( $options[ $args['label_for'] ] ) ? $options[ $args['label_for'] ]: '';
+         ?>"
+         >
+         <p class="description">
+         <?php esc_html_e( 'Set the email address that gets notification emails when new users are created', 'vmattd' ); ?>
+         </p>
+         <?php
+    }
+    
+    public function admin_volunteer_participation_prep_args() {
         global $vmat_plugin;
-        $form_id = $vmat_plugin->get_common()->var_from_get( 'form_id', '' );
         $warnings = array();
         $infos = array();
         $errors = array();
@@ -1423,7 +2276,7 @@ class Volunteer_Management_And_Tracking_Admin {
                 $orgs = $vmat_plugin->get_common()->get_event_organizations_string( $event->ID );
                 if ( $orgs == 'None' ) {
                     $warning = '<strong>WARNING</strong>: No organizations associated with this event. Volunteer reports will be assigned to Funding Stream "None". <br />';
-                    $warning .= 'Click this link to edit the event to add one or more sponsoring organizations ';
+                    $warning .= 'Click this link to edit the event and add one or more sponsoring organizations if desired. ';
                     $warning .= '<a href="' . add_query_arg( array( 'post'=>$event->ID, 'action'=>'edit' ), admin_url('post.php') ) . '">Edit</a>';
                     $warnings[] = __($warning, 'vmattd' );;
                 }
@@ -1432,8 +2285,8 @@ class Volunteer_Management_And_Tracking_Admin {
         $args['orgs'] = $orgs;
         $args['event'] = $event;
         $args['events'] = $events;
-        $args['posts_per_page'] = $vmat_plugin->get_common()->var_from_get( 'posts_per_page', get_option( 'posts_per_page' ) );
-        if ( ! $event && ( ( 'events-filter' == $form_id ) || '' == $form_id ) ) {
+        $args['posts_per_page'] = $vmat_plugin->get_common()->var_from_get( 'posts_per_page', get_option( 'vmat_options' )['vmat_posts_per_page'] );
+        if ( ! $event ) {
             $args['epno'] = $vmat_plugin->get_common()->var_from_get( 'epno', 1 );
             // processing an events selection table filter form submission
             $args['events_search'] = $vmat_plugin->get_common()->var_from_get( 'events_search', '' );
@@ -1448,9 +2301,7 @@ class Volunteer_Management_And_Tracking_Admin {
                 $args['epno'] = 1;
             }
             $args['events'] = $this->get_events( $args );
-        }
-        
-        if ( $event && ( 'volunteers-filter' == $form_id ) ) {
+        } else {
             $args['vpno'] = $vmat_plugin->get_common()->var_from_get( 'vpno', 1 );
             $args['volunteers_search'] = $vmat_plugin->get_common()->var_from_get( 'volunteers_search', '' );
             // processing a volunteers selection table form submission
@@ -1481,32 +2332,274 @@ class Volunteer_Management_And_Tracking_Admin {
         return $args;
     }
     
-    public function admin_notice( $message='', $message_class='' ) {
+    public function admin_manage_volunteers_prep_args() {
+        global $vmat_plugin;
+        $warnings = array();
+        $infos = array();
+        $errors = array();
+        $args = array();
+        $args['volunteer'] = null;
+        if ( array_key_exists( 'volunteer_id', $_GET )) {
+            // the volunteer has been passed-in
+            $args['volunteer'] = get_user_by( 'id',  $_GET['volunteer_id'] );
+        }
+        $args['posts_per_page'] = $vmat_plugin->get_common()->var_from_get( 'posts_per_page', get_option( 'vmat_options' )['vmat_posts_per_page'] );
+        $args['edit_volunteer'] = false;
+        if( array_key_exists( 'edit_volunteer', $_GET ) ) {
+            $args['edit_volunteer'] = true;
+        }
+        $args['vpno'] = $vmat_plugin->get_common()->var_from_get( 'vpno', 1 );
+        $args['volunteers_search'] = $vmat_plugin->get_common()->var_from_get( 'volunteers_search', '' );
+        // processing a volunteers selection table form submission
+        $submit_button = $vmat_plugin->get_common()->var_from_get( 'submit_button', '' );
+        if ( 'filter_volunteers' == $submit_button || 'search_volunteers' == $submit_button ) {
+            $args['vpno'] = 1;
+        }
+        $args['volunteers'] = $vmat_plugin->get_common()->get_volunteers_not_added_to_event( $args );
+        $message = $this->accumulate_messages( $infos );
+        $message = $this->accumulate_messages( $warnings );
+        $message .= $this->accumulate_messages( $errors );
+        if ( $errors ) {
+            $message_class = 'vmat-notice-error';
+        } elseif ( $warnings ) {
+            $message_class = 'vmat-notice-warning';
+        } elseif ( $infos ) {
+            $message_class = 'vmat-notice-info';
+        } else {
+            $message_class = '';
+        }
+        $args['message'] = $message;
+        $args['message_class'] = $message_class;
+        return $args;
+    }
+    
+    public function admin_volunteers_prep_args() {
+        global $vmat_plugin;
+        $warnings = array();
+        $infos = array();
+        $errors = array();
+        $args = array();
+        $args['vpno'] = $vmat_plugin->get_common()->var_from_get( 'vpno', 1 );
+        $args['volunteers_search'] = $vmat_plugin->get_common()->var_from_get( 'volunteers_search', '' );
+        // processing a volunteers selection table form submission
+        $submit_button = $vmat_plugin->get_common()->var_from_get( 'submit_button', '' );
+        if ( 'filter_volunteers' == $submit_button || 'search_volunteers' == $submit_button ) {
+            $args['vpno'] = 1;
+        }
+        $args['volunteers'] = $vmat_plugin->get_common()->get_volunteers_not_added_to_event( $args );
+        $message = $this->accumulate_messages( $infos );
+        $message = $this->accumulate_messages( $warnings );
+        $message .= $this->accumulate_messages( $errors );
+        if ( $errors ) {
+            $message_class = 'vmat-notice-error';
+        } elseif ( $warnings ) {
+            $message_class = 'vmat-notice-warning';
+        } elseif ( $infos ) {
+            $message_class = 'vmat-notice-info';
+        } else {
+            $message_class = '';
+        }
+        $args['message'] = $message;
+        $args['message_class'] = $message_class;
+        return $args;
+    }
+    
+    public function admin_manage_volunteer_prep_args() {
+        global $vmat_plugin;
+        $warnings = array();
+        $infos = array();
+        $errors = array();
+        $args = array();
+        $args['volunteer'] = null;
+        if ( array_key_exists( 'volunteer_id', $_GET )) {
+            // the volunteer has been passed-in
+            $args['volunteer'] = get_user_by( 'id',  $_GET['volunteer_id'] );
+        }
+        $args['posts_per_page'] = $vmat_plugin->get_common()->var_from_get( 'posts_per_page', get_option( 'vmat_options' )['vmat_posts_per_page'] );
+        $args['edit_volunteer'] = false;
+        if( array_key_exists( 'edit_volunteer', $_GET ) ) {
+            $args['edit_volunteer'] = true;
+        }
+        // get a single volunteer management table
+        $args['hpno'] = $vmat_plugin->get_common()->var_from_get( 'vpno', 1 );
+        $args['hours_search'] = $vmat_plugin->get_common()->var_from_get( 'hours_search', '' );
+        // processing a volunteers selection table form submission
+        $submit_button = $vmat_plugin->get_common()->var_from_get( 'submit_button', '' );
+        if ( 'filter_hours' == $submit_button || 'search_hours' == $submit_button ) {
+            $args['hpno'] = 1;
+        }
+        $args['hours'] = $vmat_plugin->get_common()->get_volunteer_hours( $args );
+        $message = $this->accumulate_messages( $infos );
+        $message = $this->accumulate_messages( $warnings );
+        $message .= $this->accumulate_messages( $errors );
+        if ( $errors ) {
+            $message_class = 'vmat-notice-error';
+        } elseif ( $warnings ) {
+            $message_class = 'vmat-notice-warning';
+        } elseif ( $infos ) {
+            $message_class = 'vmat-notice-info';
+        } else {
+            $message_class = '';
+        }
+        $args['message'] = $message;
+        $args['message_class'] = $message_class;
+        return $args;
+    }
+    
+    public function add_nav_to_vmat_cpt_edit_page( $post ) {
+        if( get_current_screen()->id == 'edit-vmat_funding_stream' ||
+            get_current_screen()->id == 'edit-vmat_organization' ||
+            get_current_screen()->id == 'edit-vmat_volunteer_type' ||
+            get_current_screen()->id == 'vmat_funding_stream' ||
+            get_current_screen()->id == 'vmat_organization' ||
+            get_current_screen()->id == 'vmat_volunteer_type') {
+            $this->admin_header();
+        }
+    }
+    
+    public function admin_notice( $id, $message='', $message_class='' ) {
+        $visibility = 'visible';
         if ( $message == '' ) {
             $message = '&nbsp;';
             $visibility = 'hidden';
-        } else {
-            $visibility = 'visible';
         }
         ?>
-        <div class="vmat-notice <?php echo $message_class; ?>" style="visibility:<?php echo $visibility; ?> ;">
+        <div id="<?php echo $id;?>">
+        <div class="vmat-notice <?php echo $message_class; ?>" style="visibility:<?php echo $visibility; ?>;">
             <p><?php echo $message; ?></p>
             <span vmat-notice-dismiss class="dashicons-dismiss" title="Dismiss"></span>
+        </div>
         </div>
         <?php
     }
     
     public function admin_header( $message='', $message_class='' ) {
+        $title_visibility = 'hidden';
+        if ( $message == '' ) {
+            $title_visibility = 'visible';
+        }
+        $screen = str_replace( 'edit-', '', get_current_screen()->id );
+        $vmat_admin_volunteer_participation_url = add_query_arg(
+            'page',
+            'vmat_admin_volunteer_participation',
+            admin_url('admin.php')
+            );
+        $vmat_admin_manage_volunteers_url = add_query_arg(
+            'page',
+            'vmat_admin_manage_volunteers',
+            admin_url('admin.php')
+            );
+        $vmat_admin_reports_url = add_query_arg(
+            'page',
+            'vmat_admin_reports',
+            admin_url('admin.php')
+            );
+        $vmat_admin_settings_url = add_query_arg(
+            'page',
+            'vmat_admin_settings',
+            admin_url('admin.php')
+            );
+        $vmat_admin_funding_streams_url = add_query_arg(
+            'post_type',
+            'vmat_funding_stream',
+            admin_url('edit.php')
+            );
+        $vmat_admin_organizations_url = add_query_arg(
+            'post_type',
+            'vmat_organization',
+            admin_url('edit.php')
+            );
+        $vmat_admin_volunteer_types_url = add_query_arg(
+            'post_type',
+            'vmat_volunteer_type',
+            admin_url('edit.php')
+            );
         ?>
-        <div id="vmat_admin_container" class="wrap container">
-            <h1></h1>
+        <div id="vmat_admin_container" class="wrap container clear">
+            <div id="vmat_admin_title_wrapper">
+            	<div id="vmat_admin_title" style="visibility:<?php echo $title_visibility; ?>">
+            		<h1>
+            		<?php
+            		_e( 'Volunteer Management and Tracking', 'vmattd' );
+            		?>
+            		</h1>
+            	</div>
+                <?php
+                $this->admin_notice( 'vmat_admin_notice', $message, $message_class );
+                ?>
+                <?php
+                $this->admin_notice( 'vmat_admin_notice_sizer', $message, $message_class );
+                ?>
+    		</div>
             <div class="wrap">
-                <div id="vmat_admin_notice">
-                    <?php
-                    $this->admin_notice( $message, $message_class );
-                    ?>
-        		</div>
-        <?php
+            	<div id="vmat_admin_nav">
+                	  <ul class="nav nav-pills  nav-justified">
+                      <li class="nav-item">
+                        <a class="nav-link <?php 
+                        if( 'volunteer-mgmnt_page_vmat_admin_volunteer_participation' == $screen ) {
+                            echo 'active';
+                        }
+                        ?>" href="<?php 
+                        echo $vmat_admin_volunteer_participation_url;
+                        ?>"><span class="vmat-quick-link"><?php _e('Vol Participation', 'vmattd'); ?></span></a>
+                      </li>
+                      <li class="nav-item">
+                        <a class="nav-link <?php 
+                        if( 'volunteer-mgmnt_page_vmat_admin_manage_volunteers' == $screen ) {
+                            echo 'active';
+                        }
+                        ?>" href="<?php 
+                        echo $vmat_admin_manage_volunteers_url;
+                        ?>"><span class="vmat-quick-link"><?php _e('Manage Vols', 'vmattd'); ?></span></a>
+                      </li>
+                      <li class="nav-item">
+                        <a class="nav-link <?php 
+                        if( 'volunteer-mgmnt_page_vmat_admin_reports' == $screen ) {
+                            echo 'active';
+                        }
+                        ?>" href="<?php 
+                        echo $vmat_admin_reports_url;
+                        ?>"><span class="vmat-quick-link"><?php _e('Reports', 'vmattd'); ?></span></a>
+                      </li>
+                      <li class="nav-item">
+                        <a class="nav-link <?php 
+                        if( 'volunteer-mgmnt_page_vmat_admin_settings' == $screen ) {
+                            echo 'active';
+                        }
+                        ?>" href="<?php 
+                        echo $vmat_admin_settings_url;
+                        ?>"><span class="vmat-quick-link"><?php _e('Settings', 'vmattd'); ?></span></a>
+                      </li>
+                      <li class="nav-item">
+                        <a class="nav-link <?php 
+                        if( 'vmat_funding_stream' == $screen ) {
+                            echo 'active';
+                        }
+                        ?>" href="<?php 
+                        echo $vmat_admin_funding_streams_url;
+                        ?>"><span class="vmat-quick-link"><?php _e('Funding Streams', 'vmattd'); ?></span></a>
+                      </li>
+                      <li class="nav-item">
+                        <a class="nav-link <?php 
+                        if( 'vmat_organization' == $screen ) {
+                            echo 'active';
+                        }
+                        ?>" href="<?php 
+                        echo $vmat_admin_organizations_url;
+                        ?>"><span class="vmat-quick-link"><?php _e('Organizations', 'vmattd'); ?></span></a>
+                      </li>
+                       <li class="nav-item">
+                        <a class="nav-link <?php 
+                        if( 'vmat_volunteer_type' == $screen ) {
+                            echo 'active';
+                        }
+                        ?>" href="<?php 
+                        echo $vmat_admin_volunteer_types_url;
+                        ?>"><span class="vmat-quick-link"><?php _e('Vol Types', 'vmattd'); ?></span></a>
+                      </li>
+                    </ul> 
+                </div>
+            	<?php
     }
     
     public function admin_footer() {
@@ -1516,42 +2609,965 @@ class Volunteer_Management_And_Tracking_Admin {
         <?php
     }
     
-    public function vmat_admin_dashboard_html() {
-        $args = array(
-            'message' => '',
-            'message_class' => '',
-        );
-	    $this->admin_header( $args['message'], $args['message_class'] );
-	    ?>
-  		<!-- content here -->
-        <?php
-        $this->admin_footer();
+    function html_part_get_events_admin( $args=array() ) {
+        global $vmat_plugin;
+        $event = $args['event'];
+        $event_select_prefix = ' Select ';
+        if ( $event ) {
+            $event_select_prefix = 'Selected ';
+        }
+        ?>
+        <div class="row">
+            <div class="col">
+        		<?php
+        		if ( $event ) {
+        		?>
+        		<div class="row">
+        			<div class="col">
+        				<?php
+        				echo '<a class="button" href="' . add_query_arg( 'page', 'vmat_admin_volunteer_participation', admin_url( 'admin.php' ) ) . '">' . __('Select another event', 'vmattd') . '</a>';
+        				?>
+            		</div><!-- col1 select another event if one is already selected -->
+            	</div><!-- row -->
+            	<?php 
+        		}
+        		?>
+        		<div class="row">
+        		    <div class="col">
+                		<strong><?php _e( $event_select_prefix . 'Event:', 'vmattd' ); ?></strong>
+                	</div><!-- Event header -->
+        		</div><!-- row -->
+        		<div class="row">
+        			<div class="col">
+        				<?php
+            			if ( $event ) {
+            			    _e( $vmat_plugin->get_common()->event_display( $event ), 'vmattd');
+            			} else {
+            			    ?>
+            			    <div id="vmat_events_table">
+            			    <?php 
+            			    $this->html_part_events_table( $args );
+            			    ?>
+            			    </div>
+            			    <?php
+            			}
+        				?>
+        			</div><!--  Selected event display or event selection table -->
+        		</div><!-- row -->
+          	</div>
+      	</div>
+    	<?php
     }
     
-    public function vmat_admin_volunteers_html() {
+    function html_part_manage_volunteers_admin( $args=array() ) {
+        ?>
+        <div class="row">
+            <div class="col">
+            	<div>
+            		<strong><?php _e('Select a Volunteer:')?></strong>
+            	</div>
+				<div id="vmat_manage_volunteers_table">
+				<?php
+			    $this->html_part_manage_volunteers_table( $args );
+				?>
+				</div>
+          	</div><!-- row -->
+      	</div>
+    	<?php
+    }
+    
+    function html_part_manage_volunteer_admin( $args=array() ) {
+        ?>
+        <div class="row">
+            <div class="col">
+        		<div id="vmat_manage_volunteer_table">
+				<?php
+			    $this->html_part_manage_volunteer_table( $args );
+				?>
+				</div>
+          	</div><!-- row -->
+      	</div>
+    	<?php
+    }
+    
+    function html_part_volunteer_participation_admin( $args=array() ) {
+        $event = $args['event'];
+        ?>
+        <div class="row">
+            <div class="col">
+        		<input type="hidden" name="page" value="vmat_admin_volunteer_participation">
+            	<input type="hidden" name="form_id" value="volunteers-filter">
+            	<input type="hidden" name="event_id" value="<?php echo $event->ID; ?>">
+        		<div class="row">
+        			<div class="col-lg-4">
+        				<strong><?php _e( 'Add Volunteers to Event:', 'vmattd' ); ?></strong>
+        				<div id="vmat_volunteers_table">
+        				<?php
+        			    $this->html_part_volunteer_participation_volunteers_table( $args );
+        				?>
+        				</div>
+        			</div><!--  volunteer selection table -->
+        			<div class="col">
+        				<strong><?php _e( 'Manage Event Volunteer Hours:', 'vmattd' ); ?></strong>
+        				<div id="vmat_event_volunteers_table">
+        				<?php
+        			    $this->html_part_volunteer_participation_event_volunteers_table( $args );
+        				?>
+        				</div>
+        			</div><!--  manage hours table -->
+    			</div><!-- row -->
+          	</div>
+      	</div>
+    	<?php
+    }
+    
+    function html_part_register_and_add_volunteer_admin( $args=array() ) {
+        ?>
+        <div class="row">
+        	<div class="col">
+        		<?php $this->admin_notice( 'volunteer_registration_status' ); ?>
+        	</div>
+        </div>
+        <div class="row">
+            <div class="col">
+            	<div class="row">
+            		<div class="col-lg-4">
+            			<strong><?php _e( 'Register New Volunteer', 'vmattd' ); ?></strong>
+            		</div>
+            		<div class="col-lg-4">
+            			<div class="alignleft">
+            				<button id="vmat_register_new_volunteer_for_event" class="button action" type="button" value="register_and_add_new_volunteer_to_event" title="Register and add a new volunteer to the selected event"><?php _e( 'Register/Add to Event', 'vmattd')?></button>
+            			</div>
+            		</div>
+            		<div class="col">
+            			<div class="alignleft">
+            				<button id="vmat_register_new_volunteer_for_event" class="button action" type="button" value="cancel_volunteer_registration_for_event" title="Cancel registration"><?php _e( 'Cancel', 'vmattd')?></button>
+            			</div>
+            		</div>
+            	</div>
+            	<?php $this->html_part_update_volunteer_form( $args ); ?>
+          	</div>
+      	</div>
+    	<?php
+    }
+    
+    function html_part_update_volunteer_admin( $args=array() ) {
+        if( $args['volunteer'] ) {
+            ?>
+            <input type="hidden" name="volunteer_id" value="<?php echo $args['volunteer']->ID; ?>">
+            <?php
+        }
+        ?>
+        <div class="row">
+        	<div class="col">
+        		<?php $this->admin_notice( 'volunteer_update_status' ); ?>
+        	</div>
+        </div>
+        <div class="row">
+            <div class="col">
+            	<div class="row">
+            		<div class="col-lg-4">
+            			<strong>
+            			<?php if( $args['volunteer'] ) {
+            			    _e( 'Update Volunteer', 'vmattd' );
+            			} else {
+            			    _e( 'Register New Volunteer', 'vmattd' );
+            			}
+            			?>
+            			</strong>
+            		</div>
+            		<div class="col-lg-4">
+            			<div class="alignleft">
+            				<button id="vmat_update_volunteer" class="button action" type="button" value="update_volunteer" title="Register/Update a volunteer">
+            				<?php if( $args['volunteer'] ) {
+            				    _e( 'Update', 'vmattd');
+            				} else {
+            				    _e( 'Register', 'vmattd');
+            				}
+            				?></button>
+            			</div>
+            		</div>
+            		<div class="col">
+            			<div class="alignleft">
+            				<button class="button action" type="button" value="cancel_volunteer_update" title="Cancel update">
+            				<?php
+            				_e( 'Cancel', 'vmattd')
+            				?>
+            				</button>
+            			</div>
+            		</div>
+            	</div>
+            	<?php $this->html_part_update_volunteer_form( $args['volunteer'] ); ?>
+          	</div>
+      	</div>
+    	<?php
+    }
+    
+    function html_part_update_volunteer_form( $volunteer=null ) {
+        global $vmat_plugin;
+        ?>
+    	<div class="row">
+    		<div class="col-lg-6">
+        		<?php
+        		$vmat_plugin->get_common()->render_wp_required_fields_for_ajax_form_table( $volunteer );
+        		?>
+        	</div>
+        	<div class="col">
+        		<?php
+        		$vmat_plugin->get_common()->render_common_fields_for_ajax_form_table( $volunteer );
+        		?>
+        	</div>
+        </div>
+        <div class="row">
+        	<div class="col-lg6">
+        		<?php 
+        		$vmat_plugin->get_common()->render_volunteer_fields_for_ajax_form_table( $volunteer );
+        		?>
+        	</div>
+		</div>
+    	<?php
+    }
+    
+    function html_part_manage_volunteers_table( $args ) {
+        /*
+         * Display a volunteers table
+         *
+         */
+        global $vmat_plugin;
+        $user_query = $args['volunteers'];
+        $volunteers = $user_query->results;
+        $found_users = $user_query->total_users;
+        $page = $args['vpno'];
+        $max_num_pages = ceil( $found_users / $args['posts_per_page'] );
+        $search = $args['volunteers_search'];
+        
+        $page_name = 'vpno';
+        $this_page_url = admin_url() . 'admin.php';
+        $this_page_url = add_query_arg( 'page', 'vmat_admin_manage_volunteers', $this_page_url );
+        $ajax_args = array(
+            'volunteers_search' => $search,
+            'admin_page' => 'vmat_admin_volunteers',
+            'posts_per_page' => $args['posts_per_page'],
+            'target' => 'vmat_manage_volunteers_table',
+            'notice_id' => 'manage_volunteers_status',
+        );
+        $table_nav = $vmat_plugin->get_common()->ajax_admin_paginate(
+            $found_users,
+            $page,
+            $max_num_pages,
+            $page_name,
+            $ajax_args
+            );
+        ?>
+    	<div class="row">
+    		<div class="col-md-auto">
+    			<div class="alignright">
+            		<button class="button" 
+            		        name="submit_button" 
+            		        type="button" 
+            		        value="search_manage_volunteers"><?php _e('Search', 'vmattd'); ?>
+            		</button>
+            	</div>
+            	<div class="clearable-input alignright">
+                	<input type="text" id="volunteer-search-input" name="manage_volunteers_search" value="<?php 
+                	if ( ! empty( $search) ) {
+                	    echo $search;
+                	} else {
+                	    echo '';
+                	}
+                	?>" />
+                	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
+            	</div>
+    		</div>
+    	</div>
+    	<div class="row">
+        	<div class="col-lg-3">
+        		<div class="alignleft">
+    				<button id="vmat_update_volunteer" class="button action" type="button" value="show_update_volunteer_form" title="Add a new volunteer to the selected event"><?php _e( 'Add New Vol', 'vmattd')?></button>
+    			</div>
+        	</div>
+        	<div class="col-lg-3">
+        		<div class="alignleft">
+    				<button id="vmat_remove_volunteers" class="button action" type="button" value="bulk_remove_volunteers" title="Remove selected volunteers"><?php _e( 'Bulk Remove Vols', 'vmattd')?></button>
+    			</div>
+        	</div>
+        </div>
+        <div class="row">
+        	<div class="col">
+        		<div class="tablenav alignright">
+        			<?php
+        			echo $table_nav;
+        			?>
+        			<br class="clear"/>
+        		</div>
+        	</div>
+        </div>
+        <div class="row">
+        	<div class="col pr-1">
+        		<?php $this->admin_notice( 'manage_volunteers_status' ); ?>
+        	</div>
+        </div>
+        <div class="row">
+        	<div class="col">
+        		<table class="widefat" id="vmat_volunteers_table">
+        			<thead>
+        				<tr>
+        					<td class="manage-column column-cb check-column"><input id="vmat_manage_volunteers_select_all" type=checkbox></td>
+        					<td class="manage-column"><?php _e( 'Volunteer', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Email', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Orgs', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Events Vol. (apprvd)', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Days Vol. (apprvd)', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Hours Vol. (apprvd)', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Events Vol. (not apprvd)', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Days Vol. (not apprvd)', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Hours Vol. (not apprvd)', 'vmattd' ); ?></td>
+        				</tr>
+        			</thead>
+        			<tbody>
+        			<?php 
+        			if ( $volunteers ) {
+        			    $alternate = 'alternate';
+        			    foreach ( $volunteers as $volunteer ) {
+        			        echo $vmat_plugin->get_common()->manage_volunteers_row( $volunteer, $this_page_url, $alternate );
+        			        if ( empty( $alternate ) ) {
+        			            $alternate = 'alternate';
+        			        } else {
+        			            $alternate = '';
+        			        }
+        			    }
+        			} else {
+        			    echo '<tr><td>';
+        			    _e( 'No volunteers found', 'vmattd');
+        			    echo '</td></tr>';
+        			}
+        			?>
+        			</tbody>
+        		</table>
+        	</div>
+        </div>
+        <?php
+    }
+    
+    function html_part_volunteer_participation_volunteers_table( $args ) {
+        /*
+         * Display a volunteers table
+         *
+         */
+        global $vmat_plugin;
+        $event = $args['event'];
+        $user_query = $args['volunteers'];
+        $volunteers = $user_query->results;
+        $found_users = $user_query->total_users;
+        $page = $args['vpno'];
+        $max_num_pages = ceil( $found_users / $args['posts_per_page'] );
+        $search = $args['volunteers_search'];
+        
+        $page_name = 'vpno';
+        $ajax_args = array(
+            'event_id' => $event->ID,
+            'volunteers_search' => $search,
+            'admin_page' => 'vmat_admin_volunteer_participation',
+            'posts_per_page' => $args['posts_per_page'],
+            'target' => 'vmat_volunteers_table',
+            'notice_id' => 'volunteers_status',
+        );
+        $table_nav = $vmat_plugin->get_common()->ajax_admin_paginate(
+            $found_users,
+            $page,
+            $max_num_pages,
+            $page_name,
+            $ajax_args
+            );
+        ?>
+    	<div class="row">
+    		<div class="col-md-auto">
+    			<div class="alignright">
+            		<button class="button" 
+            		        name="submit_button" 
+            		        type="button" 
+            		        value="search_volunteers"><?php _e('Search', 'vmattd'); ?>
+            		</button>
+            	</div>
+            	<div class="clearable-input alignright">
+                	<input type="text" id="volunteer-search-input" name="volunteers_search" value="<?php 
+                	if ( ! empty( $search) ) {
+                	    echo $search;
+                	} else {
+                	    echo '';
+                	}
+                	?>" />
+                	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
+            	</div>
+    		</div>
+    	</div>
+        <div class="row">
+        	<div class="col-lg-3">
+        		<div class="alignleft">
+    				<button id="vmat_register_new_volunteer_for_event" class="button action" type="button" value="show_register_and_add_new_volunteer_form" title="Register and add a new volunteer to the selected event"><?php _e( 'Add New ', 'vmattd')?>&raquo;</button>
+    			</div>
+        	</div>
+        	<div class="col">
+        		<div class="alignleft actions bulkactions">
+    				<button id="do_volunteers_bulk_action" class="button action" type="button" value="bulk_add_volunteers_to_event" disabled><?php _e( 'Bulk Add Vols ', 'vmattd')?>&raquo;</button>
+    			</div>
+        	</div>
+        </div>
+        <div class="row">
+        	<div class="col">
+        		<div class="tablenav alignright">
+        			<?php
+        			echo $table_nav;
+        			?>
+        			<br class="clear"/>
+        		</div>
+        	</div>
+        </div>
+        <div class="row">
+        	<div class="col pr-1">
+        		<?php $this->admin_notice( 'volunteers_status' ); ?>
+        	</div>
+        </div>
+        <div class="row">
+        	<div class="col">
+        		<table class="widefat" id="vmat_volunteers_table">
+        			<thead>
+        				<tr>
+        					<td class="manage-column column-cb check-column"><input id="vmat_volunteers_select_all" type=checkbox></td>
+        					<td class="manage-column"><?php _e( 'User', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Email', 'vmattd' ); ?></td>
+        				</tr>
+        			</thead>
+        			<tbody>
+        			<?php 
+        			if ( $volunteers ) {
+        			    $alternate = 'alternate';
+        			    foreach ( $volunteers as $volunteer ) {
+        			        echo $vmat_plugin->get_common()->volunteer_participation_volunteers_row( $volunteer, $alternate );
+        			        if ( empty( $alternate ) ) {
+        			            $alternate = 'alternate';
+        			        } else {
+        			            $alternate = '';
+        			        }
+        			    }
+        			} else {
+        			    echo '<tr><td>';
+        			    _e( 'No volunteers found', 'vmattd');
+        			    echo '</td></tr>';
+        			}
+        			?>
+        			</tbody>
+        		</table>
+        	</div>
+        </div>
+        <?php
+    }
+    
+    function html_part_manage_volunteer_table( $args ) {
+        /*
+         * Display a volunteer table
+         *
+         */
+        global $vmat_plugin;
+        $volunteer = $args['volunteer'];
+        $hours_query = $args['hours'];
+        $found_hours = $hours_query->found_posts;
+        $page = $args['hpno'];
+        $max_num_pages = ceil( $found_hours / $args['posts_per_page'] );
+        $search = $args['hours_search'];
+        $hours = array();
+        foreach ( $hours_query->posts as $hour ) {
+            $hours[$hour->ID]= array();
+            $hours[$hour->ID]['WP_Post'] = $hour;
+            $hours[$hour->ID]['postmeta'] = array_map( function( $meta ) { return $meta[0];}, get_post_meta( $hour->ID ) );
+            $hours[$hour->ID]['event'] = get_post( $hours[$hour->ID]['postmeta']['_event_id'] );
+        }
+        $page_name = 'hpno';
+        $this_page_url = admin_url() . 'admin.php';
+        $this_page_url = add_query_arg( 
+            array(
+                'page' => 'vmat_admin_manage_volunteers',
+                'volunteer_id' => $volunteer->ID,
+            ),
+            $this_page_url 
+        );
+        $ajax_args = array(
+            'hours_search' => $search,
+            'admin_page' => 'vmat_admin_manage_volunteers',
+            'posts_per_page' => $args['posts_per_page'],
+            'target' => 'vmat_manage_volunteer_table',
+            'notice_id' => 'manage_volunteer_status',
+        );
+        $table_nav = $vmat_plugin->get_common()->ajax_admin_paginate(
+            $found_hours,
+            $page,
+            $max_num_pages,
+            $page_name,
+            $ajax_args
+            );
+        ?>
+    	<div class="row">
+    		<div class="col-md-auto">
+    			<div class="alignright">
+            		<button class="button" 
+            		        name="submit_button" 
+            		        type="button" 
+            		        value="search_manage_volunteer"><?php _e('Search', 'vmattd'); ?>
+            		</button>
+            	</div>
+            	<div class="clearable-input alignright">
+                	<input type="text" id="manage-volunteer-search-input" name="manage_volunteer_search" value="<?php 
+                	if ( ! empty( $search) ) {
+                	    echo $search;
+                	} else {
+                	    echo '';
+                	}
+                	?>" />
+                	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
+            	</div>
+    		</div>
+    		<div class="col">
+    			<button class="button" 
+        		        name="submit_button" 
+        		        type="button" 
+        		        value="show_update_volunteer_form"><?php _e('Edit Volunteer', 'vmattd'); ?>
+        		</button>
+    		</div>
+    	</div>
+    	<div class="row">
+    		<div class="col-lg-3">
+    			<div class="alignleft actions bulkactions">
+    				<button id="hours_bulk_remove" 
+    				        class="button action" 
+    				        type="button"
+    				        volunteer_id="<?php echo $volunteer->ID; ?>"
+    				        value="bulk_hours_remove" 
+    				        disabled><?php _e( 'Bulk Remove Hours', 'vmattd')?></button>
+    			</div>
+        	</div>
+        	<div class="col">
+        		<div class="alignleft actions bulkactions">
+    				<button id="hours_bulk_save" 
+    				        class="button action" 
+    				        type="button" 
+    				        volunteer_id="<?php echo $volunteer->ID; ?>"
+    				        value="bulk_hours_save" 
+    				        disabled><?php _e( 'Bulk Save Hours', 'vmattd')?></button>
+    			</div>
+        	</div>
+    	</div>
+        <div class="row">
+        	<div class="col">
+        		<div class="tablenav alignright">
+        			<?php
+        			echo $table_nav;
+        			?>
+        			<br class="clear"/>
+        		</div>
+        	</div>
+        </div>
+        <div class="row">
+        	<div class="col pr-1">
+        		<?php $this->admin_notice( 'manage_volunteer_status' ); ?>
+        	</div>
+        </div>
+        <div class="row">
+        	<div class="col">
+        		<table class="widefat" id="vmat_volunteer_table">
+        			<thead>
+        				<tr>
+        					<td class="manage-column column-cb check-column"><input id="vmat_hours_select_all" type=checkbox></td>
+        					<td class="manage-column"><?php _e('Event', 'vmattd' );?></td>
+        					<td class="manage-column"><?php _e('Hours/Day', 'vmattd' );?></td>
+        					<td class="manage-column"><?php _e('Start (mm/dd/yyyy)', 'vmattd' );?></td>
+        					<td class="manage-column"><?php _e('Vol. Days', 'vmattd' );?></td>
+        					<td class="vmat-manage-column">
+        						<?php _e('Appr', 'vmattd' );?><input id="vmat_hours_approve_all" type=checkbox>
+        					</td>
+        				</tr>
+        			</thead>
+        			<tbody>
+        			<?php 
+        			if ( $hours ) {
+        			    $alternate = 'alternate';
+        			    foreach ( $hours as $hour ) {
+        			        echo $vmat_plugin->get_common()->volunteer_hour_row( $hour, $this_page_url, $alternate );
+        			        if ( empty( $alternate ) ) {
+        			            $alternate = 'alternate';
+        			        } else {
+        			            $alternate = '';
+        			        }
+        			    }
+        			} else {
+        			    echo '<tr><td>';
+        			    _e( 'No hours found', 'vmattd');
+        			    echo '</td></tr>';
+        			}
+        			?>
+        			</tbody>
+        		</table>
+        	</div>
+        </div>
+        <?php
+    }
+    
+    function html_part_volunteer_participation_event_volunteers_table( $args ) {
+        /*
+         * Display a volunteers hours management table
+         *
+         */
+        global $vmat_plugin;
+        $event = $args['event'];
+        $event_data = $vmat_plugin->get_common()->get_event_data( $event->ID );
+        $ev_query = $args['event_volunteers'];
+        $volunteers = $ev_query->results;
+        $found_users = $ev_query->total_users;
+        $page = $args['evpno'];
+        $max_num_pages = ceil( $found_users / $args['posts_per_page'] );
+        $search = $args['event_volunteers_search'];
+        $page_name = 'evpno';
+        $ajax_args = array(
+            'event_id' => $event->ID,
+            'admin_page' => 'vmat_admin_volunteer_participation',
+            'event_volunteers_search' => $args['event_volunteers_search'],
+            'posts_per_page' => $args['posts_per_page'],
+            'target' => 'vmat_event_volunteers_table',
+            'notice_id' => 'event_volunteers_status'
+        );
+        $table_nav = $vmat_plugin->get_common()->ajax_admin_paginate(
+            $found_users,
+            $page,
+            $max_num_pages,
+            $page_name,
+            $ajax_args
+            );
+        ?>
+    	<div class="row">
+    		<div class="col-md-auto">
+            	<div class="alignright">
+            		<button class="button" 
+            		        name="submit_button" 
+            		        type="button" 
+            		        value="search_event_volunteers"><?php _e('Search', 'vmattd'); ?>
+            		</button>
+            	</div>
+            	<div class="clearable-input alignright">
+                	<input type="text" id="event-volunteer-search-input" name="event_volunteers_search" value="<?php 
+                	if ( ! empty( $search) ) {
+                	    echo $search;
+                	} else {
+                	    echo '';
+                	}
+                	?>" />
+                	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
+            	</div>
+    		</div><!-- col-md-auto -->
+    	</div><!-- row -->
+        <div class="row">
+        	<div class="col-lg-3">
+    			<div class="alignleft actions bulkactions">
+    				<button id="event_volunteers_bulk_remove" class="button action" type="button" value="bulk_event_volunteers_remove" disabled>&laquo;&nbsp;<?php _e( 'Bulk Remove Vols', 'vmattd')?></button>
+    			</div>
+        	</div>
+        	<div class="col">
+        		<div class="alignleft actions bulkactions">
+    				<button id="event_volunteers_bulk_save" class="button action" type="button" value="bulk_event_volunteers_save" disabled><?php _e( 'Bulk Save Hours', 'vmattd')?></button>
+    			</div>
+        	</div>
+        </div>
+        <div class="row">
+        	<div class="col">
+        		<div class="tablenav alignright">
+        			<?php
+        			echo $table_nav;
+        			?>
+        			<br class="clear"/>
+        		</div>
+        	</div>
+        </div>
+         <div class="row">
+        	<div class="col">
+        		<?php $this->admin_notice( 'event_volunteers_status' ); ?>
+        	</div>
+        </div>
+        <div class="row">
+        	<div class="col">
+        		<table class="widefat" id="vmat_event_volunteers_table">
+        			<thead>
+        				<tr>
+        					<td class="manage-column column-cb check-column"><input id="vmat_event_volunteers_select_all" type=checkbox></td>
+        					<td class="manage-column"><?php _e('User', 'vmattd' );?></td>
+        					<td class="manage-column"><?php _e('Hours/Day (' . $event_data['hours_per_day'] . ')', 'vmattd' );?></td>
+        					<td class="manage-column"><?php _e('Start (mm/dd/yyyy)', 'vmattd' );?></td>
+        					<td class="manage-column"><?php _e('Vol. Days (' . $event_data['days'] . ')', 'vmattd' );?></td>
+        					<td class="vmat-manage-column">
+        						<?php _e('Appr', 'vmattd' );?><input id="vmat_event_volunteers_approve_all" type=checkbox>
+        					</td>
+        				</tr>
+        			</thead>
+        			<tbody>
+        			<?php 
+        			if ( $volunteers ) {
+        			    $alternate = 'alternate';
+        			    foreach ( $volunteers as $volunteer ) {
+        			        echo $vmat_plugin->get_common()->volunteer_participation_event_volunteer_row( $volunteer, $event->ID, $alternate );
+        			        if ( empty( $alternate ) ) {
+        			            $alternate = 'alternate';
+        			        } else {
+        			            $alternate = '';
+        			        }
+        			    }
+        			} else {
+        			    echo '<tr><td>';
+        			    _e( 'No event volunteers found', 'vmattd');
+        			    echo '</td></tr>';
+        			}
+        			?>
+        			</tbody>
+        		</table>
+        	</div>
+        </div>
+        <?php
+    }
+    
+    function html_part_events_table( $args ) {
+        /*
+         * Display an events table
+         *
+         */
+        global $vmat_plugin;
+        $events_query = $args['events'];
+        $found_posts = $events_query->found_posts;
+        $page = $args['epno'];
+        $max_num_pages = $events_query->max_num_pages;
+        $vmat_org = $args['vmat_org'];
+        $scope = $args['scope'];
+        $search = $args['events_search'];
+        $this_page_url = admin_url() . 'admin.php';
+        $this_page_url = add_query_arg( 'page', 'vmat_admin_volunteer_participation', $this_page_url );
+        $organizations = array(
+            0 => __('View all organizations', 'vmattd'),
+        );
+        foreach ( $vmat_plugin->get_common()->get_post_type('vmat_organization')->posts as $org ) {
+            $organizations[$org->ID] = __($org->post_title, 'vmattd');
+        }
+        $em_scopes = em_get_scopes();
+        $org_pulldown = $vmat_plugin->get_common()->select_options_pulldown(
+            'vmat_org',
+            $organizations,
+            $vmat_org
+            );
+        $scope_pulldown = $vmat_plugin->get_common()->select_options_pulldown(
+            'scope',
+            $em_scopes,
+            $scope
+            );
+        $page_name = 'epno';
+        $ajax_args = array(
+            'admin_page' => 'vmat_admin_volunteer_participation',
+            'scope' => $scope,
+            'vmat_org' => $vmat_org,
+            'events_search' => $search,
+            'posts_per_page' => $args['posts_per_page'],
+            'target' => 'vmat_events_table',
+            'notice_id' => 'events_status',
+        );
+        $table_nav = $vmat_plugin->get_common()->ajax_admin_paginate(
+            $found_posts,
+            $page,
+            $max_num_pages,
+            $page_name,
+            $ajax_args
+            );
+        ?>
+        <div class="row">
+        	<div class="col">
+        		<div class="alignleft">
+            	<?php
+            	echo $org_pulldown;
+            	?>
+        		</div>
+        		<div class="alignleft">
+            	<?php
+            	echo $scope_pulldown;
+            	?>
+        		</div>
+        		<div class="alignleft actions bulkactions">
+    				<button id="events_filter" class="button action" type="button" value="filter_events" ><?php _e( 'Filter', 'vmattd')?></button>
+    			</div>
+        		<button class="button alignright" 
+        		        name="submit_button" 
+        		        type="button" 
+        		        value="search_events"><?php _e('Search Events', 'vmattd'); ?>
+        		</button>
+            	<div class="clearable-input alignright">
+                	<input type="text" id="event-search-input" name="events_search" value="<?php 
+                	if ( ! empty( $search) ) {
+                	    echo $search;
+                	} else {
+                	    echo '';
+                	}
+                	?>" />
+                	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
+            	</div>
+        	</div>
+    	</div>
+    	<div class="row">
+        	<div class="col">
+        		<div class="tablenav alignright">
+        			<?php
+        			echo $table_nav;
+        			?>
+        			<br class="clear"/>
+        		</div>
+    		</div>
+    	</div>
+    	<div class="row">
+    		<div class="col pr-1">
+        		<?php $this->admin_notice( 'events_status' ); ?>
+        	</div>
+    	</div>
+    	<div class="row">
+    		<div class="col">
+        		<table class="widefat events-table">
+        			<thead>
+        				<tr>
+        					<th><?php _e( 'Name', 'vmattd' ); ?></th>
+        					<th><?php _e( 'Orgs', 'vmattd' ); ?></th>
+        					<th><?php _e( 'Volunteers', 'vmattd' ); ?></th>
+        					<th><?php _e( 'Location', 'vmattd' ); ?></th>
+        					<th><?php _e('Date and time', 'vmattd' ); ?></th>
+        				</tr>
+        			</thead>
+        			<tbody>
+        			<?php 
+        			if ( $events_query->posts ) {
+        			    $alternate = 'alternate';
+        			    foreach ( $events_query->posts as $event ) {
+        			        echo $vmat_plugin->get_common()->event_row(
+        			            $event,
+        			            $this_page_url,
+        			            $alternate
+        			            );
+        			        if ( empty( $alternate ) ) {
+        			            $alternate = 'alternate';
+        			        } else {
+        			            $alternate = '';
+        			        }
+        			    }
+        			} else {
+        			    echo '<tr><td>';
+        			    _e( 'No events found', 'vmattd');
+        			    echo '</td></tr>';
+        			}
+        			?>
+        			</tbody>
+        		</table>
+        	</div>
+        </div>
+        <?php
+    }
+    
+    public function html_page_admin_manage_volunteers() {
+        global $vmat_plugin;
         $args = array(
             'message' => '',
             'message_class' => '',
         );
+        $args = $this->admin_manage_volunteers_prep_args();
         $this->admin_header( $args['message'], $args['message_class'] );
-        ?>
-  		<!-- content here -->
-        <?php
+        ?>  
+        <div class="row">
+        	<div class="col">
+        	<?php 
+        	if( ! $args['volunteer'] ) {
+            	?>
+            	<div id="vmat_manage_volunteers_admin" class="col">
+                    <?php 
+                    // display the manage volunteers table
+                    $this->html_part_manage_volunteers_admin( $args );
+                    ?>
+                </div>
+                <div id="vmat_update_volunteer_admin" style="display:
+                    <?php
+                    if( $args['edit_volunteer'] ) {
+                        echo 'block';
+                    } else {
+                        echo 'none';
+                    }
+                    ?>">
+            	    <?php 
+            	    $this->html_part_update_volunteer_admin( $args );
+            	    ?>
+        	    </div>
+        	    <?php 
+        	} else {
+        	    ?>
+        	    <div>
+        	    <?php
+    			echo '<a class="button" href="' . add_query_arg( 'page', 'vmat_admin_manage_volunteers', admin_url( 'admin.php' ) ) . '">' . __('Select another volunteer', 'vmattd') . '</a>';
+    			?>
+    			</div>
+        		<div>
+            		<strong><?php _e('Selected Volunteer:')?></strong>
+            	</div>	
+            	<?php 
+            	echo $vmat_plugin->get_common()->volunteer_display( $args['volunteer'] );
+        	} 
+        	?>
+       		</div>
+       	</div>
+       	<?php
+    	if ( $args['volunteer'] ) {
+    	    $args = $this->admin_manage_volunteer_prep_args();
+    	    ?>
+    		<div class="row vmat-hr">
+    		</div>
+    	    <div class="row">
+    	    	<div class="col">
+    	    	     <div id="vmat_manage_volunteer_admin"  style="display:
+                    <?php
+                    if( $args['edit_volunteer'] ) {
+                        echo 'none';
+                    } else {
+                        echo 'block';
+                    }
+                    ?>"> 
+            	    <?php 
+            	    $this->html_part_manage_volunteer_admin( $args );
+            	    ?>
+            	    </div>
+                    <div id="vmat_update_volunteer_admin" style="display:
+                    <?php
+                    if( $args['edit_volunteer'] ) {
+                        echo 'block';
+                    } else {
+                        echo 'none';
+                    }
+                    ?>">
+                	    <?php 
+                	    $this->html_part_update_volunteer_admin( $args );
+                	    ?>
+        	    	</div>
+        	    </div>
+    	    </div>
+    	    <?php 
+        }
         $this->admin_footer();
     }
 
-    public function vmat_admin_hours_html() {
+    public function html_page_admin_volunteer_participation() {
         /*
          * 
          */
-        $args = $this->admin_hours_prep_args();
+        $args = $this->admin_volunteer_participation_prep_args();
         $this->admin_header( $args['message'], $args['message_class'] );
         ?>
         <div class="row">
         	<div id="vmat_select_event_admin" class="col">
                 <?php 
                 // display the event selection table or the selected event name and organization
-                vmat_get_events_admin( $args );
+                $this->html_part_get_events_admin( $args );
                 ?>
             </div>
         </div>  
@@ -1560,9 +3576,17 @@ class Volunteer_Management_And_Tracking_Admin {
     		<div class="row vmat-hr">
     		</div>
     	    <div class="row">
-        	    <div id="vmat_manage_volunteers_admin" class="col"> <?php 
-        	    vmat_manage_volunteers_admin( $args );
-        	    ?>
+    	    	<div class="col">
+            	    <div id="vmat_volunteer_participation_admin"> 
+            	    <?php 
+            	    $this->html_part_volunteer_participation_admin( $args );
+            	    ?>
+            	    </div>
+            	    <div id="vmat_register_and_add_volunteer_admin" style="display:none">
+            	    <?php 
+            	    $this->html_part_register_and_add_volunteer_admin( $args );
+            	    ?>
+            	    </div>
         	    </div>
     	    </div>
     	    <?php 
@@ -1570,26 +3594,51 @@ class Volunteer_Management_And_Tracking_Admin {
         $this->admin_footer();
     }
 
-    public function vmat_admin_reports_html() {
+    public function html_page_admin_reports() {
         $args = array(
             'message' => '',
             'message_class' => '',
         );
-        $this->admin_header($args[message], $args['message_class'] );
+        $this->admin_header($args['message'], $args['message_class'] );
         ?>
   		<!-- content here -->
         <?php
         $this->admin_footer();
     }
 
-    public function vmat_admin_settings_html() {
+    public function html_page_admin_settings() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+        
+        // add error/update messages
+        
+        // check if the user have submitted the settings
+        // wordpress will add the "settings-updated" $_GET parameter to the url
+        if ( isset( $_GET['settings-updated'] ) ) {
+            // add settings saved message with the class of "updated"
+            add_settings_error( 'vmat_messages', 'vmat_message', __( 'Settings Saved', 'vmattd' ), 'updated' );
+        }
+        
+        // show error/update messages
+        settings_errors( 'vmat_messages' );
         $args = array(
             'message' => '',
             'message_class' => '',
         );
-        $this->admin_header( $args[message], $args['message_class'] );
+        $this->admin_header( $args['message'], $args['message_class'] );
         ?>
-  		<!-- content here -->
+  		<form action="options.php" method="post">
+         <?php
+         // output security fields for the registered setting "wporg"
+         settings_fields( 'vmat' );
+         // output setting sections and their fields
+         // (sections are registered for "wporg", each field is registered to a specific section)
+         do_settings_sections( 'vmat_admin_settings' );
+         // output save settings button
+         submit_button( 'Save Settings' );
+         ?>
+         </form>
         <?php
         $this->admin_footer();
     }

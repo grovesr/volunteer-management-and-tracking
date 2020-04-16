@@ -3,6 +3,31 @@
  * included in this file.
  */
 
+#vmat_admin_title_wrapper {
+ 	position:relative;
+ }
+ 
+ #vmat_admin_title {
+ 	position:absolute;
+ 	top: 0px;
+ 	left: 0px;
+ }
+ 
+ #vmat_admin_notice {
+ 	position:absolute;
+ 	top: 0px;
+ 	left: 0px;
+ }
+ 
+ #vmat_admin_notice {
+ 	display: none;
+ 	width: 100%;
+ }
+ 
+ #vmat_admin_notice_sizer {
+ 	visibility: hidden;
+ }
+
 .vmat-notice {
 	margin: 5px 0 15px;
 	background: #fff;
@@ -35,9 +60,12 @@
 		white-space: nowrap;
 }
 
-div.vmat-notice p {
-	display: inline-block;
+div.vmat-notice p:first-child  {
 	width: 90%;
+}
+
+div.vmat-notice p  {
+	display: inline-block;
 }
 
 .vmat-notice > [vmat-notice-dismiss] {

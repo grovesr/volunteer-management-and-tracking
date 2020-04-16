@@ -3,6 +3,23 @@
  * included in this file.
  */
  
+ ul.nav {
+ 	padding-bottom: 1em;
+ }
+ 
+ #wpfooter {
+ 	bottom: 0px !important;
+ }
+ 
+ .vmat-quick-link {
+ 	white-space: nowrap;
+ }
+ 
+ .row {
+ 	padding-top: 2px;
+ 	padding-bottom: 2px;
+ }
+ 
  #vmat_organizations_checklist, #vmat_funding_streams_checklist {
  	min-height: 42px;
  	max-height: 200px;
@@ -52,7 +69,17 @@
  	background-color: #fdf;
  }
  
- .widefat thead td.vmat-check-column, .widefat thead td.vmat-manage-column {
+ input.vmat-input-error {
+ 	border-color: red;
+ }
+
+ 
+ .widefat thead td.vmat-manage-column {
+ 	padding: 11px 0 0 3px;
+ 	vertical-align: top;
+}
+ 
+ .widefat thead td.vmat-check-column {
  	padding: 11px 0 0 3px;
  	width: 2.2em;
 	vertical-align: top; 
