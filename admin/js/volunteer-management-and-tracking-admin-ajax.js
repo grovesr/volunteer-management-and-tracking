@@ -31,7 +31,7 @@
 	$(window).load( function() {
 		function check_if_save_needed() {
 			var save_needed = false;
-			if ( $('.vmat-check-before-save-changed').length == 0 ) {
+			if ( $('.vmat-check-before-save-changed').length > 0 ) {
 				var message = 'Unsaved data! <br />"OK" to proceed and lose any changes.';
 				$('#vmat_ok_cancel_modal .modal-body').html(message);
 	        	$('html').removeClass('waiting');
@@ -1189,7 +1189,7 @@
 		function take_action_for_event_volunteer() {
 			var self = this;
 			var action = $(self).attr('data_action');
-			if( (action === 'remove' || action === 'save') && check_if_save_needed() ) {
+			if( action === 'remove' && check_if_save_needed() ) {
 				$('#vmat_ok_cancel_modal button#vmat_ok')
 				.off('click')
 				.on('click', take_action_for_event_volunteer_do_action.bind(self) );
@@ -1226,7 +1226,8 @@
 		
 		function take_action_for_volunteer_hours() {
 			var self = this;
-			if( check_if_save_needed() ) {
+			var action = $(self).attr('value').replace( 'bulk_hours_', '');
+			if( action == 'remove' && check_if_save_needed() ) {
 				$('#vmat_ok_cancel_modal button#vmat_ok')
 				.off('click')
 				.on('click', take_action_for_volunteer_hours_do_action.bind(self) );
@@ -1260,7 +1261,8 @@
 		
 		function take_action_for_volunteer_hour() {
 			var self = this;
-			if( check_if_save_needed() ) {
+			var action = $(self).attr('data_action');
+			if( action === 'remove' && check_if_save_needed() ) {
 				$('#vmat_ok_cancel_modal button#vmat_ok')
 				.off('click')
 				.on('click', take_action_for_volunteer_hour_do_action.bind(self) );

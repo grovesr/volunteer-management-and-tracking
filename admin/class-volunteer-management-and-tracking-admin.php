@@ -2617,7 +2617,7 @@ class Volunteer_Management_And_Tracking_Admin {
                 <div class="modal-content">   
                     
                     <!-- Modal Header -->
-                    <div class="modal-header">
+                    <div class="modal-header bg-warning">
                         <h4 class="modal-title">Warning!</h4>
                         <button type="button" class="close" data-dismiss="modal">&times;</button>
                     </div>
