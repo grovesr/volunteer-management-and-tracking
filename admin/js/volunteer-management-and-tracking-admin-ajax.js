@@ -29,9 +29,9 @@
 	 * practising this, we should strive to set a better example in our own work.
 	 */
 	$(window).load( function() {
-		function check_if_save_needed() {
+		function check_if_save_needed( container='body') {
 			var save_needed = false;
-			if ( $('.vmat-check-before-save-changed').length > 0 ) {
+			if ( $( container + ' ' + '.vmat-check-before-save-changed').length > 0 ) {
 				var message = 'Unsaved data! <br />"OK" to proceed and lose any changes.';
 				$('#vmat_ok_cancel_modal .modal-body').html(message);
 	        	$('html').removeClass('waiting');
@@ -1463,7 +1463,8 @@
 		
 		function paginate_tables() {
 			var self = this;
-			if( check_if_save_needed() ) {
+			var context = $(self).closest('div[id$="table"]');
+			if( check_if_save_needed( '#' + $(context).attr('id') ) ) {
 				$('#vmat_ok_cancel_modal button#vmat_ok')
 				.off('click')
 				.on('click', paginate_tables_do_action.bind(self) );
