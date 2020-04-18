@@ -817,7 +817,7 @@ class Volunteer_Management_And_Tracking_Common {
 	   	        $page .= '<td>';
 	    }
 	    
-	    $page .= '<input class="input vmat-event-volunteer-input" type="' . $args['input_type'] . '"
+	    $page .= '<input class="input vmat-form-field" type="' . $args['input_type'] . '"
 		       id="' . esc_attr($var_name) . '"
 		       name="' . esc_attr($var_name) . '"
 		       value="' . $var_value . '" ';
@@ -1616,16 +1616,16 @@ class Volunteer_Management_And_Tracking_Common {
    	    $output .= '</div>';
    	    $output .= '</td>';
    	    $output .= '<td>';
-   	    $output .= '<input class="vmat-event-volunteer-input" data_name="hours_per_day" type="number" size="3" min="0" max="24" id="vmat_hours_per_day_' . $hour_post->post_author . '_' .
+   	    $output .= '<input class="vmat-check-before-save" data_name="hours_per_day" type="number" size="3" min="0" max="24" id="vmat_hours_per_day_' . $hour_post->post_author . '_' .
    	    $hour_post->ID . '" value="' . $hour_meta['_hours_per_day'] . '" required>';
    	    $output .= '</td>';
    	    $output .= '<td>';
-   	    $output .= '<input class="vmat-event-volunteer-input" data_name="volunteer_start_date" min="' . $event_data['iso_start_date'] .
+   	    $output .= '<input class="vmat-check-before-save" data_name="volunteer_start_date" min="' . $event_data['iso_start_date'] .
    	    '" max="' . $event_data['iso_end_date'] . '" type="date" id="vmat_start_date_' .
    	    $hour_post->post_author . '_' . $hour_post->ID . '" value="' . $hour_meta['_volunteer_start_date'] . '" required>';
    	    $output .= '</td>';
    	    $output .= '<td>';
-   	    $output .= '<input class="vmat-event-volunteer-input" data_name="volunteer_days" type="number" size="3" min="0" max="' . $event_data['days'] . 
+   	    $output .= '<input class="vmat-check-before-save" data_name="volunteer_days" type="number" size="3" min="0" max="' . $event_data['days'] . 
    	   	           '" id="vmat_days_' . $hour_post->post_author . '_' . $hour_post->ID . '" value="' . $hour_meta['_volunteer_num_days'] . '" required>';
    	    $output .= '</td>';
    	    $output .= '<td class="vmat-check-column">';
@@ -1633,7 +1633,7 @@ class Volunteer_Management_And_Tracking_Common {
    	    if ( $hour_meta['_approved'] ) {
    	        $checked = 'checked';
    	    }
-   	    $output .= '<input class="vmat-event-volunteer-input" data_name="approved" ' .
+   	    $output .= '<input class="vmat-check-before-save" data_name="approved" ' .
    	   	    'id="vmat_hour_approved_' . $hour_post->post_author . '_' . $hour_post->ID . '" type="checkbox" ' . $checked . '/>';
    	    $output .= '</td>';
    	    return $output;
@@ -1666,7 +1666,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '</span>';
 	    $output .= '&nbsp;|&nbsp;';
 	    $output .= '<span class="vmat-link vmat-quick-link" data_action="add" volunteer_id="' . $volunteer->ID . 
-	   	           '" id="vmat_selected_volunteer_' . $volunteer->ID . '" title="Add volunteer">&raquo;' . __(' Add', 'vmattd') . '</span>';
+	   	           '" id="vmat_selected_volunteer_' . $volunteer->ID . '" title="Add volunteer">' . __(' Add', 'vmattd') . '&nbsp;&raquo;</span>';
    	    $output .= '</div>';
    	    $output .= '</td>';
 	    $output .= '<td>'; // dates and time
@@ -1728,16 +1728,16 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '</div>';
 	    $output .= '</td>';
 	    $output .= '<td>';
-	    $output .= '<input class="vmat-event-volunteer-input" data_name="hours_per_day" type="number" size="3" min="0" max="24" id="vmat_hours_per_day_' . $event_id . '_' . 
+	    $output .= '<input class="vmat-check-before-save" data_name="hours_per_day" type="number" size="3" min="0" max="24" id="vmat_hours_per_day_' . $event_id . '_' . 
 	               $volunteer->ID . '" value="' . $hours_meta['_hours_per_day'][0] . '" required>';
 	    $output .= '</td>';
 	    $output .= '<td>';
-	    $output .= '<input class="vmat-event-volunteer-input" data_name="volunteer_start_date" min="' . $event_data['iso_start_date'] . 
+	    $output .= '<input class="vmat-check-before-save" data_name="volunteer_start_date" min="' . $event_data['iso_start_date'] . 
 	   	            '" max="' . $event_data['iso_end_date'] . '" type="date" id="vmat_start_date_' . 
 	   	           $event_id . '_' . $volunteer->ID . '" value="' . $hours_meta['_volunteer_start_date'][0] . '" required>';
 	    $output .= '</td>';
 	    $output .= '<td>';
-	    $output .= '<input class="vmat-event-volunteer-input" data_name="volunteer_days" type="number" size="3" min="0" max="' . $days . '" id="vmat_days_' . $event_id . '_' . 
+	    $output .= '<input class="vmat-check-before-save" data_name="volunteer_days" type="number" size="3" min="0" max="' . $days . '" id="vmat_days_' . $event_id . '_' . 
 	               $volunteer->ID . '" value="' . $hours_meta['_volunteer_num_days'][0] . '" required>';
 	    $output .= '</td>';
 	    $output .= '<td class="vmat-check-column">';
@@ -1745,7 +1745,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    if ( $hours_meta['_approved'][0] ) {
 	        $checked = 'checked';
 	    }
-	    $output .= '<input class="vmat-event-volunteer-input" data_name="approved" ' .
+	    $output .= '<input class="vmat-check-before-save" data_name="approved" ' .
 	   	           'id="vmat_hours_approved_' . $event_id . '_' . $volunteer->ID . '" type="checkbox" ' . $checked . '/>';
 	    $output .= '</td>';
 	    return $output;

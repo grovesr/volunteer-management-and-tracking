@@ -164,6 +164,9 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_action( 'admin_enqueue_scripts', $this->admin, 'enqueue_styles' );
         $this->loader->add_action( 'admin_enqueue_scripts', $this->admin, 'enqueue_scripts' );
         
+        // ok/cancel modal
+        $this->loader->add_action( 'admin_footer', $this->admin, 'ok_cancel_modal' );
+        
         // Add ajax handlers. the hook has wp_ajax_ajax because the function called begins with ajax_
         $this->loader->add_action( 'wp_ajax_ajax_add_volunteers_to_event', $this->admin, 'ajax_add_volunteers_to_event' );
         $this->loader->add_action( 'wp_ajax_ajax_remove_volunteers_from_event', $this->admin, 'ajax_remove_volunteers_from_event' );

@@ -3,6 +3,13 @@
  * included in this file.
  */
 
+/*
+* need this to overide .Admin.css opacity: 0; for .fade class when using bootstrap modals
+*/
+.fade.show {
+	opacity: 1;
+}
+
 #vmat_admin_title_wrapper {
  	position:relative;
  }

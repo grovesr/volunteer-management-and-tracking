@@ -61,11 +61,11 @@
  	border-style: none none solid none;
  }
  
- input.vmat-event-volunteer-input-changed:valid {
+ input.vmat-check-before-save-changed:valid {
  	background-color: #dfd;
  }
  
- input.vmat-event-volunteer-input-changed:invalid {
+ input.vmat-check-before-save-changed:invalid {
  	background-color: #fdf;
  }
  

@@ -320,6 +320,7 @@ class Volunteer_Management_And_Tracking_Admin {
 
 		wp_enqueue_script( $this->plugin_name . '-js-admin', plugin_dir_url( __FILE__ ) . 'js/volunteer-management-and-tracking-admin.js', array( 'jquery' ), $this->version, false );
 		wp_enqueue_script( $this->plugin_name . '-js-common', plugin_dir_url( __FILE__ ) . '../common/js/volunteer-management-and-tracking-common.js', array( 'jquery' ), $this->version, false );
+		wp_enqueue_script( $this->plugin_name . '-js-bootstrap', plugin_dir_url( __FILE__ ) . '../common/js/bootstrap.js', array( 'jquery' ), $this->version, true );
 		// only enqueue ajax scripts where they're needed
 		if( 'volunteer-mgmnt_page_vmat_admin_volunteer_participation' == $hook ||
 		    'volunteer-mgmnt_page_vmat_admin_volunteers' == $hook ||
@@ -2609,6 +2610,35 @@ class Volunteer_Management_And_Tracking_Admin {
         <?php
     }
     
+    public function ok_cancel_modal() {
+        ?>
+        <div class="modal fade" id="vmat_ok_cancel_modal">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">   
+                    
+                    <!-- Modal Header -->
+                    <div class="modal-header">
+                        <h4 class="modal-title">Warning!</h4>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+                    
+                    <!-- Modal body -->
+                    <div class="modal-body">
+                        
+                    </div>
+                    
+                    <!-- Modal footer -->
+                    <div class="modal-footer">
+                    	<button	id="vmat_ok" type="button" class="btn btn-secondary" data-dismiss="modal">OK</button>
+                    	<button	type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    </div>
+                
+                </div>
+            </div>
+        </div>
+        <?php 
+    }
+    
     function html_part_get_events_admin( $args=array() ) {
         global $vmat_plugin;
         $event = $args['event'];
@@ -2883,13 +2913,21 @@ class Volunteer_Management_And_Tracking_Admin {
     	<div class="row">
         	<div class="col-lg-3">
         		<div class="alignleft">
-    				<button id="vmat_update_volunteer" class="button action" type="button" value="show_update_volunteer_form" title="Add a new volunteer to the selected event"><?php _e( 'Add New Vol', 'vmattd')?></button>
+    				<button id="vmat_update_volunteer" class="button action" type="button" value="show_update_volunteer_form" title="Add a new volunteer"><?php _e( 'Add New Vol', 'vmattd')?></button>
     			</div>
         	</div>
         	<div class="col-lg-3">
         		<div class="alignleft">
     				<button id="vmat_remove_volunteers" class="button action" type="button" value="bulk_remove_volunteers" title="Remove selected volunteers"><?php _e( 'Bulk Remove Vols', 'vmattd')?></button>
     			</div>
+        	</div>
+        	<div class="col">
+    				<button id="vmat_model_test" 
+    				        class="button action" 
+    				        type="button" 
+    				        title="Modal test"
+    				        data-toggle="modal" data-target="#vmat_ok_cancel_modal"
+    				        ><?php _e( 'Modal Test', 'vmattd')?></button>
         	</div>
         </div>
         <div class="row">
