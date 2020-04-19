@@ -1083,6 +1083,16 @@ class Volunteer_Management_And_Tracking_Common {
 	    return $this->filter_volunteers( $ev_query->results, $search );
 	}
 	
+	public function get_all_volunteer_hours( $volunteer ) {
+	    $args = array(
+	        'post_type' => 'vmat_hours',
+	        'author' => $volunteer->ID,
+	        'nopaging' => true,
+	    );
+	    $hours_query = new WP_Query( $args );
+	    return $hours_query->posts;
+	}
+	
 	public function get_event_organizations_string( $event_id ) {
 	    $organizations = get_post_meta( $event_id, '_vmat_organizations', true );
 	    return $this->get_organizations_string_from_array( $organizations );
@@ -1543,6 +1553,58 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '<div class="row-actions">';
 	    $output .= '<a id="vmat_event_' . $event->ID . '" href="' . $event_edit_href . '"><span class="vmat-quick-link">' . __('Edit', 'vmattd') . '</span></a>';
 	    $output .= '</div>';
+	    $output .= '</td>';
+	    $output .= '<td><b>';
+	    $output .= $orgs;
+	    $output .= '</b></td>';
+	    $output .= '<td>';
+	    $output .= $this->get_number_event_volunteers( $event );
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= '<b>';
+	    $output .= $location['location_name'];
+	    $output .= '</b><br />';
+	    $output .= $location['location_address'] . ' - ' . $location['location_town'];
+	    $output .= '</td>';
+	    $output .= '<td>'; // dates and time
+	    $output .= $event_start_date . $event_end_date . '<br />';
+	    $output .= $event_start_time . $event_end_time;
+	    $output .= '</td>';
+	    return $output;
+	}
+	
+	public function manage_volunteer_event_row( $volunteer, $event, $alternate='' ) {
+	    /*
+	     * return a table row for an event
+	     * $event = event post object
+	     * $this_page_url = url to the page that will allow take event_id as an arg
+	     */
+	    global $wpdb;
+	    $location_id = get_post_meta( $event->ID, '_location_id', true);
+	    $event_data = $this->get_event_data( $event->ID );
+	    $event_start_date = $event_data['iso_start_date'];
+	    $event_end_date = $event_data['iso_end_date'];
+	    if ( $event_start_date == $event_end_date ) {
+	        $event_end_date = '';
+	    } else {
+	        $event_end_date = ' - ' . $event_end_date;
+	    }
+	    $event_start_time = $event_data['iso_start_time'];
+	    $event_end_time = $event_data['iso_end_time'];
+	    if ( $event_start_time == $event_end_time ) {
+	        $event_end_time = '';
+	    } else {
+	        $event_end_time = ' - ' . $event_end_time;
+	    }
+	    $location = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . EM_LOCATIONS_TABLE . ' WHERE location_id=%s', $location_id ), ARRAY_A);
+	    // get event sponsoring organizations
+	    $orgs = $this->get_event_organizations_string( $event->ID );
+	    $output = '<tr class="event ' . $alternate . '" id="event_' . $event->ID . '">';
+	    $output .= '<td>';
+	    $output .= '<strong>';
+	    $output .= '<span class="vmat-link" data_action="add" event_id="' . $event->ID . '"' .
+            	    ' volunteer_id="' . $volunteer->ID . '" title="Add Event">' . __( $event->post_title, 'vmattd') . '</span>';
+	    $output .= '</strong>';
 	    $output .= '</td>';
 	    $output .= '<td><b>';
 	    $output .= $orgs;

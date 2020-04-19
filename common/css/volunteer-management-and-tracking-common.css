@@ -64,7 +64,6 @@
 .vmat-link {
 		cursor: pointer;
 		color: #0073aa;
-		white-space: nowrap;
 }
 
 div.vmat-notice p:first-child  {

@@ -189,6 +189,22 @@
 	        $('.vmat-check-before-save')
 	        .off( 'change', add_input_changed_class )
 	        .on( 'change', add_input_changed_class );
+	        // add hours for a new event
+	        $('button[value^="show_select_event"]')
+	        .off( 'click', show_event_selection_table )
+	        .on( 'click', show_event_selection_table );
+	        // cancel event selection table
+	        $('button[value^="cancel_event_selection"]')
+	        .off( 'click', hide_event_selection_table )
+	        .on( 'click', hide_event_selection_table );
+	        // filter events selection table
+	        $('button[value="filter_manage_volunteer_events"], button[value="search_manage_volunteer_events"]')
+			.off( 'click', filter_manage_volunteer_events )
+			.on( 'click', filter_manage_volunteer_events );
+	        // add a volunteer's hours to an event
+	        $('#vmat_manage_volunteer_events_table span.vmat-link[data_action="add"]')
+	        .off( 'click', add_manage_volunteer_to_event )
+	        .on( 'click', add_manage_volunteer_to_event );
 		}
 		
 		function clear_text_input() {
@@ -475,6 +491,7 @@
 				case 'vmat_manage_volunteers_table':
 					attach_vmat_manage_volunteers_handlers();
 					break;
+				case 'vmat_manage_volunteer_events_table':
 				case 'vmat_event_volunteers_table':
 					attach_vmat_hours_volunteers_handlers();
 					break;
@@ -779,6 +796,24 @@
 		 * Action functions begin here
 		 */
 		
+		function show_event_selection_table() {                       //use in callback
+	        // open event selection table
+			// provide cancel to return to previous volunteer admin with no action
+			clear_admin_notice();
+			
+			$('#vmat_manage_volunteer_table').hide();
+			$('#vmat_manage_volunteer_events_table').show();
+	    }
+		
+		function hide_event_selection_table() {                       //use in callback
+	        // hide event selection table
+			// provide cancel to return to previous volunteer admin with no action
+			clear_admin_notice();
+			
+			$('#vmat_manage_volunteer_events_table').hide();
+			$('#vmat_manage_volunteer_table').show();
+	    }
+		
 		function show_update_volunteer_form() {                       //use in callback
 	        // open volunteer registration form
 			// provide cancel to return to previous volunteer admin with no action
@@ -998,6 +1033,29 @@
 	        .fail( handle_failed_ajax_call ); // fall through to handle general ajax failures
 	    }
 		
+		function filter_manage_volunteer_events() {
+			// no need to check for unsaved data because this occurs in a view where there are
+			// no inputs that could be lost
+	        var search = $('#vmat_manage_volunteer_events_table input[name="manage_volunteer_events_search"]').val();
+	        var vmat_org = $('#vmat_manage_volunteer_events_table select[name="vmat_org"]').val();
+	        var scope = $('#vmat_manage_volunteer_events_table select[name="scope"]').val();
+	        $('html').addClass('waiting');
+	        var request = {
+					_ajax_nonce: my_ajax_obj.nonce,
+					action: "ajax_filter_manage_volunteer_events",
+					events_search: search,
+					vmat_org: vmat_org,
+					scope: scope,
+					notice_id: 'manage_volunteer_events_status',
+					target: 'vmat_manage_volunteer_events_table',
+				};
+	        clear_admin_notice();
+	        show_ajax_notice( 'manage_volunteer_events_status', 'working....' );
+	        $.post( my_ajax_obj.ajax_url, request )
+	        .done( handle_volunteers_action_for_event ) // handle any successful wp_send_json_success/error
+	        .fail( handle_failed_ajax_call ); // fall through to handle general ajax failures
+	    }
+		
 		function search_volunteers() {
 			// no need to check for unsaved data because this occurs in a view where there are
 			// no inputs that could be lost
@@ -1093,6 +1151,46 @@
 	        show_ajax_notice( 'event_volunteers_status', 'working....' );
 	        $.post( my_ajax_obj.ajax_url, request )
 	        .done( handle_volunteers_action_for_event ) // handle any successful wp_send_json_success/error
+	        .fail( handle_failed_ajax_call ); // fall through to handle general ajax failures
+	    }
+		
+		function add_manage_volunteer_to_event() {
+			var self = this;
+			if( check_if_save_needed( '#vmat_manage_volunteer_table') ) {
+				$('#vmat_ok_cancel_modal button#vmat_ok')
+				.off('click')
+				.on('click', add_manage_volunteer_to_event_do_action.bind(self) );
+			} else {
+				add_manage_volunteer_to_event_do_action( self );
+			}
+		}
+		
+		function add_manage_volunteer_to_event_do_action( arg=null ) {
+			if( arg.originalEvent !== undefined) {
+				// an event rather than a passed in element
+				self = this;
+			} else {
+				self = arg;
+			}
+	        var event_id = $(self).attr('event_id');
+	        var volunteer_id = $(self).attr('volunteer_id');
+			$( self ).closest('tr').addClass('vmat-action-in-progress');
+	        $('html').addClass('waiting');
+	        hide_event_selection_table();
+	        var request = {
+					_ajax_nonce: my_ajax_obj.nonce,
+					action: "ajax_add_manage_volunteer_to_event",
+					volunteer_id: volunteer_id,
+					event_id: event_id,
+					notice_id: 'manage_volunteer_status',
+					target: 'vmat_manage_volunteer_admin',
+					display_target: 'vmat_volunteer_display_admin'
+				};
+	        clear_admin_notice();
+	        show_ajax_notice( 'manage_volunteer_status', 'working....' );
+	        $.post( my_ajax_obj.ajax_url, request )
+	        .done( handle_volunteers_action_for_event ) // handle any successful wp_send_json_success/error
+	        .fail( handle_failed_volunteers_action_for_event ) // handle error specific to add_volunteer_to_event
 	        .fail( handle_failed_ajax_call ); // fall through to handle general ajax failures
 	    }
 		
@@ -1415,7 +1513,7 @@
 					volunteer_data: volunteer_data,
 					volunteer_id: volunteer_id,
 					notice_id: 'manage_volunteer_status',
-					target: 'vmat_manage_volunteer_table',
+					target: 'vmat_manage_volunteer_admin',
 					display_target: 'vmat_volunteer_display_admin'
 				};
 	        clear_admin_notice();

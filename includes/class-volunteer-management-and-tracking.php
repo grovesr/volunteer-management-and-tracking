@@ -169,12 +169,14 @@ class Volunteer_Management_And_Tracking {
         
         // Add ajax handlers. the hook has wp_ajax_ajax because the function called begins with ajax_
         $this->loader->add_action( 'wp_ajax_ajax_add_volunteers_to_event', $this->admin, 'ajax_add_volunteers_to_event' );
+        $this->loader->add_action( 'wp_ajax_ajax_add_manage_volunteer_to_event', $this->admin, 'ajax_add_manage_volunteer_to_event' );
         $this->loader->add_action( 'wp_ajax_ajax_remove_volunteers_from_event', $this->admin, 'ajax_remove_volunteers_from_event' );
         $this->loader->add_action( 'wp_ajax_ajax_save_event_volunteers_data', $this->admin, 'ajax_save_event_volunteers_data' );
         $this->loader->add_action( 'wp_ajax_ajax_approve_volunteers_hours_for_event', $this->admin, 'ajax_approve_volunteers_hours_for_event' );
         $this->loader->add_action( 'wp_ajax_ajax_set_default_event_volunteers_data', $this->admin, 'ajax_set_default_event_volunteers_data' );
         $this->loader->add_action( 'wp_ajax_ajax_paginate_vmat_admin_page', $this->admin, 'ajax_paginate_vmat_admin_page' );
         $this->loader->add_action( 'wp_ajax_ajax_filter_events', $this->admin, 'ajax_filter_events' );
+        $this->loader->add_action( 'wp_ajax_ajax_filter_manage_volunteer_events', $this->admin, 'ajax_filter_manage_volunteer_events' );
         $this->loader->add_action( 'wp_ajax_ajax_search_volunteers', $this->admin, 'ajax_search_volunteers' );
         $this->loader->add_action( 'wp_ajax_ajax_search_manage_volunteers', $this->admin, 'ajax_search_manage_volunteers' );
         $this->loader->add_action( 'wp_ajax_ajax_search_manage_volunteer', $this->admin, 'ajax_search_manage_volunteer' );
