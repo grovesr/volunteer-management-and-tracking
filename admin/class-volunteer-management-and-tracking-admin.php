@@ -2959,8 +2959,27 @@ class Volunteer_Management_And_Tracking_Admin {
             );
         ?>
     	<div class="row">
-    		<div class="col">
-            	<div class="clearable-input">
+    		<div class="col-lg-3">
+				<button id="vmat_update_volunteer" 
+				        class="button action vmat-action-btn" 
+				        type="button" 
+				        value="show_update_volunteer_form" 
+				        title="Add a new volunteer">
+				        <?php _e( 'Add New Vol', 'vmattd')?>
+				</button>
+        	</div>
+        	<div class="col-lg-3">
+				<button id="vmat_remove_volunteers" 
+				        class="button action vmat-action-btn" 
+				        type="button" 
+				        value="bulk_remove_volunteers" 
+				        title="Remove selected volunteers">
+				        <?php _e( 'Bulk Remove Vols', 'vmattd')?>
+				</button>
+        	</div>
+        	<div class="col">
+    			<div class="alignright">
+    				<div class="clearable-input">
                 	<input type="text" id="volunteer-search-input" name="manage_volunteers_search" value="<?php 
                 	if ( ! empty( $search) ) {
                 	    echo $search;
@@ -2975,27 +2994,8 @@ class Volunteer_Management_And_Tracking_Admin {
         		        type="button" 
         		        value="search_manage_volunteers"><?php _e('Search', 'vmattd'); ?>
         		</button>
+    			</div>
     		</div>
-    	</div>
-    	<div class="row">
-        	<div class="col-lg-6">
-				<button id="vmat_update_volunteer" 
-				        class="button action vmat-action-btn" 
-				        type="button" 
-				        value="show_update_volunteer_form" 
-				        title="Add a new volunteer">
-				        <?php _e( 'Add New Vol', 'vmattd')?>
-				</button>
-        	</div>
-        	<div class="col">
-				<button id="vmat_remove_volunteers" 
-				        class="button action vmat-action-btn" 
-				        type="button" 
-				        value="bulk_remove_volunteers" 
-				        title="Remove selected volunteers">
-				        <?php _e( 'Bulk Remove Vols', 'vmattd')?>
-				</button>
-        	</div>
         </div>
         <div class="row">
         	<div class="col">
@@ -3087,7 +3087,8 @@ class Volunteer_Management_And_Tracking_Admin {
         ?>
     	<div class="row">
     		<div class="col">
-            	<div class="clearable-input">
+    			<div class="alignright">
+    				<div class="clearable-input">
                 	<input type="text" id="volunteer-search-input" name="volunteers_search" value="<?php 
                 	if ( ! empty( $search) ) {
                 	    echo $search;
@@ -3102,6 +3103,7 @@ class Volunteer_Management_And_Tracking_Admin {
         		        type="button" 
         		        value="search_volunteers"><?php _e('Search', 'vmattd'); ?>
         		</button>
+    			</div>
     		</div>
     	</div>
         <div class="row">
@@ -3217,8 +3219,25 @@ class Volunteer_Management_And_Tracking_Admin {
             );
         ?>
     	<div class="row">
-    		<div class="col-lg-4">
-            	<div class="clearable-input">
+    		<div class="col-lg-3">
+    			<button class="button action vmat-action-btn" 
+        		        name="submit_button" 
+        		        type="button" 
+        		        value="show_update_volunteer_form"><?php _e('Edit Volunteer', 'vmattd'); ?>
+        		</button>
+    		</div>
+    		<div class="col-lg-3">
+    			<button id="add_event_to_volunteer" 
+				        class="button action vmat-action-btn" 
+				        type="button" 
+				        volunteer_id="<?php echo $volunteer->ID; ?>"
+				        value="add_event_to_volunteer">
+				        <?php _e( 'Add Event', 'vmattd')?>
+				</button>
+    		</div>
+    		<div class="col">
+    			<div class="alignright">
+    				<div class="clearable-input">
                 	<input type="text" id="manage-volunteer-search-input" name="manage_volunteer_search" value="<?php 
                 	if ( ! empty( $search) ) {
                 	    echo $search;
@@ -3234,26 +3253,11 @@ class Volunteer_Management_And_Tracking_Admin {
         		        volunteer_id="<?php echo $volunteer->ID; ?>"
         		        value="search_manage_volunteer"><?php _e('Search', 'vmattd'); ?>
         		</button>
-    		</div>
-    		<div class="col-lg-4">
-    			<button class="button action vmat-action-btn" 
-        		        name="submit_button" 
-        		        type="button" 
-        		        value="show_update_volunteer_form"><?php _e('Edit Volunteer', 'vmattd'); ?>
-        		</button>
-    		</div>
-    		<div class="col">
-    			<button id="add_event_to_volunteer" 
-				        class="button action vmat-action-btn" 
-				        type="button" 
-				        volunteer_id="<?php echo $volunteer->ID; ?>"
-				        value="add_event_to_volunteer">
-				        <?php _e( 'Add Event', 'vmattd')?>
-				</button>
+    			</div>
     		</div>
     	</div>
     	<div class="row">
-    		<div class="col-lg-4">
+    		<div class="col-lg-3">
     			<div class="actions bulkactions">
     				<button id="hours_bulk_remove" 
     				        class="button action vmat-action-btn" 
@@ -3263,7 +3267,7 @@ class Volunteer_Management_And_Tracking_Admin {
     				        disabled><?php _e( 'Bulk Remove Hours', 'vmattd')?></button>
     			</div>
         	</div>
-        	<div class="col-lg-4">
+        	<div class="col-lg-3">
         		<div class="actions bulkactions">
     				<button id="hours_bulk_save" 
     				        class="button action vmat-action-btn" 
@@ -3364,21 +3368,23 @@ class Volunteer_Management_And_Tracking_Admin {
         ?>
     	<div class="row">
     		<div class="col">
-            	<div class="clearable-input">
-                	<input type="text" id="event-volunteer-search-input" name="event_volunteers_search" value="<?php 
-                	if ( ! empty( $search) ) {
-                	    echo $search;
-                	} else {
-                	    echo '';
-                	}
-                	?>" />
-                	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
-            	</div>
-            	<button class="button" 
-        		        name="submit_button" 
-        		        type="button" 
-        		        value="search_event_volunteers"><?php _e('Search', 'vmattd'); ?>
-        		</button>
+    			<div class="alignright">
+                	<div class="clearable-input">
+                    	<input type="text" id="event-volunteer-search-input" name="event_volunteers_search" value="<?php 
+                    	if ( ! empty( $search) ) {
+                    	    echo $search;
+                    	} else {
+                    	    echo '';
+                    	}
+                    	?>" />
+                    	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
+                	</div>
+                	<button class="button" 
+            		        name="submit_button" 
+            		        type="button" 
+            		        value="search_event_volunteers"><?php _e('Search', 'vmattd'); ?>
+            		</button>
+        		</div>
     		</div><!-- col-md-auto -->
     	</div><!-- row -->
         <div class="row">
@@ -3529,7 +3535,8 @@ class Volunteer_Management_And_Tracking_Admin {
         		</button>
         	</div>
         	<div class="col">
-        		<div class="clearable-input">
+        		<div class="alignright">
+        			<div class="clearable-input">
                 	<input type="text" id="event-search-input" name="events_search" value="<?php 
                 	if ( ! empty( $search) ) {
                 	    echo $search;
@@ -3544,6 +3551,7 @@ class Volunteer_Management_And_Tracking_Admin {
         		        type="button" 
         		        value="search_events"><?php _e('Search', 'vmattd'); ?>
         		</button>
+        		</div>
         	</div>
     	</div>
     	<div class="row">
