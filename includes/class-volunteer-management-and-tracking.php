@@ -177,6 +177,7 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_action( 'wp_ajax_ajax_filter_events', $this->admin, 'ajax_filter_events' );
         $this->loader->add_action( 'wp_ajax_ajax_search_volunteers', $this->admin, 'ajax_search_volunteers' );
         $this->loader->add_action( 'wp_ajax_ajax_search_manage_volunteers', $this->admin, 'ajax_search_manage_volunteers' );
+        $this->loader->add_action( 'wp_ajax_ajax_search_manage_volunteer', $this->admin, 'ajax_search_manage_volunteer' );
         $this->loader->add_action( 'wp_ajax_ajax_search_event_volunteers', $this->admin, 'ajax_search_event_volunteers' );
         $this->loader->add_action( 'wp_ajax_ajax_update_volunteer', $this->admin, 'ajax_update_volunteer' );
         $this->loader->add_action( 'wp_ajax_ajax_save_volunteer_hours_data', $this->admin, 'ajax_save_volunteer_hours_data' );

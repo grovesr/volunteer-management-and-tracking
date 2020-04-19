@@ -969,8 +969,8 @@ class Volunteer_Management_And_Tracking_Common {
 	    // find the hours that are already associated with this volunteer, nopaging=true the results
 	    $volunteer = $args['volunteer'];
 	    $search = '';
-	    if ( array_key_exists( 'hours_search', $args ) ) {
-	        $search = $args['hours_search'];
+	    if ( array_key_exists( 'manage_volunteer_search', $args ) ) {
+	        $search = $args['manage_volunteer_search'];
 	    }
 	    $hours_args = array(
 	        'count_total' => true,
@@ -1639,7 +1639,7 @@ class Volunteer_Management_And_Tracking_Common {
    	    return $output;
 	}
 	
-	public function volunteer_participation_volunteers_row( $volunteer, $this_page_url='#', $alternate='' ) {
+	public function volunteer_participation_volunteers_row( $volunteer, $alternate='' ) {
 	    /*
 	     * return a table row for a manage volunteers table
 	     * $volunteer = volunteer user object
@@ -1649,8 +1649,8 @@ class Volunteer_Management_And_Tracking_Common {
 	    $volunteer_edit_href = add_query_arg( array(
 	        'page' => 'vmat_admin_manage_volunteers',
 	        'volunteer_id' => $volunteer->ID,
+	        ),
 	        $volunteer_edit_href
-	       )
 	    );
 	    $output = '<tr class="' . $alternate . '" id="volunteer_' . $volunteer->ID . '">';
 	    $output .= '<th class="check-column">';

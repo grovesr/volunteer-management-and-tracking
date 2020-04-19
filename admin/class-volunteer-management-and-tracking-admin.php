@@ -992,6 +992,47 @@ class Volunteer_Management_And_Tracking_Admin {
 	    return $result;
 	}
 	
+	function ajax_get_manage_volunteer_search_data( ) {
+	    $errors = array();
+	    $result = array();
+	    if ( ! empty( $_POST['notice_id'] ) ) {
+	        $result['notice_id'] = $_POST['notice_id'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No notice_id provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['target'] ) ) {
+	        $result['target'] = $_POST['target'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No target provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['action'] ) ) {
+	        $result['action'] = $_POST['action'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No action provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( array_key_exists( 'manage_volunteer_search', $_POST ) ) {
+	        $result['manage_volunteer_search'] = $_POST['manage_volunteer_search'];
+	    } else {
+	        $errors[] = __( '<strong>ERROR</strong>: Missing manage_volunteer_search filter.', 'vmattd' );
+	    }      
+	    if ( array_key_exists( 'volunteer_id', $_POST ) ) {
+	        $result['volunteer_id'] = $_POST['volunteer_id'];
+	    } else {
+	        $errors[] = __( '<strong>ERROR</strong>: Missing volunteer_id filter.', 'vmattd' );
+	    }
+	    if( empty( $errors ) ) {
+	        $volunteer = get_user_by( 'id', $result['volunteer_id'] );
+	        if ( !$volunteer ) {
+	            $errors[] = __('<strong>ERROR</strong>: No volunteer found. Please try again', 'vmattd' );
+	        } else {
+	            $result['volunteer'] = $volunteer;
+	        }
+	    }
+	    $result['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
+	    $result['errors'] = $errors;
+	    return $result;
+	}
+	
 	function ajax_get_manage_volunteers_html( $args=array() ) {
 	    global $vmat_plugin;
 	    
@@ -1536,6 +1577,34 @@ class Volunteer_Management_And_Tracking_Admin {
 	    $args['vpno'] = 1;
 	    if ( empty( $args['errors'] ) ) {
 	        $html = $this->ajax_get_manage_volunteers_table_html( $args );
+	    }
+	    if ( ! empty( $args['errors'] ) ) {
+	        // ajax request failed
+	        $results = array(
+	            'ajax_notice' => $this->accumulate_messages( $args['errors'] ),
+	            'action' => $args['action'],
+	            'notice_id' => $args['notice_id'],
+	        );
+	        wp_send_json_error( $results );
+	    }
+	    $results = array(
+	        'target' => $args['target'],
+	        'html' => $html,
+	        'action' => $args['action'],
+	        'ajax_notice'=> $this->accumulate_messages( array( __( '<strong>SUCCESS</strong>: Filtered volunteers', 'vmattd' ) ) ),
+	        'notice_id' => $args['notice_id'],
+	        'target' => $args['target'],
+	    );
+	    // ajax request succeeded
+	    wp_send_json_success( $results );
+	}
+	
+	public function ajax_search_manage_volunteer() {
+	    check_ajax_referer( 'vmat_ajax' );
+	    $args = $this->ajax_get_manage_volunteer_search_data();
+	    $args['hpno'] = 1;
+	    if ( empty( $args['errors'] ) ) {
+	        $html = $this->ajax_get_manage_volunteer_table_html( $args );
 	    }
 	    if ( ! empty( $args['errors'] ) ) {
 	        // ajax request failed
@@ -2423,10 +2492,10 @@ class Volunteer_Management_And_Tracking_Admin {
         }
         // get a single volunteer management table
         $args['hpno'] = $vmat_plugin->get_common()->var_from_get( 'vpno', 1 );
-        $args['hours_search'] = $vmat_plugin->get_common()->var_from_get( 'hours_search', '' );
+        $args['manage_volunteer_search'] = $vmat_plugin->get_common()->var_from_get( 'manage_volunteer_search', '' );
         // processing a volunteers selection table form submission
         $submit_button = $vmat_plugin->get_common()->var_from_get( 'submit_button', '' );
-        if ( 'filter_hours' == $submit_button || 'search_hours' == $submit_button ) {
+        if ( 'search_manage_volunteer' == $submit_button ) {
             $args['hpno'] = 1;
         }
         $args['hours'] = $vmat_plugin->get_common()->get_volunteer_hours( $args );
@@ -2921,14 +2990,6 @@ class Volunteer_Management_And_Tracking_Admin {
     				<button id="vmat_remove_volunteers" class="button action" type="button" value="bulk_remove_volunteers" title="Remove selected volunteers"><?php _e( 'Bulk Remove Vols', 'vmattd')?></button>
     			</div>
         	</div>
-        	<div class="col">
-    				<button id="vmat_model_test" 
-    				        class="button action" 
-    				        type="button" 
-    				        title="Modal test"
-    				        data-toggle="modal" data-target="#vmat_ok_cancel_modal"
-    				        ><?php _e( 'Modal Test', 'vmattd')?></button>
-        	</div>
         </div>
         <div class="row">
         	<div class="col">
@@ -3112,7 +3173,7 @@ class Volunteer_Management_And_Tracking_Admin {
         $found_hours = $hours_query->found_posts;
         $page = $args['hpno'];
         $max_num_pages = ceil( $found_hours / $args['posts_per_page'] );
-        $search = $args['hours_search'];
+        $search = $args['manage_volunteer_search'];
         $hours = array();
         foreach ( $hours_query->posts as $hour ) {
             $hours[$hour->ID]= array();
@@ -3130,7 +3191,7 @@ class Volunteer_Management_And_Tracking_Admin {
             $this_page_url 
         );
         $ajax_args = array(
-            'hours_search' => $search,
+            'manage_volunteer_search' => $search,
             'admin_page' => 'vmat_admin_manage_volunteers',
             'posts_per_page' => $args['posts_per_page'],
             'target' => 'vmat_manage_volunteer_table',
@@ -3150,6 +3211,7 @@ class Volunteer_Management_And_Tracking_Admin {
             		<button class="button" 
             		        name="submit_button" 
             		        type="button" 
+            		        volunteer_id="<?php echo $volunteer->ID; ?>"
             		        value="search_manage_volunteer"><?php _e('Search', 'vmattd'); ?>
             		</button>
             	</div>
@@ -3229,7 +3291,7 @@ class Volunteer_Management_And_Tracking_Admin {
         			if ( $hours ) {
         			    $alternate = 'alternate';
         			    foreach ( $hours as $hour ) {
-        			        echo $vmat_plugin->get_common()->volunteer_hour_row( $hour, $this_page_url, $alternate );
+        			        echo $vmat_plugin->get_common()->volunteer_hour_row( $hour, $alternate );
         			        if ( empty( $alternate ) ) {
         			            $alternate = 'alternate';
         			        } else {

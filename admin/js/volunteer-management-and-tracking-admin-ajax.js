@@ -90,6 +90,10 @@
 			$('button[value="search_manage_volunteers"]')
 			.off( 'click', search_manage_volunteers )
 			.on( 'click', search_manage_volunteers );
+			// do a search filter on the volunteers table
+			$('button[value="search_manage_volunteer"]')
+			.off( 'click', search_manage_volunteer )
+			.on( 'click', search_manage_volunteer );
 			// register a new volunteer and associate with the event
 			$('button[value="show_update_volunteer_form"]')
 			.off( 'click', show_update_volunteer_form )
@@ -1029,6 +1033,28 @@
 				};
 	        clear_admin_notice();
 	        show_ajax_notice( 'manage_volunteers_status', 'working....' );
+	        $.post( my_ajax_obj.ajax_url, request )
+	        .done( handle_volunteers_action_for_event ) // handle any successful wp_send_json_success/error
+	        .fail( handle_failed_ajax_call ); // fall through to handle general ajax failures
+	    }
+		
+		function search_manage_volunteer() {
+			// no need to check for unsaved data because this occurs in a view where there are
+			// no inputs that could be lost
+			var self = this;
+			var volunteer_id = $(self).attr('volunteer_id');
+	        var search = $('#vmat_manage_volunteer_table input[name="manage_volunteer_search"]').val();
+	        $('html').addClass('waiting');
+	        var request = {
+					_ajax_nonce: my_ajax_obj.nonce,
+					action: "ajax_search_manage_volunteer",
+					volunteer_id: volunteer_id,
+					manage_volunteer_search: search,
+					notice_id: 'manage_volunteer_status',
+					target: 'vmat_manage_volunteer_table',
+				};
+	        clear_admin_notice();
+	        show_ajax_notice( 'manage_volunteer_status', 'working....' );
 	        $.post( my_ajax_obj.ajax_url, request )
 	        .done( handle_volunteers_action_for_event ) // handle any successful wp_send_json_success/error
 	        .fail( handle_failed_ajax_call ); // fall through to handle general ajax failures
