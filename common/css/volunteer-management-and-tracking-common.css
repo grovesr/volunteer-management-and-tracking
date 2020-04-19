@@ -114,3 +114,12 @@ div.vmat-notice p  {
 .clearable-input > [data-clear-input]:hover {
   color: black;
 }
+
+button.vmat-action-btn {
+	width: 100%;
+}
+
+table.widefat {
+    table-layout:fixed;
+    width:100%;
+}

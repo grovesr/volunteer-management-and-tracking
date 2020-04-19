@@ -1611,7 +1611,7 @@ class Volunteer_Management_And_Tracking_Common {
    	    $output .= '</span>';
    	    $output .= '&nbsp;|&nbsp;';
    	    $output .= '<a id="vmat_hour_' . $hour_post->ID . '" href="' . $event_manage_participation_href . 
-   	               '"><span class="vmat-quick-link">' . __('Manage Event Participation', 'vmattd') . '</span></a>';
+   	               '"><span class="vmat-quick-link">' . __('Manage Particip.', 'vmattd') . '</span></a>';
    	    $output .= '</span>';
    	    $output .= '</div>';
    	    $output .= '</td>';
