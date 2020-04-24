@@ -338,6 +338,7 @@ class Volunteer_Management_And_Tracking_Admin {
 		wp_enqueue_style( $this->plugin_name . '-css-admin', plugin_dir_url( __FILE__ ) . 'css/volunteer-management-and-tracking-admin.css', array(), $this->version, 'all' );
 		wp_enqueue_style( $this->plugin_name . '-css-common', plugin_dir_url( __FILE__ ) . '../common/css/volunteer-management-and-tracking-common.css', array(), $this->version, 'all' );
 		wp_enqueue_style( $this->plugin_name . '-css-bootstrap', plugin_dir_url( __FILE__ ) . '../common/css/bootstrap.css', array(), $this->version, 'all' );
+		wp_enqueue_style( $this->plugin_name . 'jquery-ui', 'https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css', array(), $this->version, 'all'  );
 	}
 
 	/**
@@ -361,6 +362,7 @@ class Volunteer_Management_And_Tracking_Admin {
 		wp_enqueue_script( $this->plugin_name . '-js-admin', plugin_dir_url( __FILE__ ) . 'js/volunteer-management-and-tracking-admin.js', array( 'jquery' ), $this->version, false );
 		wp_enqueue_script( $this->plugin_name . '-js-common', plugin_dir_url( __FILE__ ) . '../common/js/volunteer-management-and-tracking-common.js', array( 'jquery' ), $this->version, false );
 		wp_enqueue_script( $this->plugin_name . '-js-bootstrap', plugin_dir_url( __FILE__ ) . '../common/js/bootstrap.js', array( 'jquery' ), $this->version, true );
+		wp_enqueue_script( 'jquery-ui-datepicker' );
 		// only enqueue ajax scripts where they're needed
 		if( 'volunteer-mgmnt_page_vmat_admin_volunteer_participation' == $hook ||
 		    'volunteer-mgmnt_page_vmat_admin_volunteers' == $hook ||
@@ -982,6 +984,11 @@ class Volunteer_Management_And_Tracking_Admin {
 	                } else {
 	                    $errors[] = __( '<strong>ERROR</strong>: Missing vpno page indicator.', 'vmattd' );
 	                }
+	                if ( array_key_exists( 'vmat_org', $data ) ) {
+	                    $result['vmat_org'] = $data['vmat_org'];
+	                } else {
+	                    $errors[] = __( '<strong>ERROR</strong>: Missing vmat_org page indicator.', 'vmattd' );
+	                }
 	                if ( array_key_exists( 'volunteers_search', $data ) ) {
 	                    $result['volunteers_search'] = $data['volunteers_search'];
 	                } else {
@@ -1106,6 +1113,11 @@ class Volunteer_Management_And_Tracking_Admin {
                     } else {
                         $errors[] = __( '<strong>ERROR</strong>: Missing volunteers_search filter.', 'vmattd' );
                     }
+                    if ( array_key_exists( 'vmat_org', $_POST ) ) {
+                        $result['vmat_org'] = $_POST['vmat_org'];
+                    } else {
+                        $errors[] = __( '<strong>ERROR</strong>: Missing vmat_org filter.', 'vmattd' );
+                    }
 	                break;
 	            case 'vmat_volunteers_table':
 	                if ( empty( $_POST['event_id'] ) ) {
@@ -1196,7 +1208,6 @@ class Volunteer_Management_And_Tracking_Admin {
 	    global $vmat_plugin;
 	    
 	    $args['volunteers'] = $vmat_plugin->get_common()->get_volunteers_not_added_to_event( $args );
-	    $args['event_volunteers'] = $vmat_plugin->get_common()->get_volunteers_added_to_event( $args );
 	    // generate replacement html for the volunteers and event_volunteers tables
 	    ob_start();
 	    $this->html_part_manage_volunteers_admin( $args );
@@ -1782,7 +1793,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    wp_send_json_success( $results );
 	}
 	
-	public function ajax_search_manage_volunteers() {
+	public function ajax_filter_manage_volunteers() {
 	    check_ajax_referer( 'vmat_ajax' );
 	    $args = $this->ajax_get_volunteers_search_data();
 	    $args['vpno'] = 1;
@@ -1926,6 +1937,17 @@ class Volunteer_Management_And_Tracking_Admin {
 	        'manage_options',
 	        'vmat_admin_settings',
 	        array($this, 'html_page_admin_settings')
+	        );
+	}
+	
+	public function admin_help_page() {
+	    add_submenu_page(
+	        'vmat_admin_main',
+	        'Volunteer Management and Tracking - Help',
+	        'Help',
+	        'manage_options',
+	        'vmat_admin_help',
+	        array($this, 'html_page_admin_help')
 	        );
 	}
 		
@@ -2075,6 +2097,26 @@ class Volunteer_Management_And_Tracking_Admin {
 	   }
 	}
 	
+	public function add_volunteer_role_to_new_em_user( $user_id ) {
+	    if( array_key_exists( 'action', $_POST ) && 
+	        $_POST['action'] == 'booking_add' &&
+	        array_key_exists( '_wpnonce', $_POST ) &&
+	        wp_verify_nonce( $_POST['_wpnonce'], 'booking_add' ) ) {
+	       // add volunteer role to user created from EM Booking
+            $wpuser = get_user_by('id', $user_id);
+            if ( $wpuser ) {
+                if( ! in_array('volunteer', $wpuser->roles)) {
+                    $wpuser->add_role('volunteer');
+                }
+                update_user_meta( $wpuser->ID, 'vmat_is_volunteer', 1 );
+                if( array_key_exists( 'dbem_phone', $_POST ) &&
+                    ! empty( $_POST['dbem_phone'] ) ) {
+                        update_user_meta( $wpuser->ID, 'vmat_phone_cell', $_POST['dbem_phone'] );
+                    }
+            }
+	    }
+	}
+	
 	public function add_em_org_meta_boxes(){
 	    add_meta_box('em-event-orgs', __('Organizations', 'vmattd'), array( $this, 'organizations_meta_box'), EM_POST_TYPE_EVENT, 'side','high');
 	    add_meta_box('em-event-orgs', __('Organizations', 'vmattd'), array( $this, 'organizations_meta_box'),'event-recurring', 'side','high');
@@ -2082,10 +2124,6 @@ class Volunteer_Management_And_Tracking_Admin {
 	
 	public function add_org_funding_stream_meta_box(){
 	    add_meta_box('organization-funding-streams', __('Funding Streams', 'vmattd'), array( $this, 'funding_streams_meta_box'), 'vmat_organization', 'side','low');
-	}
-	
-	public function add_organization_fields_meta_box(){
-	    add_meta_box('organization-fields', 'Additional Information', array( $this, 'organization_fields_meta_box'), 'vmat_organization', 'normal','low');
 	}
 	
 	public function add_funding_stream_fields_meta_box(){
@@ -2149,18 +2187,12 @@ class Volunteer_Management_And_Tracking_Admin {
         <?php
 	}
 	
-	public function organization_fields_meta_box( $organization ) {
-    	?>
-    	<label for="post_name">
-    		Slug:
-    		<input type="text" name="post_name" size="30" value="<?php echo $organization->post_name; ?>" id="post_name" spellcheck="true" autocomplete="off">
-    	</label>
-    	<?php 
-	}
-	
 	public function funding_stream_fields_meta_box( $funding_stream ) {
-	    $funding_start_date = '';
-	    $funding_end_date = '';
+	    global $vmat_plugin;
+	    $user_funding_start_date = '';
+	    $user_funding_end_date = '';
+	    $iso_funding_start_date = '';
+	    $iso_funding_end_date = '';
 	    $fiscal_start_months = array();
 	    $month_names = array(
 	        'Jan',
@@ -2177,29 +2209,52 @@ class Volunteer_Management_And_Tracking_Admin {
 	        'Dec'
 	    );
 	    if ($funding_stream ) {
-	        $funding_start_date = get_post_meta( $funding_stream->ID, '_funding_start_date', true );
-	        $funding_end_date = get_post_meta( $funding_stream->ID, '_funding_end_date', true );
+	        $funding_stream_data = $vmat_plugin->get_common()->get_funding_stream_data( $funding_stream->ID );
+	        $user_funding_start_date = $funding_stream_data['start_date']; // mm/dd/yyyy
+	        $iso_funding_start_date = $funding_stream_data['iso_start_date']; // yyyy-mm-dd
+	        $user_funding_end_date = $funding_stream_data['end_date']; // mm/dd/yyyy
+	        $iso_funding_end_date = $funding_stream_data['iso_end_date']; // yyyy-mm-dd
 	        $fiscal_start_months = get_post_meta( $funding_stream->ID, '_fiscal_start_months', true );
 	    }
 	    ?>
     	<div class="row">
     		<div class="col-2 vmat-form-label">
         	<label for="funding_start_date">
-        		Funding Start Date:
+        		Funding Start Date: <span class="vmat-quick-link">(mm/dd/yyyy)</span>
         	</label>
         	</div>
         	<div class="col vmat-form-field">
-        		<input type="date" name="funding_start_date" value="<?php echo $funding_start_date; ?>" id="funding_start_date" autocomplete="off">
+        		<input id="datepicker_start" 
+        		       type="text" 
+        		       name="user_funding_start_date" 
+        		       value="<?php echo $user_funding_start_date; ?>" 
+        		       autocomplete="off">
+        		<input id="vmat_funding_start_date" 
+        		       type="hidden" 
+        		       name="funding_start_date" 
+        		       value="<?php echo $iso_funding_start_date; ?>" 
+        		       autocomplete="off">
         	</div>
     	</div>
     	<div class="row">
     		<div class="col-2 vmat-form-label">
         	<label for="funding_end_date">
-        		Funding End Date:
+        		Funding End Date: <span class="vmat-quick-link">(mm/dd/yyyy)</span>
         	</label>
         	</div>
         	<div class="col vmat-form-field">
-        		<input type="date" name="funding_end_date" value="<?php echo $funding_end_date; ?>" id="funding_end_date" autocomplete="off">
+        		<div class="col vmat-form-field">
+        		<input id="datepicker_end" 
+        		       type="text" 
+        		       name="user_funding_end_date" 
+        		       value="<?php echo $user_funding_end_date; ?>" 
+        		       autocomplete="off">
+        		<input id="vmat_funding_end_date" 
+        		       type="hidden" 
+        		       name="funding_end_date" 
+        		       value="<?php echo $iso_funding_end_date; ?>" 
+        		       autocomplete="off">
+        	</div>
         	</div>
     	</div>
     	<div class="row">
@@ -2209,8 +2264,8 @@ class Volunteer_Management_And_Tracking_Admin {
         	</label>
         	</div>
         	<div class="col vmat-form-field">
-            	<fieldset id="vmat_fiscal_start_months" >
-            		<legend><?php _e('Choose the staring month for each fiscal period', 'vmattd')?></legend>
+            	<fieldset id="fiscal_start_months" >
+            		<p><?php _e('Choose the starting month for each fiscal period', 'vmattd')?></p>
                     	<?php
                     	foreach ( $month_names as $key => $month ) {
                     	    $checked = '';
@@ -2225,19 +2280,8 @@ class Volunteer_Management_And_Tracking_Admin {
                     	   echo $month_input;
                     	}
                     	?>
-                	</legend>
                 </fieldset>
         	</div>
-    	</div>
-    	<div class="row">
-	    	<div class="col-2 vmat-form-label">
-            	<label for="post_name">
-            		Slug:        		
-            	</label>
-            </div>
-            <div class="col vmat-form-field">
-            	<input type="text" name="post_name" size="30" value="<?php echo $funding_stream->post_name; ?>" id="post_name" autocomplete="off" required>
-            </div>
     	</div>
     	<?php 
 	}
@@ -2277,20 +2321,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	        delete_post_meta( $org_id, '_vmat_funding_streams' );
 	    }
 	}
-	
-	public function update_organization_fields_meta( $org_id ) {
-	    /*
-	     * Updae the organization meta data 
-	     */
-	    if ( ! current_user_can( 'edit_vmat_organizations' ) ) {
-	        return false;
-	    }
-	    /*
-	     * do something here if we decide to store meta data for funding streams
-	     */
-	    
-	}
-	
+
 	public function update_funding_stream_fields_meta( $funding_id ) {
 	    /*
 	     * Updae the funding stream meta data 
@@ -2301,7 +2332,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    }
 	    if ( array_key_exists(
 	        'funding_start_date', $_POST ) &&
-	        $vmat_plugin->get_common()->validate_date( $_POST['funding_start_date'] )
+	        $vmat_plugin->get_common()->validate_date( $_POST['funding_start_date'], 'Y-m-d' )
 	        ) {
 	            $funding_start_date = sanitize_text_field( $_POST['funding_start_date'] );
 	            update_post_meta( $funding_id, '_funding_start_date', $funding_start_date );
@@ -2310,7 +2341,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    } 
 	    if ( array_key_exists( 
 	        'funding_end_date', $_POST ) &&
-	        $vmat_plugin->get_common()->validate_date( $_POST['funding_end_date'] )
+	        $vmat_plugin->get_common()->validate_date( $_POST['funding_end_date'], 'Y-m-d' )
 	        ) {
 	        $funding_end_date = sanitize_text_field( $_POST['funding_end_date'] );
 	        update_post_meta( $funding_id, '_funding_end_date', $funding_end_date );
@@ -2397,6 +2428,34 @@ class Volunteer_Management_And_Tracking_Admin {
         return $query;
     }
     
+    function add_start_end_dates_column_to_funding_streams( $columns ) {
+        $post_type = get_post_type();
+        if ( $post_type == 'vmat_funding_stream' &&
+            ! empty( $columns['cb'] ) &&
+            ! empty( $columns['title'] ) &&
+            ! empty( $columns['date'] )
+            ) {
+            $new_columns = array();
+            $new_columns['cb'] = $columns['cb'];
+            $new_columns['title'] = $columns['title'];
+            $new_columns['begin_end_dates'] = __( 'Begin/End Dates', 'vmattd' );
+            $new_columns['date'] = $columns['date'];
+            return $new_columns;
+        }
+        return $columns;
+    }
+    
+    public function fill_start_end_dates_funding_streams_column( $column_name, $funding_stream_id ) {
+        global $vmat_plugin;
+        $post_type = get_post_type();
+        if ( ( $post_type == 'vmat_funding_stream' ) &&
+            $column_name == 'begin_end_dates' ) {
+                $funding_stream_data = $vmat_plugin->get_common()->get_funding_stream_data( $funding_stream_id );
+                $field_data = $funding_stream_data['start_end_string'];
+                _e( $field_data );
+            }
+    }
+    
     function add_orgs_column_to_em( $columns ) {
         $post_type = get_post_type();
         if ( $post_type == EM_POST_TYPE_EVENT || $post_type == 'event-recurring' ) {
@@ -2461,7 +2520,7 @@ class Volunteer_Management_And_Tracking_Admin {
         add_settings_field(
             'vmat_new_user_notification_email', // as of WP 4.6 this value is used only internally
             // use $args' label_for to populate the id inside the callback
-            __( 'Send To: Email When New Users Are Created', 'vmattd' ),
+            __( 'Send To: Email When New Users Are Created in the Frontend', 'vmattd' ),
             array( 
                 $this, 
                 'vmat_new_user_notification_email_cb' 
@@ -2780,6 +2839,11 @@ class Volunteer_Management_And_Tracking_Admin {
             'vmat_admin_settings',
             admin_url('admin.php')
             );
+        $vmat_admin_help_url = add_query_arg(
+            'page',
+            'vmat_admin_help',
+            admin_url('admin.php')
+            );
         $vmat_admin_funding_streams_url = add_query_arg(
             'post_type',
             'vmat_funding_stream',
@@ -2795,15 +2859,108 @@ class Volunteer_Management_And_Tracking_Admin {
             'vmat_volunteer_type',
             admin_url('edit.php')
             );
+        $help_url = admin_url('admin.php' );
+        $help_url = add_query_arg( array(
+            'page' => 'vmat_admin_help',
+            ),
+            $help_url
+        );
+        
+        switch( $screen ) {
+            case 'volunteer-mgmnt_page_vmat_admin_volunteer_participation':
+                $help_url .= '#volunteer_participation_help';
+                $help_url = add_query_arg( 
+                    array(
+                        'help_section' => 'volunteer_participation_help',
+                    ),
+                    $help_url
+                    );
+                break;
+            case 'volunteer-mgmnt_page_vmat_admin_manage_volunteers':
+                $help_url .= '#manage_volunteers_help';
+                $help_url = add_query_arg(
+                    array(
+                        'help_section' => 'manage_volunteers_help',
+                    ),
+                    $help_url
+                    );
+                break;
+            case 'volunteer-mgmnt_page_vmat_admin_reports':
+                $help_url .= '#reports_help';
+                $help_url = add_query_arg(
+                    array(
+                        'help_section' => 'reports_help',
+                    ),
+                    $help_url
+                    );
+                break;
+            case 'volunteer-mgmnt_page_vmat_admin_settings':
+                $help_url .= '#settings_help';
+                $help_url = add_query_arg(
+                    array(
+                        'help_section' => 'settings_help',
+                    ),
+                    $help_url
+                    );
+                break;
+            case 'vmat_funding_stream':
+                $help_url .= '#funding_streams_help';
+                $help_url = add_query_arg(
+                    array(
+                        'help_section' => 'funding_streams_help',
+                    ),
+                    $help_url
+                    );
+                break;
+            case 'vmat_organization':
+                $help_url .= '#organizations_help';
+                $help_url = add_query_arg(
+                    array(
+                        'help_section' => 'organizations_help',
+                    ),
+                    $help_url
+                    );
+                break;
+            case 'vmat_volunteer_type':
+                $help_url .= '#volunteer_types_help';
+                $help_url = add_query_arg(
+                    array(
+                        'help_section' => 'volunteer_types_help',
+                    ),
+                    $help_url
+                    );
+                break;
+            case 'volunteer-mgmnt_page_vmat_help':
+                $help_url .= '#general_help';
+                $help_url = add_query_arg(
+                    array(
+                        'help_section' => 'general_help',
+                    ),
+                    $help_url
+                    );
+                break;
+            default:
+        }
         ?>
         <div id="vmat_admin_container" class="wrap container clear">
             <div id="vmat_admin_title_wrapper">
             	<div id="vmat_admin_title" style="visibility:<?php echo $title_visibility; ?>">
             		<h1>
             		<?php
-            		_e( 'Volunteer Management and Tracking', 'vmattd' );
+            		_e( get_admin_page_title(), 'vmattd' );
+            		if( 'volunteer-mgmnt_page_vmat_admin_help' != $screen ) {
             		?>
-            		</h1>
+            		<a id="vmat_help"
+            				class="button"
+            		        href="<?php echo $help_url; ?>">
+            			<?php
+            			_e( 'Help' );
+            			?>
+            		</a>
+            		<?php 
+            		}
+            		?>
+            		</h1>    
             	</div>
                 <?php
                 $this->admin_notice( 'vmat_admin_notice', $message, $message_class );
@@ -2878,6 +3035,15 @@ class Volunteer_Management_And_Tracking_Admin {
                         echo $vmat_admin_volunteer_types_url;
                         ?>"><span class="vmat-quick-link"><?php _e('Vol Types', 'vmattd'); ?></span></a>
                       </li>
+                      <li class="nav-item">
+                        <a class="nav-link <?php 
+                        if( 'volunteer-mgmnt_page_vmat_admin_help' == $screen ) {
+                            echo 'active';
+                        }
+                        ?>" href="<?php 
+                        echo $vmat_admin_help_url;
+                        ?>"><span class="vmat-quick-link"><?php _e('Help', 'vmattd'); ?></span></a>
+                      </li>
                     </ul> 
                 </div>
             	<?php
@@ -2919,6 +3085,450 @@ class Volunteer_Management_And_Tracking_Admin {
         <?php 
     }
     
+    function get_general_help_text( $help_section='' ) {
+        $collapse = ' collapsed';
+        $show = '';
+        if( $help_section === 'general_help' ) {
+            $collapse = '';
+            $show = ' show';
+        }
+        $content = '<div class="card">';
+        $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_general_help">';
+        $content .= '<strong id="general_help">
+                     General Help. Click to see more information:
+                     </strong>';
+        $content .= '</div><!-- card-header -->';
+        $content .= '<div id="collapse_general_help" class="collapse' . $show . '" data-parent="#help_accordian">';
+        $content .= '<div class="card-body">';
+        $content .= '<p>';
+        $content .= 'The <strong>Volunter Management and Tracking</strong> plugin is designed to provide a means
+	                 of managing volunteers and keeping track of events a volunteer has participated in,
+                     as well as the number of hours and days a volunteer has been active. The stored volunteer participation
+                     data can be used to generate reports detailing volunteer participation. These reports can be
+                     tailored to satisfy reporting requirements for <strong>Funding Streams</strong> as well as 
+                     being used for a volunteer to track their own volunteer hours.';
+        $content .= '</p>';
+        $content .= '<p>';
+        $content .= 'Volunteers managed in this plugin are standard WordPress Users with additional information associated with them.
+                     Volunteers can be created in the same way that WordPress Users are created and also through various
+                     plugin-specific means. Registered volunteers will have the user role <strong>"volunteer"</strong> and
+                     this gives the same privileges as the <strong>"subscriber"</strong> role in Wordpress as well as additional
+                     plugin-specific privileges.';
+        $content .= '</p>';
+        $content .= '<p>';
+        $content .= 'When creating or updating a WordPress User, a <strong>"Volunteer"</strong> checkbox is provided, which causes
+                     the user to become a <strong>Volunter Management and Tracking</strong> volunteer with the <strong>"volunteer"</strong> role.
+                     Checking this box opens new fields for additional information about a volunteer. 
+                     These additional fields are all optional. Once the <strong>"volunteer"</strong> role has been assigned
+                     to a user, that user becomes available to the <strong>Volunter Management and Tracking</strong> plugin.';
+        $content .= '</p>';
+        $content .= '<p>';
+        $content .= 'The <strong>Volunter Management and Tracking</strong> plugin is tightly integrated with the 
+                     <strong>Events Manager</strong> plugin and allows for tracking of volunteer participation in events.
+                     The <strong>Events Manager</strong> plugin has a <strong>Bookings</strong> feature that provides the 
+                     ability to track volunteer\'s intention to attend an event. The <strong>Volunter Management and Tracking</strong> plugin
+                     takes this further and allows tracking of actual participation in events as well as report generation.
+                      When a user "books" an event, the <strong>Events Manager</strong> plugin automaticall creates
+                      a new WordPress User or associates the booking with an already created WordPress User. During this process
+                      the <strong>Volunter Management and Tracking</strong> plugin associates these new or existing 
+                      WordPress Users as <strong>Volunteers</strong> for additional tracking and report generation.';
+        $content .= '</p>';
+        $content .= '<p>';
+        $content .= '<strong>Important!</strong> When <strong>Events Manager</strong> plugin 
+                     events are created and <strong>Bookings</strong>
+                     are enabled, then a new volunteer that registers a <strong>Booking</strong> 
+                     for that event will have a WordPress User account created automatically (if
+                     they are not already a registered WordPress User). This is important because the newly
+                     created user will be automatically tagged as a <strong>Volunteer</strong> for the
+                     <strong>Volunter Management and Tracking</strong> plugin. This automatic creation 
+                     of new WordPress Users when booking a registration for an event requires certain
+                     settings in the <strong>Events Manager</strong> plugin. To make this works properly
+                     go to the <strong>Events Manager->Settings->Bookings->No-User Booking Mode</strong>
+                     settings page and ensure that <strong>Enable No-User Booking Mode?</strong> and
+                     <strong>Allow bookings with registered emails?</strong> are both set to 
+                     <strong>No</strong>.';
+        $content .= '</p>';
+        $content .= '</div><!-- card body -->';
+        $content .= '</div><!-- collapse_volunteer_participation -->';
+        $content .= '</div><!-- card -->';
+        return $content;
+    }
+        
+    function get_volunteer_participation_help_text( $help_section='' ) {
+        $collapse = ' collapsed';
+        $show = '';
+        if( $help_section === 'volunteer_participation_help' ) {
+            $collapse = '';
+            $show = ' show';
+        }
+        $content = '<div class="card">';
+        $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_volunteer_participation">';
+        $content .= '<strong id="volunteer_participation_help">
+                     The "Vol Participation" screen allows you to do several things. Click to see more information:
+                     </strong>';
+        $content .= '</div><!-- card-header -->';
+        $content .= '<div id="collapse_volunteer_participation" class="collapse' . $show . '" data-parent="#help_accordian">';
+        $content .= '<div class="card-body">';
+        $content .= '<ul class="vmat-help-list">'; // Volunteer Participation sub items (one <li> for each subscreen)
+        // Select Event section
+        $content .= '<li>';
+        $content .= 'From the <strong>"Select Event:"</strong> screen you can:';
+        $content .= '<ul>';
+        $content .= '<li>';
+        $content .= 'Create a new event using the <strong>"Create New Event"</strong> button.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'You can filter the list of events using the following criteria:';
+        $content .= '<ul>';
+        $content .= '<li>';
+        $content .= 'Events associated with an organization.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Event scope (future, past, ...).';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Searching for the event name.';
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Once you have found the event of interest, you can click on the event\'s
+                     name for more details and to manage volunteer participation for that event 
+                     on the <strong>"Selected Event:"</strong> screen.';
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</li>';
+        // Selected Event section
+        $content .= '<li>';
+        $content .= 'From the <strong>"Selected Event:"</strong> screen you can:';
+        $content .= '<ul>';
+        $content .= '<li>';
+        $content .= 'Go back and select another event using the <strong>"Select Another Event"</strong> button.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Create a new event using the <strong>"Create New Event"</strong> button.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'View summary information for the selected event  in the summary box and edit the event by clicking on the 
+                     <strong>"Edit"</strong> quick link under the event name.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Under the event summary box are two lists:';
+        $content .= '<ul>';
+        $content .= '<li>';
+        $content .= '<strong>"Add Volunteers to Event:"</strong> on the left. This is a list of volunteers available to 
+                     be added to the selected event. You can add multiple checkmarked volunteers using the 
+                     <strong>Bulk Add Vols"</strong> button. You can also register a new volunteer and simultaneously 
+                     add the newly created user to the event by clicking the <strong>"Add New Vol"</strong> button.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= '<strong>"Manage Event Volunteer Hours:"</strong> on the right. This table can be used to manage the information 
+                     for each volunteer associated with the event. You have two options for "bulk" operations on checkmarked 
+                     event volunteers <strong>"Remove"</strong> and <strong>"Save"</strong>. Quick links are provided in each 
+                     volunteer row to <strong>"Remove"</strong>, <strong>"Save"</strong>, <strong>"Default"</strong> 
+                     (sets the volunteer\'s entry to the event\'s default hours and date), and <strong>"Manage Vol"</strong> 
+                     (which will send you to the <strong>"Manage Volunteers->Selected Volunteer"</strong> screen) for each volunteer.';
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Each of the two above lists provide a search field to filter the lists.';
+        $content .= '</li>';
+        $content .= '</ul>'; // end manage volunteers subscreens list
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</li>';// end the manage volunteers main screen list
+        $content .= '</ul>';
+        $content .= '</div><!-- card body -->';
+        $content .= '</div><!-- collapse_volunteer_participation -->';
+        $content .= '</div><!-- card -->';
+        return $content;
+    }
+
+    function get_manage_volunteers_help_text( $help_section='' ) {
+        $collapse = ' collapsed';
+        $show = '';
+        if( $help_section === 'manage_volunteers_help' ) {
+            $collapse = '';
+            $show = ' show';
+        }
+        $content = '<div class="card">';
+        $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_manage_volunteers">';
+        $content .= '<strong id="manage_volunteers_help">
+                     The "Manage Vols" screen allows you to do several things. Click to see more information:
+                     </strong>';
+        $content .= '</div>';
+        $content .= '<div id="collapse_manage_volunteers" class="collapse' . $show . '" data-parent="#help_accordian">';
+        $content .= '<div class="card-body">';
+        $content .= '<ul class="vmat-help-list">'; // Manage Volunteers sub items (one <li> for each subscreen)
+        // Select a Volunteer section
+        $content .= '<li>';
+        $content .= 'From the <strong>"Select a Volunteer:"</strong> screen you can:';
+        $content .= '<ul>';
+        $content .= '<li>';
+        $content .= 'Remove one or more volunteers using the <strong>"Bulk Remove Vols"</strong> button. This acts on volunteers checkmarked below.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Add new volunteers using the <strong>"Add New Vol"</strong> button.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'View summary stats for each volunteer, including the number of
+                     events each volunteer has logged hours to and which of
+                     those logged hours have been approved.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'You can filter the list of volunteers using the Search box.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Once you have found the volunteer of interest, you can click on the volunteer\'s
+                     name for more details and to manage that volunteer on the <strong>"Selected Volunteer:"</strong> screen.';
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</li>';   
+        // Selected Volunteer section
+        $content .= '<li>';
+        $content .= 'From the <strong>"Selected Volunteer:"</strong> screen you can:';
+        $content .= '<ul>';
+        $content .= '<li>';
+        $content .= 'Go back and select another volunteer using the <strong>"Select Another Volunteer"</strong> button.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'View the summary statistics for the selected volunteer.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Edit the selected volunteer\'s profile using the <strong>"Edit Volunteer"</strong> button.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Add volunteer hours for a new event using the <strong>"Add to Event"</strong> button. This brings up a table 
+                    of events to select from. From here you can also create a new event using the <strong>"Add New Event"</strong> button.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'You can filter the list of events the volunteer has participated in using the Search box.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Event hours can be removed in bulk by checking the desired rows in the table 
+                     and then clicking the <strong>"Bulk Remove Hours"</strong> button.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Changes to event hours can be changed in bulk by making changes to the entry fields in the table
+                     and then clicking the <strong>"Bulk Save Hours"</strong> button.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Row by row changes can be made using the "quick action" links that become visible when you
+                     hover your cursor over the event name in each row. You can <strong>"Remove"</strong> and <strong>"Save"</strong>
+                     using those "quick links".';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'You can also switch to the <strong>"Volunteer Participation: Selected Event"</strong> screen to manage 
+                     the selected event\'s volunteer participation by clicking on the <strong>"Manage Particip."</strong> "quick link".';
+        $content .= '</li>';
+        $content .= '</ul>'; // end manage volunteers subscreens list
+        $content .= '</li>';
+        $content .= '</ul>'; 
+        $content .= '</li>';// end the manage volunteers main screen list
+        $content .= '</ul>';
+        $content .= '</div><!-- card body --!>';
+        $content .= '</div><!-- collapse_manage_volunteers --!>';
+        $content .= '</div><!-- card --!>';
+        return $content;
+    }
+    
+    function get_reports_help_text( $help_section='' ) {
+        $collapse = ' collapsed';
+        $show = '';
+        if( $help_section === 'reports_help' ) {
+            $collapse = '';
+            $show = ' show';
+        }
+        $content = '<div class="card">';
+        $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_reports">';
+        $content .= '<strong id="reports_help">
+                     The "Reports" screen allows you to generate various reports on volunteer participation. Click to see more information:
+                     </strong>';
+        $content .= '</div>';
+        $content .= '<div id="collapse_reports" class="collapse' . $show . '" data-parent="#help_accordian">';
+        $content .= '<div class="card-body">';
+        $content .= 'Reports Help content under construction.';
+        $content .= '</div><!-- card body --!>';
+        $content .= '</div><!-- collapse_reports --!>';
+        $content .= '</div><!-- card --!>';
+        return $content;
+    }
+    
+    function get_settings_help_text( $help_section='' ) {
+        $collapse = ' collapsed';
+        $show = '';
+        if( $help_section === 'settings_help' ) {
+            $collapse = '';
+            $show = ' show';
+        }
+        $content = '<div class="card">';
+        $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_settings">';
+        $content .= '<strong id="settings_help">
+                     The "Settings" screen allows you to change the settings for this plugin. Click to see more information:
+                     </strong>';
+        $content .= '</div>';
+        $content .= '<div id="collapse_settings" class="collapse' . $show . '" data-parent="#help_accordian">';
+        $content .= '<div class="card-body">';
+        $content .= '<ul class="vmat-help-list">'; // Settings sub items (one <li> for each section)
+        // View Settings
+        $content .= '<li>';
+        $content .= 'The <strong>"View Settings"</strong> section allows you to configure certain display options:';
+        $content .= '<ul>';
+        $content .= '<li>';
+        $content .= 'The <strong>"Posts Per Page"</strong> settings controls how many rows show up in all table views
+                     before a new page is generated.';
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</li>';
+        // Email Settings
+        $content .= '<li>';
+        $content .= 'The <strong>"Email Settings"</strong> section allows you to configure email notification options:';
+        $content .= '<ul>';
+        $content .= '<li>';
+        $content .= 'The <strong>"Send To: Email When New Users Are Created in the Frontend"</strong> settings determines where 
+                     to send notification emails when new volunteers are created from the site\'s frontend. New volunteers 
+                     created from the dashboard don\'t generate emails.';
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</li>';
+        $content .= '</ul>'; // end settings sections list
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</li>';// end the settings main screen list
+        $content .= '</ul>';
+        $content .= '</div><!-- card body --!>';
+        $content .= '</div><!-- collapse_settings --!>';
+        $content .= '</div><!-- card --!>';
+        return $content;
+    }
+    
+    function get_funding_streams_help_text( $help_section='' ) {
+        $collapse = ' collapsed';
+        $show = '';
+        if( $help_section === 'funding_streams_help' ) {
+            $collapse = '';
+            $show = ' show';
+        }
+        $content = '<div class="card">';
+        $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_funding_streams">';
+        $content .= '<strong id="funding_streams_help">
+                     The "Funding Streams" screen allows you to manage Funding Streams. Click to see more information:
+                     </strong>';
+        $content .= '</div>';
+        $content .= '<div id="collapse_funding_streams" class="collapse' . $show . '" data-parent="#help_accordian">';
+        $content .= '<div class="card-body">';
+        $content .= '<ul class="vmat-help-list">'; // Funding Streams information
+        $content .= '<li>';
+        $content .= '<strong>"Funding Streams"</strong> are associated with reporting requirements. A 
+                     <strong>"Funding Stream"</strong> has the following aspects:';
+        $content .= '<ul>';
+        $content .= '<li>';
+        $content .= 'A <strong>"Name"</strong> such as "Volunteer Generation Fund".';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'A <strong>"Funding Start Date"</strong>. This defines the beginning of the period during 
+                     which volunteer participation will be tracked for this <strong>"Funding Stream"</strong>.
+                     This is an <strong>optional field</strong>. If no start date is defined, volunteer 
+                     participation will be tracked for all past events.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'A <strong>"Funding End Date"</strong>. This defines the end of the period during
+                     which volunteer participation will be tracked for this <strong>"Funding Stream"</strong>.
+                     This is an <strong>optional field</strong>. If no end date is defined, volunteer 
+                     participation will be tracked indefinitely.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= '<strong>"Fiscal Start Months"</strong> define the periods during the year during which
+                     volunteer participation will be tracked for this <strong>"Funding Stream"</strong>.
+                     This influences the reports.';
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= '<strong>"Funding Streams"</strong> are associated with <strong>"Organizations"</strong>.
+                     See the help section on <strong>"Organizations"</strong> below';
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</div><!-- card body --!>';
+        $content .= '</div><!-- collapse_funding_streams --!>';
+        $content .= '</div><!-- card --!>';
+        return $content;
+    }
+    
+    function get_organizations_help_text( $help_section='' ) {
+        $collapse = ' collapsed';
+        $show = '';
+        if( $help_section === 'organizations_help' ) {
+            $collapse = '';
+            $show = ' show';
+        }
+        $content = '<div class="card">';
+        $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_organizations">';
+        $content .= '<strong id="organizations_help">
+                     The "Organizations" screen allows you to manage Organizations. Click to see more information:
+                     </strong>';
+        $content .= '</div>';
+        $content .= '<div id="collapse_organizations" class="collapse' . $show . '" data-parent="#help_accordian">';
+        $content .= '<div class="card-body">';
+        $content .= '<ul class="vmat-help-list">'; // Organizations information
+        $content .= '<li>';
+        $content .= '<strong>"Organizations"</strong> are associated with events and are meant to portray the
+                     group sponsoring the event. Multiple <strong>"Organizations"</strong> can be associated
+                     with each event. The association of <strong>"Organization(s)"</strong> with an event
+                     is made in the <strong>"Events Manager"</strong> dashboard when creating/editing events. 
+                     To associate one or more <strong>"Organizations"</strong> with an event, checkmark the 
+                     <strong>"Organization(s)"</strong> in the upper right meta box in the 
+                     <strong>"Event Edit"</strong> screen before publishing the event.';
+        $content .= '<li>';
+        $content .= '<strong>"Organizations"</strong> have a name and can be associated with one or more 
+                     <strong>"Funding Streams"</strong>. If an organization is associated with a <strong>"Funding Stream"</strong> 
+                     events associated with this <strong>"Organization"</strong> will have their volunteer 
+                     participation tracked and made available to report generation';
+        $content .= '</li>';
+        $content .= '<strong>"Funding Streams"</strong> are associated with an <strong>"Organization"</strong>
+                    in the <strong>"Edit Organization"</strong> screen by checkmarking one or more 
+                    <strong>"Funding Streams"</strong> in the lower right meta box in the 
+                     <strong>"Organization Edit"</strong> screen before publishing the <strong>"Organization"</strong>.';
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</div><!-- card body --!>';
+        $content .= '</div><!-- collapse_organizations --!>';
+        $content .= '</div><!-- card --!>';
+        return $content;
+    }
+    
+    function get_volunteer_types_help_text( $help_section='' ) {
+        $collapse = ' collapsed';
+        $show = '';
+        if( $help_section === 'volunteer_types_help' ) {
+            $collapse = '';
+            $show = ' show';
+        }
+        $content = '<div class="card">';
+        $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_volunteer_types">';
+        $content .= '<strong id="volunteer_types_help">
+                     The "Volunteer Types" screen allows you to manage Volunteer Types. Click to see more information:
+                     </strong>';
+        $content .= '</div>';
+        $content .= '<div id="collapse_volunteer_types" class="collapse' . $show . '" data-parent="#help_accordian">';
+        $content .= '<div class="card-body">';
+        $content .= '<ul class="vmat-help-list">'; // Organizations information
+        $content .= '<li>';
+        $content .= '<strong>"Volunteer Types"</strong> are associated with volunteers and are meant to help 
+                     classify volunteers into groups. These classifications can be used in report generation.';
+        $content .= '<li>';
+        $content .= '<strong>"Volunteer Types"</strong> have a name and can be associated with a volunteer
+                     when the volunteer is registered or when updating a volunteer\'s profile. One or more   
+                     <strong>"Volunteer Types"</strong> can be checkmarked in the volunteer Register/Update form.';
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</div><!-- card body --!>';
+        $content .= '</div><!-- collapse_volunteer_types --!>';
+        $content .= '</div><!-- card --!>';
+        return $content;
+    }
+    
     function html_part_get_events_admin( $args=array() ) {
         global $vmat_plugin;
         $event = $args['event'];
@@ -2926,26 +3536,36 @@ class Volunteer_Management_And_Tracking_Admin {
         if ( $event ) {
             $event_select_prefix = 'Selected ';
         }
+        $add_new_event_href = admin_url( 'post-new.php' );
+        $add_new_event_href = add_query_arg(
+            array(
+                'post_type' => EM_POST_TYPE_EVENT,
+            ),
+            $add_new_event_href
+        );
         ?>
         <div class="row">
             <div class="col">
-        		<?php
-        		if ( $event ) {
-        		?>
         		<div class="row">
-        			<div class="col">
-        				<?php
-        				echo '<a class="button" href="' . add_query_arg( 'page', 'vmat_admin_volunteer_participation', admin_url( 'admin.php' ) ) . '">' . __('Select another event', 'vmattd') . '</a>';
-        				?>
-            		</div><!-- col1 select another event if one is already selected -->
-            	</div><!-- row -->
-            	<?php 
-        		}
-        		?>
-        		<div class="row">
-        		    <div class="col">
+        		    <div class="col-lg-2">
                 		<strong><?php _e( $event_select_prefix . 'Event:', 'vmattd' ); ?></strong>
-                	</div><!-- Event header -->
+                	</div>
+                		<?php 
+                		if( $event ) {
+                		    ?>
+                		    <div class="col-lg-2">
+                    		    <?php 
+                    		    echo '<a class="button action vmat-action-btn" href="' . add_query_arg( 'page', 'vmat_admin_volunteer_participation', admin_url( 'admin.php' ) ) . '">' . __('Select another event', 'vmattd') . '</a>';
+                    		    ?>
+                		    </div>
+                		    <?php
+                		}
+                		?>
+                		<div class="col-lg-2">
+                    		<a class="button action vmat-action-btn" href="<?php echo $add_new_event_href; ?>">
+                    		<?php _e( 'Create New Event', 'vmattd' ); ?>
+                    		</a>
+                		</div>
         		</div><!-- row -->
         		<div class="row">
         			<div class="col">
@@ -3161,14 +3781,27 @@ class Volunteer_Management_And_Tracking_Admin {
         $volunteers = $user_query->results;
         $found_users = $user_query->total_users;
         $page = $args['vpno'];
+        $vmat_org = $args['vmat_org'];
         $max_num_pages = ceil( $found_users / $args['posts_per_page'] );
         $search = $args['volunteers_search'];
         
         $page_name = 'vpno';
         $this_page_url = admin_url() . 'admin.php';
         $this_page_url = add_query_arg( 'page', 'vmat_admin_manage_volunteers', $this_page_url );
+        $organizations = array(
+            0 => __('View all organizations', 'vmattd'),
+        );
+        foreach ( $vmat_plugin->get_common()->get_post_type('vmat_organization')->posts as $org ) {
+            $organizations[$org->ID] = __($org->post_title, 'vmattd');
+        }
+        $org_pulldown = $vmat_plugin->get_common()->select_options_pulldown(
+            'vmat_org',
+            $organizations,
+            $vmat_org
+            );
         $ajax_args = array(
             'volunteers_search' => $search,
+            'vmat_org' => $vmat_org,
             'admin_page' => 'vmat_admin_volunteers',
             'posts_per_page' => $args['posts_per_page'],
             'target' => 'vmat_manage_volunteers_table',
@@ -3183,7 +3816,17 @@ class Volunteer_Management_And_Tracking_Admin {
             );
         ?>
     	<div class="row">
-    		<div class="col-lg-3">
+        	<div class="col-lg-2">
+				<button id="vmat_remove_volunteers" 
+				        class="button action vmat-action-btn" 
+				        type="button" 
+				        value="bulk_remove_volunteers" 
+				        title="Remove selected volunteers"
+				        disabled>
+				        <?php _e( 'Bulk Remove Vols', 'vmattd')?>
+				</button>
+        	</div>
+        	<div class="col-lg-2">
 				<button id="vmat_update_volunteer" 
 				        class="button action vmat-action-btn" 
 				        type="button" 
@@ -3192,19 +3835,14 @@ class Volunteer_Management_And_Tracking_Admin {
 				        <?php _e( 'Add New Vol', 'vmattd')?>
 				</button>
         	</div>
-        	<div class="col-lg-3">
-				<button id="vmat_remove_volunteers" 
-				        class="button action vmat-action-btn" 
-				        type="button" 
-				        value="bulk_remove_volunteers" 
-				        title="Remove selected volunteers">
-				        <?php _e( 'Bulk Remove Vols', 'vmattd')?>
-				</button>
-        	</div>
         	<div class="col">
     			<div class="alignright">
     				<div class="clearable-input">
-                	<input type="text" id="volunteer-search-input" name="manage_volunteers_search" value="<?php 
+                	<input type="text" 
+                	       id="volunteer-search-input" 
+                	       name="manage_volunteers_search" 
+                	       placeholder="Search Volunteers"
+                	       value="<?php 
                 	if ( ! empty( $search) ) {
                 	    echo $search;
                 	} else {
@@ -3222,6 +3860,17 @@ class Volunteer_Management_And_Tracking_Admin {
     		</div>
         </div>
         <div class="row">
+        	<div class="col-lg-4">
+        		<?php
+            	echo $org_pulldown;
+            	?>
+            	<button id="manage_volunteers_filter" 
+        		        class="button action" 
+        		        type="button" 
+        		        value="filter_manage_volunteers" >
+        		        <?php _e( 'Filter', 'vmattd')?>
+        		</button>
+        	</div>
         	<div class="col">
         		<div class="tablenav alignright">
         			<?php
@@ -3266,7 +3915,7 @@ class Volunteer_Management_And_Tracking_Admin {
         			        }
         			    }
         			} else {
-        			    echo '<tr><td>';
+        			    echo '<tr><td colspan="10">';
         			    _e( 'No volunteers found', 'vmattd');
         			    echo '</td></tr>';
         			}
@@ -3313,7 +3962,11 @@ class Volunteer_Management_And_Tracking_Admin {
     		<div class="col">
     			<div class="alignright">
     				<div class="clearable-input">
-                	<input type="text" id="volunteer-search-input" name="volunteers_search" value="<?php 
+                	<input type="text" 
+                	       id="volunteer-search-input" 
+                	       name="volunteers_search"
+                	       placeholder="Search Available Volunteers" 
+                	       value="<?php 
                 	if ( ! empty( $search) ) {
                 	    echo $search;
                 	} else {
@@ -3332,20 +3985,20 @@ class Volunteer_Management_And_Tracking_Admin {
     	</div>
         <div class="row">
         	<div class="col-lg-6">
-				<button id="vmat_register_new_volunteer_for_event" 
-				        class="button action vmat-action-btn" 
-				        type="button" 
-				        value="show_register_and_add_new_volunteer_form" 
-				        title="Register and add a new volunteer to the selected event">
-				        <?php _e( 'Add New ', 'vmattd')?>&raquo;
-				</button>
-        	</div>
-        	<div class="col">
 				<button id="do_volunteers_bulk_action" 
 				        class="button action vmat-action-btn" 
 				        type="button" 
 				        value="bulk_add_volunteers_to_event" disabled>
 				        <?php _e( 'Bulk Add Vols ', 'vmattd')?>&raquo;
+				</button>
+        	</div>
+        	<div class="col-lg-6">
+				<button id="vmat_register_new_volunteer_for_event" 
+				        class="button action vmat-action-btn" 
+				        type="button" 
+				        value="show_register_and_add_new_volunteer_form" 
+				        title="Register and add a new volunteer to the selected event">
+				        <?php _e( 'Add New Vol', 'vmattd')?>
 				</button>
         	</div>
         </div>
@@ -3387,7 +4040,7 @@ class Volunteer_Management_And_Tracking_Admin {
         			        }
         			    }
         			} else {
-        			    echo '<tr><td>';
+        			    echo '<tr><td colspan="3">';
         			    _e( 'No volunteers found', 'vmattd');
         			    echo '</td></tr>';
         			}
@@ -3443,45 +4096,25 @@ class Volunteer_Management_And_Tracking_Admin {
             );
         ?>
     	<div class="row">
-    		<div class="col-lg-3">
+    		<div class="col-lg-2">
     			<button class="button action vmat-action-btn" 
         		        name="submit_button" 
         		        type="button" 
         		        value="show_update_volunteer_form"><?php _e('Edit Volunteer', 'vmattd'); ?>
         		</button>
     		</div>
-    		<div class="col-lg-3">
+    		<div class="col-lg-2">
     			<button id="add_event_to_volunteer" 
 				        class="button action vmat-action-btn" 
 				        type="button" 
 				        volunteer_id="<?php echo $volunteer->ID; ?>"
 				        value="show_select_event">
-				        <?php _e( 'Add Event', 'vmattd')?>
+				        <?php _e( 'Add Hours to Event', 'vmattd')?>
 				</button>
-    		</div>
-    		<div class="col">
-    			<div class="alignright">
-    				<div class="clearable-input">
-                	<input type="text" id="manage-volunteer-search-input" name="manage_volunteer_search" value="<?php 
-                	if ( ! empty( $search) ) {
-                	    echo $search;
-                	} else {
-                	    echo '';
-                	}
-                	?>" />
-                	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
-            	</div>
-            	<button class="button" 
-        		        name="submit_button" 
-        		        type="button" 
-        		        volunteer_id="<?php echo $volunteer->ID; ?>"
-        		        value="search_manage_volunteer"><?php _e('Search', 'vmattd'); ?>
-        		</button>
-    			</div>
     		</div>
     	</div>
     	<div class="row">
-    		<div class="col-lg-3">
+    		<div class="col-lg-2">
     			<div class="actions bulkactions">
     				<button id="hours_bulk_remove" 
     				        class="button action vmat-action-btn" 
@@ -3491,7 +4124,7 @@ class Volunteer_Management_And_Tracking_Admin {
     				        disabled><?php _e( 'Bulk Remove Hours', 'vmattd')?></button>
     			</div>
         	</div>
-        	<div class="col-lg-3">
+        	<div class="col-lg-2">
         		<div class="actions bulkactions">
     				<button id="hours_bulk_save" 
     				        class="button action vmat-action-btn" 
@@ -3503,6 +4136,30 @@ class Volunteer_Management_And_Tracking_Admin {
     				</button>
     			</div>
         	</div>
+        	<div class="col">
+    			<div class="alignright">
+    				<div class="clearable-input">
+                	<input type="text" 
+                	       id="manage-volunteer-search-input" 
+                	       name="manage_volunteer_search" 
+                	       placeholder="Search Events"
+                	       value="<?php 
+                	if ( ! empty( $search) ) {
+                	    echo $search;
+                	} else {
+                	    echo '';
+                	}
+                	?>">
+                	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
+            	</div>
+            	<button class="button" 
+        		        name="submit_button" 
+        		        type="button" 
+        		        volunteer_id="<?php echo $volunteer->ID; ?>"
+        		        value="search_manage_volunteer"><?php _e('Search', 'vmattd'); ?>
+        		</button>
+    			</div>
+    		</div>
     	</div>
         <div class="row">
         	<div class="col">
@@ -3547,7 +4204,7 @@ class Volunteer_Management_And_Tracking_Admin {
         			        }
         			    }
         			} else {
-        			    echo '<tr><td>';
+        			    echo '<tr><td colspan="6">';
         			    _e( 'No hours found', 'vmattd');
         			    echo '</td></tr>';
         			}
@@ -3594,7 +4251,11 @@ class Volunteer_Management_And_Tracking_Admin {
     		<div class="col">
     			<div class="alignright">
                 	<div class="clearable-input">
-                    	<input type="text" id="event-volunteer-search-input" name="event_volunteers_search" value="<?php 
+                    	<input type="text" 
+                    	       id="event-volunteer-search-input" 
+                    	       name="event_volunteers_search"
+                    	       placeholder="Search Event Volunteers"
+                    	       value="<?php 
                     	if ( ! empty( $search) ) {
                     	    echo $search;
                     	} else {
@@ -3612,7 +4273,7 @@ class Volunteer_Management_And_Tracking_Admin {
     		</div><!-- col-md-auto -->
     	</div><!-- row -->
         <div class="row">
-        	<div class="col-lg-6">
+        	<div class="col-lg-3">
 				<button id="event_volunteers_bulk_remove" 
 				        class="button action vmat-action-btn" 
 				        type="button" 
@@ -3621,7 +4282,7 @@ class Volunteer_Management_And_Tracking_Admin {
 				        &laquo;&nbsp;<?php _e( 'Bulk Remove Vols', 'vmattd')?>
 				</button>
         	</div>
-        	<div class="col">
+        	<div class="col-lg-3">
 				<button id="event_volunteers_bulk_save" 
 				        class="button action vmat-action-btn" 
 				        type="button" 
@@ -3673,7 +4334,7 @@ class Volunteer_Management_And_Tracking_Admin {
         			        }
         			    }
         			} else {
-        			    echo '<tr><td>';
+        			    echo '<tr><td colspan="6">';
         			    _e( 'No event volunteers found', 'vmattd');
         			    echo '</td></tr>';
         			}
@@ -3761,13 +4422,17 @@ class Volunteer_Management_And_Tracking_Admin {
         	<div class="col">
         		<div class="alignright">
         			<div class="clearable-input">
-                	<input type="text" id="event-search-input" name="events_search" value="<?php 
+                	<input type="text" 
+                	       id="event-search-input" 
+                	       name="events_search"
+                	       placeholder="Search Events" 
+                	       value="<?php 
                 	if ( ! empty( $search) ) {
                 	    echo $search;
                 	} else {
                 	    echo '';
                 	}
-                	?>" />
+                	?>">
                 	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
             	</div>
             	<button class="button" 
@@ -3822,7 +4487,7 @@ class Volunteer_Management_And_Tracking_Admin {
         			        }
         			    }
         			} else {
-        			    echo '<tr><td>';
+        			    echo '<tr><td colspan="5">';
         			    _e( 'No events found', 'vmattd');
         			    echo '</td></tr>';
         			}
@@ -3882,18 +4547,30 @@ class Volunteer_Management_And_Tracking_Admin {
             $page_name,
             $ajax_args
             );
+        $add_new_event_href = admin_url( 'post-new.php' );
+        $add_new_event_href = add_query_arg( 
+            array(
+                'post_type' => EM_POST_TYPE_EVENT,
+            ),
+            $add_new_event_href
+        );
         ?>
         <div class="row">
-        	<div class="col-lg-4">
+        	<div class="col-lg-3">
         		<strong><?php _e( 'Select Event:', 'vmattd' ); ?></strong>
         	</div>
-        	<div class="col">
+        	<div class="col-lg-3">
+        		<a class="button action vmat-action-btn" href="<?php echo $add_new_event_href; ?>">
+        		<?php _e( 'Create New Event', 'vmattd' ); ?>
+        		</a>
+        	</div>
+        	<div class="col-lg-3">
     			<button id="cancel_event_selection" 
-    		        class="button action" 
+    		        class="button action vmat-action-btn" 
     		        type="button" 
     		        value="cancel_event_selection" >
     		        <?php _e( 'Cancel', 'vmattd')?>
-    		</button>
+    			</button>
         	</div>
         </div>
         <div class="row">
@@ -3922,13 +4599,17 @@ class Volunteer_Management_And_Tracking_Admin {
         	<div class="col">
         		<div class="alignright">
         			<div class="clearable-input">
-                	<input type="text" id="event-search-input" name="manage_volunteer_events_search" value="<?php 
+                	<input type="text" 
+                	       id="event-search-input" 
+                	       name="manage_volunteer_events_search"
+                	       placeholder="Search Events" 
+                	       value="<?php 
                 	if ( ! empty( $search) ) {
                 	    echo $search;
                 	} else {
                 	    echo '';
                 	}
-                	?>" />
+                	?>">
                 	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
             	</div>
             	<button class="button" 
@@ -3983,7 +4664,7 @@ class Volunteer_Management_And_Tracking_Admin {
         			        }
         			    }
         			} else {
-        			    echo '<tr><td>';
+        			    echo '<tr><td colspan="5">';
         			    _e( 'No events found', 'vmattd');
         			    echo '</td></tr>';
         			}
@@ -4032,7 +4713,7 @@ class Volunteer_Management_And_Tracking_Admin {
         	    ?>
         	    <div>
         	    <?php
-    			echo '<a class="button" href="' . add_query_arg( 'page', 'vmat_admin_manage_volunteers', admin_url( 'admin.php' ) ) . '">' . __('Select another volunteer', 'vmattd') . '</a>';
+    			echo '<a class="button" href="' . add_query_arg( 'page', 'vmat_admin_manage_volunteers', admin_url( 'admin.php' ) ) . '">' . __('Select Another Volunteer', 'vmattd') . '</a>';
     			?>
     			</div>
         		<div>
@@ -4167,6 +4848,32 @@ class Volunteer_Management_And_Tracking_Admin {
          ?>
          </form>
         <?php
+        $this->admin_footer();
+    }
+    
+    public function html_page_admin_help() {
+        $args = array(
+            'message' => '',
+            'message_class' => '',
+        );
+        $help_section = 'general_help';
+        if( array_key_exists( 'help_section', $_GET ) ) {
+            $help_section = $_GET['help_section'];
+        }
+        $this->admin_header($args['message'], $args['message_class'] );
+        $content = '<div class="container">';
+        $content .= '<div id="help_accordian">';
+        $content .= $this->get_general_help_text( $help_section );
+        $content .= $this->get_volunteer_participation_help_text( $help_section );
+        $content .= $this->get_manage_volunteers_help_text( $help_section );
+        $content .= $this->get_reports_help_text( $help_section );
+        $content .= $this->get_settings_help_text( $help_section );
+        $content .= $this->get_funding_streams_help_text( $help_section );
+        $content .= $this->get_organizations_help_text( $help_section );
+        $content .= $this->get_volunteer_types_help_text( $help_section );
+        $content .= '</div>';
+        $content .= '</div>';
+        echo $content;   
         $this->admin_footer();
     }
 }

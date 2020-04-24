@@ -29,7 +29,26 @@
 	 * practising this, we should strive to set a better example in our own work.
 	 */
 	$( function() {
-		
+		$("#datepicker_start").datepicker(
+				{
+					dateFormat: 'mm/dd/yy',
+					showAnim: 'slideDown',
+					altFormat: 'yy-mm-dd',
+					altField: '#vmat_funding_start_date',
+					changeMonth: true,
+					changeYear: true
+				}
+		);
+        $("#datepicker_end").datepicker(
+        		{
+					dateFormat: 'mm/dd/yy',
+					showAnim: 'slideDown',
+					altFormat: 'yy-mm-dd',
+					altField: '#vmat_funding_end_date',
+					changeMonth: true,
+					changeYear: true
+				}
+        );
 	});
 
 })( jQuery );

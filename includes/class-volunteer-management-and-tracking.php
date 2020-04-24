@@ -178,7 +178,7 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_action( 'wp_ajax_ajax_filter_events', $this->admin, 'ajax_filter_events' );
         $this->loader->add_action( 'wp_ajax_ajax_filter_manage_volunteer_events', $this->admin, 'ajax_filter_manage_volunteer_events' );
         $this->loader->add_action( 'wp_ajax_ajax_search_volunteers', $this->admin, 'ajax_search_volunteers' );
-        $this->loader->add_action( 'wp_ajax_ajax_search_manage_volunteers', $this->admin, 'ajax_search_manage_volunteers' );
+        $this->loader->add_action( 'wp_ajax_ajax_filter_manage_volunteers', $this->admin, 'ajax_filter_manage_volunteers' );
         $this->loader->add_action( 'wp_ajax_ajax_search_manage_volunteer', $this->admin, 'ajax_search_manage_volunteer' );
         $this->loader->add_action( 'wp_ajax_ajax_search_event_volunteers', $this->admin, 'ajax_search_event_volunteers' );
         $this->loader->add_action( 'wp_ajax_ajax_update_volunteer', $this->admin, 'ajax_update_volunteer' );
@@ -211,6 +211,9 @@ class Volunteer_Management_And_Tracking {
         // update the volunteer fields from the wp-admin/user-new.php form
         $this->loader->add_action('edit_user_created_user', $this->common, 'update_volunteer_user_meta');
         
+        // add volunteer role to new users created from events booking form
+        $this->loader->add_action('user_register', $this->admin, 'add_volunteer_role_to_new_em_user');
+        
         // dashboard page
         $this->loader->add_action('admin_menu', $this->admin, 'admin_main_page', 5);
         // manage volunteer participation page
@@ -221,6 +224,8 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_action('admin_menu', $this->admin, 'admin_reports_page', 8);
         // settings page
         $this->loader->add_action('admin_menu', $this->admin, 'admin_settings_page', 9);
+        // settings page
+        $this->loader->add_action('admin_menu', $this->admin, 'admin_help_page', 10);
         // remove the submenu auto-generated from the main menu
         $this->loader->add_action('admin_menu', $this->admin, 'remove_admin_main_submenu');
         
@@ -253,15 +258,14 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_filter( 'manage_posts_columns', $this->admin, 'add_orgs_column_to_em' );
         $this->loader->add_action( 'manage_posts_custom_column', $this->admin, 'fill_event_orgs_column', 10, 2);
         
+        // add Begin/End Dates column to vmat_funding_streams listing
+        $this->loader->add_filter( 'manage_vmat_funding_stream_posts_columns', $this->admin, 'add_start_end_dates_column_to_funding_streams' );
+        $this->loader->add_action( 'manage_vmat_funding_stream_posts_custom_column', $this->admin, 'fill_start_end_dates_funding_streams_column', 10, 2);
+        
         // Add Funding Streams selection meta box to Organizations edit page
         $this->loader->add_action('add_meta_boxes', $this->admin, 'add_org_funding_stream_meta_box');
         // Save Funding Stream meta box data into Organization meta data
         $this->loader-> add_action('save_post_vmat_organization',$this->admin, 'update_org_funding_streams_meta',1,2);
-        
-        // Add additional information fields meta box to Organizations edit page
-        $this->loader->add_action('add_meta_boxes', $this->admin, 'add_organization_fields_meta_box');
-        // Save additional information fields meta box data into Organization meta data
-        $this->loader-> add_action('save_post_vmat_organization',$this->admin, 'update_organization_fields_meta',1,2);
         
         // Add additional information fields meta box to Funding Streams edit page
         $this->loader->add_action('add_meta_boxes', $this->admin, 'add_funding_stream_fields_meta_box');

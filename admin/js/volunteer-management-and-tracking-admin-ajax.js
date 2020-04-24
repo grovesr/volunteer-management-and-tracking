@@ -86,14 +86,10 @@
 					$('button[value="bulk_remove_volunteers"]').prop('disabled', true);
 				}
 		 	});
-			// do a search filter on the volunteers table
-			$('button[value="search_manage_volunteers"]')
-			.off( 'click', search_manage_volunteers )
-			.on( 'click', search_manage_volunteers );
-			// do a search filter on the volunteers table
-			$('button[value="search_manage_volunteer"]')
-			.off( 'click', search_manage_volunteer )
-			.on( 'click', search_manage_volunteer );
+			// do a filter on the volunteers table
+			$('button[value="filter_manage_volunteers"], button[value="search_manage_volunteers"]')
+			.off( 'click', filter_manage_volunteers )
+			.on( 'click', filter_manage_volunteers );
 			// register a new volunteer and associate with the event
 			$('button[value="show_update_volunteer_form"]')
 			.off( 'click', show_update_volunteer_form )
@@ -1077,15 +1073,17 @@
 	        .fail( handle_failed_ajax_call ); // fall through to handle general ajax failures
 	    }
 		
-		function search_manage_volunteers() {
+		function filter_manage_volunteers() {
 			// no need to check for unsaved data because this occurs in a view where there are
 			// no inputs that could be lost
 	        var search = $('#vmat_manage_volunteers_table input[name="manage_volunteers_search"]').val();
+	        var vmat_org = $('#vmat_manage_volunteers_table select[name="vmat_org"]').val();
 	        $('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
-					action: "ajax_search_manage_volunteers",
+					action: "ajax_filter_manage_volunteers",
 					volunteers_search: search,
+					vmat_org: vmat_org,
 					notice_id: 'manage_volunteers_status',
 					target: 'vmat_manage_volunteers_table',
 				};
@@ -1481,7 +1479,22 @@
 		}
 		
 		function remove_volunteers() {
-	        self = this;
+			var self = this;
+			var message = 'Deleting a volunteer will also permanently delete all of that volunteer\'s event participation data! <br />"OK" to proceed and lose volunteer data.';
+			$('#vmat_ok_cancel_modal .modal-body').html(message);
+			$('#vmat_ok_cancel_modal').modal('show');
+			$('#vmat_ok_cancel_modal button#vmat_ok')
+			.off('click')
+			.on('click', remove_volunteers_do_action.bind(self) );
+		}
+		
+		function remove_volunteers_do_action( arg=null ) {
+			if( arg.originalEvent !== undefined) {
+				// an event rather than a passed in element
+				self = this;
+			} else {
+				self = arg;
+			}
 	        var volunteers = $('#vmat_manage_volunteers_table .check-column input:checked');
 	        var volunteer_ids = Array();
 	        $('#vmat_manage_volunteers_table input[id^="vmat_manage_volunteer_cb_"]:checked').each( function(i,v)
@@ -1631,7 +1644,8 @@
         attach_vmat_hours_volunteers_handlers();
         attach_vmat_manage_volunteers_handlers();
         // search text fields not getting reset to empty on page reloads for some reason
-        jQuery('div.clearable-input input[type="text"]').val('');
+        
+        $('div.clearable-input input[type="text"]').val('');
 	});
 
 })( jQuery );

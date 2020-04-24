@@ -106,7 +106,7 @@ div.vmat-notice p  {
   line-height: 1em;
   cursor: pointer; 
   background: 0 0;
-  color: #999;
+  color: black;
   font: normal 16px/20px dashicons;
 }
 
@@ -114,11 +114,42 @@ div.vmat-notice p  {
   color: black;
 }
 
-button.vmat-action-btn {
+button.vmat-action-btn, a.vmat-action-btn {
 	width: 100%;
+	text-align: center;
 }
 
 table.widefat {
     table-layout:fixed;
     width:100%;
+}
+
+ul.vmat-help-list {
+	list-style-type: disc;
+}
+
+ul.vmat-help-list ul {
+	list-style-type: circle;
+}
+
+ul.vmat-help-list ul ul {
+	list-style-type: none;
+}
+
+ul.vmat-help-list ul li {
+	margin-left: 20px;
+}
+
+ul.vmat-help-list ul ul li {
+	margin-left: 40px;
+}
+
+#help_accordian .card {
+	max-width: 100%;
+	margin: 0;
+	padding: 0;
+}
+
+#help_accordian .card-header {
+	cursor: pointer;
 }

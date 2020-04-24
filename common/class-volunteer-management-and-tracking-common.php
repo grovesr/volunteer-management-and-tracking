@@ -939,14 +939,17 @@ class Volunteer_Management_And_Tracking_Common {
 	    $volunteer_args = array(
 	        'role' => 'volunteer',
 	        'exclude' => $event_volunteer_ids,
-	        'volunteers_search' => $args['volunteers_search'],
 	    );
 	    $search = '';
 	    if ( array_key_exists( 'volunteers_search', $args ) ) {
 	        $search = $args['volunteers_search'];
 	    }
+	    $vmat_org = 0;
+	    if ( array_key_exists( 'vmat_org', $args ) ) {
+	        $vmat_org = $args['vmat_org'];
+	    }
 	    $volunteers = get_users( $volunteer_args );
-	    $volunteers = $vmat_plugin->get_common()->filter_volunteers( $volunteers, $search );
+	    $volunteers = $vmat_plugin->get_common()->filter_volunteers( $volunteers, $search, $vmat_org );
 	    
 	    $volunteer_ids = array();
 	    foreach ( $volunteers as $volunteer ) {
@@ -983,11 +986,12 @@ class Volunteer_Management_And_Tracking_Common {
 	    return $hours_query;
 	}
 	
-	public function filter_volunteers( $volunteers, $volunteers_search='' ) {
+	public function filter_volunteers( $volunteers, $volunteers_search='', $vmat_org=0 ) {
 
 	    $volunteers = array_map( function ( $a ) { return array('WP_User'=>$a);}, $volunteers);
-	    foreach( $volunteers as $key=>$value ) {
+	    foreach( $volunteers as $key=>$user ) {
 	        // get additional data about each user
+	        $orgs = $this->get_volunteer_data( $user['WP_User']->ID )['orgs'];
 	        $meta_values = get_user_meta( $volunteers[$key]['WP_User']->ID );
 	        $volunteers[$key]['WP_User'] = get_userdata( $volunteers[$key]['WP_User']->ID );
 	        $meta_values = array_filter(
@@ -999,19 +1003,26 @@ class Volunteer_Management_And_Tracking_Common {
 	            );
 	        $volunteers[$key]['usermeta'] = $meta_values;
 	        $volunteers[$key]['search'] = $volunteers_search;
+	        $volunteers[$key]['orgs'] = $orgs;
+	        $volunteers[$key]['vmat_org'] = $vmat_org;
 	    }
 	    // filter the users based on the search criteria
 	    $volunteers = array_filter( $volunteers,
 	        function ( $user ) {
 	            $like = '/.*' . $user['search'] . '.*/i';
+	            $found_org = true;
+	            if( $user['vmat_org'] != 0 ) {
+	               $found_org = in_array( $user['vmat_org'], $user['orgs'] );
+	            }
 	            return
-	            preg_match( $like, $user['WP_User']->display_name ) === 1 ||
+	            $found_org && 
+	            ( preg_match( $like, $user['WP_User']->display_name ) === 1 ||
 	            preg_match( $like, $user['WP_User']->data->user_email ) === 1 ||
 	            preg_match( $like, $user['WP_User']->data->user_login ) === 1 ||
 	            preg_match( $like, $user['WP_User']->data->user_nicename ) === 1 ||
 	            preg_match( $like, $user['usermeta']['first_name'] ) === 1 ||
 	            preg_match( $like, $user['usermeta']['last_name'] ) === 1 ||
-	            preg_match( $like, $user['usermeta']['nickname'] ) === 1;
+	            preg_match( $like, $user['usermeta']['nickname'] ) === 1 );
 	        }
 	        );
 	    return $volunteers;
@@ -1176,6 +1187,33 @@ class Volunteer_Management_And_Tracking_Common {
 	    );
 	}
 	
+	public function get_funding_stream_data( $funding_stream_id=0 ) {
+	    $days = 0;
+	    $result = array(
+	        'days' => 0,
+	        'iso_start_date' => 'None',
+	        'iso_end_date' => 'None',
+	        'start_date' => 'None',
+	        'end_date' => 'None',
+	        'start_end_string' => 'None',
+	    );
+	    if ( $funding_stream_id ) {
+	        $funding_stream_meta = get_post_meta( $funding_stream_id, false);
+	        $end_date = date_create_from_format('Y-m-d', $funding_stream_meta['_funding_end_date'][0]);
+	        $start_date=date_create_from_format('Y-m-d', $funding_stream_meta['_funding_start_date'][0]);
+	        if( $start_date && $end_date ) {
+	            $days = $end_date->diff($start_date)->days + 1;
+	            $result['days'] = $days;
+	            $result['iso_start_date'] = date_format( $start_date, 'Y-m-d' );
+	            $result['iso_end_date'] = date_format( $end_date, 'Y-m-d' );
+	            $result['start_date'] = date_format( $start_date, 'm/d/Y' );
+	            $result['end_date'] = date_format( $end_date, 'm/d/Y' );
+	            $result['start_end_string'] = date_format( $start_date, 'M d, Y' ) . ' - ' . date_format( $end_date, 'M d, Y' );
+	        }
+	    }
+	    return $result;
+	}
+	
 	public function get_volunteer_data( $volunteer_id=0 ) {
 	    $args = array(
 	        'post_type' => 'vmat_hours',
@@ -1203,10 +1241,10 @@ class Volunteer_Management_And_Tracking_Common {
 	        $volunteer_approved_hours[$hour->ID]['WP_Post'] = $hour;
 	        $volunteer_approved_hours[$hour->ID]['postmeta'] = array_map( function( $meta ) { return $meta[0]; }, get_post_meta( $hour->ID ) );
 	        $volunteer_approved_hours[$hour->ID]['eventdata'] = $this->get_event_data( $volunteer_approved_hours[$hour->ID]['postmeta']['_event_id'] );
-	        $orgs = array_merge( $orgs, $volunteer_approved_hours[$hour->ID]['eventdata']['organizations'] );
 	        $approved_num_days = $approved_num_days + absint( $volunteer_approved_hours[$hour->ID]['postmeta']['_volunteer_num_days'] );
 	        $approved_num_hours = $approved_num_hours + absint( $volunteer_approved_hours[$hour->ID]['postmeta']['_volunteer_num_days'] ) * absint( $volunteer_approved_hours[$hour->ID]['postmeta']['_hours_per_day'] );
 	        if( $approved_num_hours > 0 ) {
+	            $orgs = array_unique( array_merge( $orgs, $volunteer_approved_hours[$hour->ID]['eventdata']['organizations'] ) );
 	            $approved_num_events = $approved_num_events + 1;
 	        }
 	    }
@@ -1230,10 +1268,10 @@ class Volunteer_Management_And_Tracking_Common {
 	        $volunteer_unapproved_hours[$hour->ID]['WP_Post'] = $hour;
 	        $volunteer_unapproved_hours[$hour->ID]['postmeta'] = array_map( function( $meta ) { return $meta[0]; }, get_post_meta( $hour->ID ) );
 	        $volunteer_unapproved_hours[$hour->ID]['eventdata'] = $this->get_event_data( $volunteer_unapproved_hours[$hour->ID]['postmeta']['_event_id'] );
-	        $orgs = array_merge( $orgs, $volunteer_unapproved_hours[$hour->ID]['eventdata']['organizations'] );
 	        $unapproved_num_days = $unapproved_num_days + absint($volunteer_unapproved_hours[$hour->ID]['postmeta']['_volunteer_num_days'] );
 	        $unapproved_num_hours = $unapproved_num_hours + absint($volunteer_unapproved_hours[$hour->ID]['postmeta']['_volunteer_num_days'] ) * absint( $volunteer_unapproved_hours[$hour->ID]['postmeta']['_hours_per_day'] );
 	        if( $unapproved_num_hours > 0 ) {
+	            $orgs = array_unique( array_merge( $orgs, $volunteer_unapproved_hours[$hour->ID]['eventdata']['organizations'] ) );
 	            $unapproved_num_events = $unapproved_num_events +1;
 	        }
 	    }
@@ -1346,6 +1384,11 @@ class Volunteer_Management_And_Tracking_Common {
 	     * $event = event post object
 	     */
 	    global $wpdb;
+	    $private = '';
+	    if( $event->post_status === 'private' ) {
+	        $private = ' - <span class="post-state">Private</span>';
+	    }
+	    
 	    $location_id = get_post_meta( $event->ID, '_location_id', true);
 	    $event_data = $this->get_event_data( $event->ID );
 	    $event_start_date = $event_data['start_date'];
@@ -1392,6 +1435,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '<tr>';
 	    $output .= '<td>';
 	    $output .= '<strong>'. $event->post_title . '</strong>';
+	    $output .= $private;
 	    $output .= '<div>';
 	    $output .= '<a id="vmat_event_' . $event->ID . '" href="' . $event_edit_href . '">' . __('Edit', 'vmattd') . '</a>';
 	    $output .= '</div>';
@@ -1522,6 +1566,10 @@ class Volunteer_Management_And_Tracking_Common {
 	     * $this_page_url = url to the page that will allow take event_id as an arg
 	     */
 	    global $wpdb;
+	    $private = '';
+	    if( $event->post_status === 'private' ) {
+	        $private = ' - <span class="post-state">Private</span>';
+	    }
 	    $location_id = get_post_meta( $event->ID, '_location_id', true);
 	    $event_data = $this->get_event_data( $event->ID );
 	    $event_start_date = $event_data['iso_start_date'];
@@ -1549,6 +1597,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '<td>';
 	    $output .= '<strong>';
 	    $output .= '<a class="row-title" href="' . $submit_url . '">' . $event->post_title . '</a>';
+	    $output .= $private;
 	    $output .= '</strong>';
 	    $output .= '<div class="row-actions">';
 	    $output .= '<a id="vmat_event_' . $event->ID . '" href="' . $event_edit_href . '"><span class="vmat-quick-link">' . __('Edit', 'vmattd') . '</span></a>';
@@ -2002,6 +2051,11 @@ class Volunteer_Management_And_Tracking_Common {
 	                'singular_name' => __('Funding Stream', 'vmattd'),
 	                'edit_item' => __('Edit Funding Stream', 'vmattd'),
 	                'add_new_item' => __('Add New Funding Stream', 'vmattd'),
+	                'add_new' => _x('Add New Funding Stream', 'vmattd'),
+	                'search_items' => __( 'Search', 'vmattd' ),
+	                'not_found' => __( 'Not Found', 'vmattd' ),
+	                'item_published' => __('Funding Stream Published', 'vmattd'),
+	                'item_updated' => __('Funding Stream Updated', 'vmattd'),
 	            ),
 	            'capability_type' => 'vmat_funding_stream',
 	            'map_meta_cap' => true,
@@ -2022,6 +2076,11 @@ class Volunteer_Management_And_Tracking_Common {
 	                'singular_name' => __('Volunteer Type', 'vmattd'),
 	                'edit_item' => __('Edit Volunteer Type', 'vmattd'),
 	                'add_new_item' => __('Add New Volunteer Type', 'vmattd'),
+	                'add_new' => _x('Add New Volunteer Type', 'vmattd'),
+	                'search_items' => __( 'Search', 'vmattd' ),
+	                'not_found' => __( 'Not Found', 'vmattd' ),
+	                'item_published' => __('Volunteer Type Published', 'vmattd'),
+	                'item_updated' => __('Volunteer Type Updated', 'vmattd'),
 	            ),
 	            //'capability_type' => 'vmat_volunteer_type',
 	            'public'      => false,
@@ -2041,6 +2100,11 @@ class Volunteer_Management_And_Tracking_Common {
 	                'singular_name' => __('Organization', 'vmattd'),
 	                'edit_item' => __('Edit Organization', 'vmattd'),
 	                'add_new_item' => __('Add New Organization', 'vmattd'),
+	                'add_new' => _x('Add New Organization', 'vmattd'),
+	                'search_items' => __( 'Search', 'vmattd' ),
+	                'not_found' => __( 'Not Found', 'vmattd' ),
+	                'item_published' => __('Organization Published', 'vmattd'),
+	                'item_updated' => __('Organization Updated', 'vmattd'),
 	            ),
 	            //'capability_type' => 'vmat_organization',
 	            'public'      => false,
