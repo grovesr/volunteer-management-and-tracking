@@ -34,7 +34,7 @@
 			if ( $( container + ' ' + '.vmat-check-before-save-changed').length > 0 ) {
 				var message = 'Unsaved data! <br />"OK" to proceed and lose any changes.';
 				$('#vmat_ok_cancel_modal .modal-body').html(message);
-	        	$('html').removeClass('waiting');
+	        	$('.waiting').removeClass('waiting');
 	        	$('#vmat_ok_cancel_modal').modal('show');
 	        	save_needed = true;
 			}
@@ -310,7 +310,7 @@
 		function handle_failed_ajax_call( jqxhr, status, err ) {
 			// handle a failed ajax call
 			show_admin_notice( create_error_notice( Array( status + ' ' + err ) ) );
-			$('html').removeClass('waiting');
+			$('.waiting').removeClass('waiting');
 			clear_ajax_notices();
 		}
 		
@@ -330,7 +330,7 @@
 				// handle a wp_send_json_error response
 				handle_server_failure_response(  response ) ;
 			}
-			$('html').removeClass('waiting');
+			$('.waiting').removeClass('waiting');
 			if ( $('.vmat-check-before-save-changed').length == 0 ) {
 				$(window).off('beforeunload');
 			}
@@ -358,7 +358,7 @@
 				// if failure, remove row highlight
 				$('tr').removeClass('vmat-action-in-progress');
 			}
-			$('html').removeClass('waiting');
+			$('.waiting').removeClass('waiting');
 			if ( $('.vmat-check-before-save-changed').length == 0 ) {
 				$(window).off('beforeunload');
 			}
@@ -377,7 +377,7 @@
 				// handle a wp_send_json_error response
 				handle_server_failure_response(  response ) ;
 			}
-			$('html').removeClass('waiting');
+			$('.waiting').removeClass('waiting');
 			if ( $('.vmat-check-before-save-changed').length == 0 ) {
 				$(window).off('beforeunload');
 			}
@@ -393,7 +393,7 @@
 				// handle a wp_send_json_error response
 				handle_server_failure_response(  response ) ;
 			}
-			$('html').removeClass('waiting');
+			$('.waiting').removeClass('waiting');
 			if ( $('.vmat-check-before-save-changed').length == 0 ) {
 				$(window).off('beforeunload');
 			}
@@ -410,7 +410,7 @@
 				// handle a wp_send_json_error response
 				handle_server_failure_response(  response ) ;
 			}
-			$('html').removeClass('waiting');
+			$('.waiting').removeClass('waiting');
 			if ( $('.vmat-check-before-save-changed').length == 0 ) {
 				$(window).off('beforeunload');
 			}
@@ -449,7 +449,7 @@
 				// if failure, remove row highlight
 				$('tr').removeClass('vmat-action-in-progress');
 			}
-			$('html').removeClass('waiting');
+			$('.waiting').removeClass('waiting');
 			if ( $('.vmat-check-before-save-changed').length == 0 ) {
 				$(window).off('beforeunload');
 			}
@@ -496,7 +496,7 @@
 				// handle a wp_send_json_error response
 				handle_server_failure_response(  response ) ;
 			}
-			$('html').removeClass('waiting');
+			$('.waiting').removeClass('waiting');
 			if ( $('.vmat-check-before-save-changed').length == 0 ) {
 				$(window).off('beforeunload');
 			}
@@ -865,9 +865,9 @@
 		function register_new_volunteer_for_event_do_action( arg=null ) {
 			if( arg.originalEvent !== undefined) {
 				// an event rather than a passed in element
-				self = this;
+				var self = this;
 			} else {
-				self = arg;
+				var self = arg;
 			}
 	        var event_id = $('input[name="event_id"]').val();
 	        var volunteer_data = {};
@@ -896,6 +896,7 @@
 	        clear_admin_notice();
 	        
 	        show_ajax_notice( 'volunteer_registration_status', 'working....' );
+	        $(self).addClass('waiting');
 	        $('html').addClass('waiting');
 	        if( messages.length == 0 ) {
 	        	var request = {
@@ -917,14 +918,14 @@
 				show_ajax_notice( 'volunteer_registration_status', notice_html );
 	        	handle_failed_volunteers_action_for_event();
 	        	highlight_failed_inputs( validated_data );
-	        	$('html').removeClass('waiting');
+	        	$('.waiting').removeClass('waiting');
 	        }
 	    }
 		
 		function update_volunteer() {
 			// no need to check for unsaved data because this occurs in a view where there are
 			// no inputs that could be lost
-			self = this;
+			var self = this;
 	        var volunteer_data = {};
 	        // need extra level in the data structure to use the validate_inputs function
 	        // which can be used across multiple sets of data. The volunteer registration is
@@ -961,6 +962,7 @@
 	        }
 	        clear_admin_notice();
 	        show_ajax_notice( 'volunteer_update_status', 'working....' );
+	        $(self).addClass('waiting');
 	        $('html').addClass('waiting');
 	        if( messages.length == 0 ) {
 	        	var request = {
@@ -981,13 +983,12 @@
 				show_ajax_notice( 'volunteer_update_status', notice_html );
 	        	handle_failed_volunteers_action_for_event();
 	        	highlight_failed_inputs( validated_data );
-	        	$('html').removeClass('waiting');
+	        	$('.waiting').removeClass('waiting');
 	        }
 	    }
 		
 		function add_new_volunteer_to_event( volunteer_id ) {                       //use in callback
 	        var event_id = $('input[name="event_id"]').val();
-	        $('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
 					action: "ajax_add_volunteers_to_event",
@@ -1009,9 +1010,11 @@
 		function filter_events() {
 			// no need to check for unsaved data because this occurs in a view where there are
 			// no inputs that could be lost
+			var self = this;
 	        var search = $('#vmat_events_table input[name="events_search"]').val();
 	        var vmat_org = $('#vmat_events_table select[name="vmat_org"]').val();
 	        var scope = $('#vmat_events_table select[name="scope"]').val();
+	        $(self).addClass('waiting');
 	        $('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
@@ -1032,9 +1035,11 @@
 		function filter_manage_volunteer_events() {
 			// no need to check for unsaved data because this occurs in a view where there are
 			// no inputs that could be lost
+			var self = this;
 	        var search = $('#vmat_manage_volunteer_events_table input[name="manage_volunteer_events_search"]').val();
 	        var vmat_org = $('#vmat_manage_volunteer_events_table select[name="vmat_org"]').val();
 	        var scope = $('#vmat_manage_volunteer_events_table select[name="scope"]').val();
+	        $(self).addClass('waiting');
 	        $('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
@@ -1055,8 +1060,10 @@
 		function search_volunteers() {
 			// no need to check for unsaved data because this occurs in a view where there are
 			// no inputs that could be lost
+			var self = this;
 	        var search = $('#vmat_volunteers_table input[name="volunteers_search"]').val();
 	        var event_id = $('input[name="event_id"]').val();
+	        $(self).addClass('waiting');
 	        $('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
@@ -1076,8 +1083,10 @@
 		function filter_manage_volunteers() {
 			// no need to check for unsaved data because this occurs in a view where there are
 			// no inputs that could be lost
+			var self = this;
 	        var search = $('#vmat_manage_volunteers_table input[name="manage_volunteers_search"]').val();
 	        var vmat_org = $('#vmat_manage_volunteers_table select[name="vmat_org"]').val();
+	        $(self).addClass('waiting');
 	        $('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
@@ -1100,6 +1109,7 @@
 			var self = this;
 			var volunteer_id = $(self).attr('volunteer_id');
 	        var search = $('#vmat_manage_volunteer_table input[name="manage_volunteer_search"]').val();
+	        $(self).addClass('waiting');
 	        $('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
@@ -1130,12 +1140,13 @@
 		function search_event_volunteers_do_action( arg=null ) { 
 			if( arg.originalEvent !== undefined) {
 				// an event rather than a passed in element
-				self = this;
+				var self = this;
 			} else {
-				self = arg;
+				var self = arg;
 			}
 	        var search = $('#vmat_event_volunteers_table input[name="event_volunteers_search"]').val();
 	        var event_id = $('input[name="event_id"]').val();
+	        $(self).addClass('waiting');
 			$('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
@@ -1166,13 +1177,14 @@
 		function add_manage_volunteer_to_event_do_action( arg=null ) {
 			if( arg.originalEvent !== undefined) {
 				// an event rather than a passed in element
-				self = this;
+				var self = this;
 			} else {
-				self = arg;
+				var self = arg;
 			}
 	        var event_id = $(self).attr('event_id');
 	        var volunteer_id = $(self).attr('volunteer_id');
 			$( self ).closest('tr').addClass('vmat-action-in-progress');
+			$(self).addClass('waiting');
 	        $('html').addClass('waiting');
 	        hide_event_selection_table();
 	        var request = {
@@ -1213,6 +1225,7 @@
 	        var event_id = $('input[name="event_id"]').val();
 	        var volunteer_id = $(self).prop('id').replace('vmat_selected_volunteer_','');
 			$( self ).closest('tr').addClass('vmat-action-in-progress');
+			$(self).addClass('waiting');
 	        $('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
@@ -1256,6 +1269,7 @@
 	        		    volunteer_ids.push($(v).prop('id').replace( 'vmat_volunteer_cb_', '' ));
 	        		});
 	        $('#vmat_volunteers_table input[id^="vmat_volunteer_cb_"]:checked').closest('tr').addClass('vmat-action-in-progress');
+	        $(self).addClass('waiting');
 	        $('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
@@ -1289,10 +1303,12 @@
 		function take_action_for_event_volunteers_do_action( arg=null ) {
 			if( arg.originalEvent !== undefined) {
 				// an event rather than a passed in element
-				self = this;
+				var self = this;
 			} else {
-				self = arg;
+				var self = arg;
 			}
+			$(self).addClass('waiting');
+	        $('html').addClass('waiting');
 			var event_id = $('input[name="event_id"]').val();
 	        var volunteer_data = get_bulk_volunteer_data( event_id );
 	        
@@ -1323,16 +1339,20 @@
 		function take_action_for_event_volunteer_do_action( arg=null ) {
 			if( arg.originalEvent !== undefined) {
 				// an event rather than a passed in element
-				self = this;
+				var self = this;
 			} else {
-				self = arg;
+				var self = arg;
 			}
+			$(self).addClass('waiting');
+	        $('html').addClass('waiting');
 			var event_id = $('input[name="event_id"]').val();
 			var action = $(self).attr('data_action');
 			var volunteer_id = $(self).attr('volunteer_id');
 			var volunteer_data = {};
 	        volunteer_data[volunteer_id] = get_volunteer_data( event_id, volunteer_id );
 	        $(self).closest('tr').addClass('vmat-action-in-progress');
+	        $(self).addClass('waiting');
+	        $('html').addClass('waiting');
 			switch ( action ) {
 			case 'remove':
 				remove_volunteers_from_event( event_id, volunteer_data );
@@ -1361,10 +1381,12 @@
 		function take_action_for_volunteer_hours_do_action( arg=null ) {
 			if( arg.originalEvent !== undefined) {
 				// an event rather than a passed in element
-				self = this;
+				var self = this;
 			} else {
-				self = arg;
+				var self = arg;
 			}
+			$(self).addClass('waiting');
+	        $('html').addClass('waiting');
 			var volunteer_id = $(self).attr('volunteer_id');
 	        var volunteer_data = get_bulk_volunteer_hours_data( volunteer_id );
 	        
@@ -1397,10 +1419,12 @@
 		function take_action_for_volunteer_hour_do_action( arg=null ) {
 			if( arg.originalEvent !== undefined) {
 				// an event rather than a passed in element
-				self = this;
+				var self = this;
 			} else {
-				self = arg;
+				var self = arg;
 			}
+			$(self).addClass('waiting');
+	        $('html').addClass('waiting');
 			var volunteer_id = $(self).attr('volunteer_id');
 			var hour_id = $(self).attr('hour_id');
 			var action = $(self).attr('data_action');
@@ -1418,7 +1442,6 @@
 		}
 		
 		function remove_volunteers_from_event( event_id=0, volunteer_data={} ) { 
-	        $('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
 					action: 'ajax_remove_volunteers_from_event',
@@ -1437,7 +1460,6 @@
 		}
 		
 		function save_event_volunteers_data( event_id=0, volunteer_data={} ) {   
-	        $('html').addClass('waiting');
 	        var items_to_validate = [
 	        	'_hours_per_day',
 	        	'_volunteer_start_date',
@@ -1474,7 +1496,7 @@
 				show_ajax_notice( 'event_volunteers_status', notice_html );
 	        	handle_failed_volunteers_action_for_event();
 	        	highlight_failed_inputs( validated_data );
-	        	$('html').removeClass('waiting');
+		        $('.waiting').removeClass('waiting');;
 	        }
 		}
 		
@@ -1491,9 +1513,9 @@
 		function remove_volunteers_do_action( arg=null ) {
 			if( arg.originalEvent !== undefined) {
 				// an event rather than a passed in element
-				self = this;
+				var self = this;
 			} else {
-				self = arg;
+				var self = arg;
 			}
 	        var volunteers = $('#vmat_manage_volunteers_table .check-column input:checked');
 	        var volunteer_ids = Array();
@@ -1502,6 +1524,7 @@
 	        		    volunteer_ids.push($(v).prop('id').replace( 'vmat_manage_volunteer_cb_', '' ));
 	        		});
 	        $('#vmat_manage_volunteers_table input[id^="vmat_manage_volunteer_cb_"]:checked').closest('tr').addClass('vmat-action-in-progress');
+	        $(self).addClass('waiting');
 	        $('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
@@ -1519,7 +1542,6 @@
 		}
 
 		function remove_volunteer_hours( volunteer_id=0, volunteer_data={}, self ) {  
-	        $('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
 					action: 'ajax_remove_hours_from_volunteer',
@@ -1538,7 +1560,6 @@
 		}
 		
 		function save_volunteer_hours_data( volunteer_id=0, volunteer_data={}, self ) {  
-	        $('html').addClass('waiting');
 	        var items_to_validate = [
 	        	'_hours_per_day',
 	        	'_volunteer_start_date',
@@ -1576,12 +1597,11 @@
 				show_ajax_notice( 'manage_volunteer_status', notice_html );
 	        	handle_failed_volunteers_action_for_event();
 	        	highlight_failed_inputs( validated_data );
-	        	$('html').removeClass('waiting');
+	        	$('.waiting').removeClass('waiting');
 	        }
 		}
 		
 		function set_default_event_volunteers_data( event_id=0, volunteer_data={}, self ) {  
-	        $('html').addClass('waiting');
 	        clear_admin_notice();
 	        show_ajax_notice( 'event_volunteers_status', 'working....' );
         	var request = {
@@ -1613,9 +1633,9 @@
 		function paginate_tables_do_action( arg=null) {
 			if( arg.originalEvent !== undefined) {
 				// an event rather than a passed in element
-				self = this;
+				var self = this;
 			} else {
-				self = arg;
+				var self = arg;
 			}
 			var data = {};
 			$(self).attr('ajax_data_attributes').split(',')
@@ -1628,7 +1648,8 @@
 				var check = check_numeric_input( self, true );
 				data[data['page_name']] = check.val;
 			}
-			$('html').addClass('waiting');
+			$(self).addClass('waiting');
+	        $('html').addClass('waiting');
 	        var request = {
 					_ajax_nonce: my_ajax_obj.nonce,
 					action: 'ajax_paginate_vmat_admin_page',
