@@ -3778,6 +3778,7 @@ class Volunteer_Management_And_Tracking_Admin {
         global $vmat_plugin;
         $user_query = $args['volunteers'];
         $volunteers = $user_query->results;
+        $volunteers_data = $vmat_plugin->get_common()->get_volunteers_data( $volunteers );
         $found_users = $user_query->total_users;
         $page = $args['vpno'];
         $vmat_org = $args['vmat_org'];
@@ -3906,7 +3907,7 @@ class Volunteer_Management_And_Tracking_Admin {
         			if ( $volunteers ) {
         			    $alternate = 'alternate';
         			    foreach ( $volunteers as $volunteer ) {
-        			        echo $vmat_plugin->get_common()->manage_volunteers_row( $volunteer, $this_page_url, $alternate );
+        			        echo $vmat_plugin->get_common()->manage_volunteers_row( $volunteer, $volunteers_data[$volunteer->ID], $this_page_url, $alternate );
         			        if ( empty( $alternate ) ) {
         			            $alternate = 'alternate';
         			        } else {

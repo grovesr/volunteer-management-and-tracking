@@ -943,7 +943,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    $volunteers = array_map( function ( $a ) { return array('WP_User'=>$a);}, $volunteers);
 	    foreach( $volunteers as $key=>$user ) {
 	        // get additional data about each user
-	        $orgs = $this->get_volunteer_data( $user['WP_User']->ID )['orgs'];
+	        $orgs = $this->get_volunteers_data( array( $user['WP_User'] ) )[$user['WP_User']->ID]['orgs'];
 	        $meta_values = get_user_meta( $volunteers[$key]['WP_User']->ID );
 	        $volunteers[$key]['WP_User'] = get_userdata( $volunteers[$key]['WP_User']->ID );
 	        $meta_values = array_filter(
@@ -1166,62 +1166,58 @@ class Volunteer_Management_And_Tracking_Common {
 	    return $result;
 	}
 	
-	public function get_volunteer_data( $volunteer_id=0 ) {
+	public function get_volunteers_data( $volunteers=array() ) {
+	    $volunteer_ids = array_map( function($volunteer) {
+	        return $volunteer->ID;
+	    }, 
+	    $volunteers);
 	    $args = array(
 	        'no_found_rows' => true,
 	        'post_type' => 'vmat_hours',
-	        'author' => $volunteer_id,
+	        'author__in' => $volunteer_ids,
 	        'nopaging' => true,
-	        'fields' => 'ids',
 	    );
-	    $orgs = array();
-	    $approved_num_events = 0;
-	    $approved_num_days = 0;
-	    $approved_num_hours = 0;
-	    $unapproved_num_events = 0;
-	    $unapproved_num_days = 0;
-	    $unapproved_num_hours = 0;
+	    $return = array();
+	    foreach( $volunteer_ids as $volunteer_id ) {
+	       $return[$volunteer_id]['orgs'] = array(); 
+	       $return[$volunteer_id]['approved']=array(
+	           'num_events' => 0,
+	           'num_hours' => 0,
+	           'num_days' => 0,
+	       );
+	       $return[$volunteer_id]['unapproved']=array(
+	           'num_events' => 0,
+	           'num_hours' => 0,
+	           'num_days' => 0,
+	       );
+	    }
 	    
-	    $volunteer_approved_hours_query = new WP_Query( $args );
-	    foreach( $volunteer_approved_hours_query->posts as $hour_id) {
-	        $organizations = get_post_meta(  get_post_meta( $hour_id, '_event_id', true ), '_vmat_organizations', true );
-	        if($organizations){
-	            $orgs = array_merge( $orgs, $organizations );
-	        }
-	        $approved = absint( get_post_meta( $hour_id, '_approved', true ) );
+	    $volunteers_hours_query = new WP_Query( $args );
+	    foreach( $volunteers_hours_query->posts as $hour) {
+	        $volunteer_id = $hour->post_author;
+	        $organizations = get_post_meta(  get_post_meta( $hour->ID, '_event_id', true ), '_vmat_organizations', true );
+	        $approved = absint( get_post_meta( $hour->ID, '_approved', true ) );
 	        if( $approved == 1 ) {
-	            $approved_num_days = $approved_num_days + absint( get_post_meta( $hour_id, '_volunteer_num_days', true ) );
-	            $approved_num_hours = $approved_num_hours + $approved_num_days * absint( get_post_meta( $hour_id, '_hours_per_day', true ) );
-	            if( $approved_num_hours > 0 ) {
-	                $approved_num_events = $approved_num_events + 1;
+	            $return[$volunteer_id]['approved']['num_days'] = $return[$volunteer_id]['approved']['num_days'] + absint( get_post_meta( $hour->ID, '_volunteer_num_days', true ) );
+	            $return[$volunteer_id]['approved']['num_hours'] = $return[$volunteer_id]['approved']['num_hours'] + $return[$volunteer_id]['approved']['num_days'] * absint( get_post_meta( $hour->ID, '_hours_per_day', true ) );
+	            if( $return[$volunteer_id]['approved']['num_hours'] > 0 ) {
+	                $return[$volunteer_id]['approved']['num_events'] = $return[$volunteer_id]['approved']['num_events'] + 1;
 	                if($organizations){
-	                    $orgs = array_merge( $orgs, $organizations );
+	                    $return[$volunteer_id]['orgs'] = array_unique( array_merge( $return[$volunteer_id]['orgs'], $organizations ) );
 	                }
 	            }
 	        } else {
-	            $unapproved_num_days = $unapproved_num_days + absint( get_post_meta( $hour_id, '_volunteer_num_days', true ) );
-	            $unapproved_num_hours = $unapproved_num_hours + $unapproved_num_days * absint( get_post_meta( $hour_id, '_hours_per_day', true ) );
-	            if( $unapproved_num_hours > 0 ) {
-	                $unapproved_num_events = $approved_num_events + 1;
+	            $return[$volunteer_id]['unapproved']['num_days'] = $return[$volunteer_id]['unapproved']['num_days'] + absint( get_post_meta( $hour->ID, '_volunteer_num_days', true ) );
+	            $return[$volunteer_id]['unapproved']['num_hours'] = $return[$volunteer_id]['unapproved']['num_hours'] + $return[$volunteer_id]['unapproved']['num_days'] * absint( get_post_meta( $hour->ID, '_hours_per_day', true ) );
+	            if( $return[$volunteer_id]['unapproved']['num_hours'] > 0 ) {
+	                $return[$volunteer_id]['unapproved']['num_events'] = $return[$volunteer_id]['unapproved']['num_events'] + 1;
 	                if($organizations){
-	                    $orgs = array_merge( $orgs, $organizations );
+	                    $return[$volunteer_id]['orgs'] = array_unique( array_merge( $return[$volunteer_id]['orgs'], $organizations ) );
 	                }
 	            }
 	        }
 	    }
-	    return array(
-	        'orgs' => array_unique($orgs),
-	        'approved' => array(
-	            'num_events' => $approved_num_events,
-	            'num_hours' => $approved_num_hours,
-	            'num_days' => $approved_num_days,
-	        ),
-	        'unapproved' => array(
-	            'num_events' => $unapproved_num_events,
-	            'num_hours' => $unapproved_num_hours,
-	            'num_days' => $unapproved_num_days,
-	        ),
-	    );
+	    return $return;
 	}
 	
 	public function admin_paginate( $num_items, $page, $max_num_pages, $page_link='', $page_id='pno' ) {
@@ -1433,14 +1429,14 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '</th>';
 	    $output .= '</tr>';
 	    $output .= '</thead>';
-	    $output .= $this->volunteer_row( $volunteer );
+	    $output .= $this->volunteer_row( $volunteer, $this->get_volunteers_data( array( $volunteer ) )[$volunteer->ID] );
 	    $output .= '</table>';
 	    $output .= '</div>';
 	    return $output;
 	}
 	
-	public function volunteer_row( $volunteer, $submit_url='', $alternate='' ) {
-	    $volunteer_data = $this->get_volunteer_data( $volunteer->ID );
+	public function volunteer_row( $volunteer, $volunteer_data, $submit_url='', $alternate='' ) {
+	    
 	    $orgs = $volunteer_data['orgs'];
 	    $approved_events = $volunteer_data['approved']['num_events'];
 	    $approved_hours = $volunteer_data['approved']['num_hours'];
@@ -1608,7 +1604,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    return $output;
 	}
 	
-	public function manage_volunteers_row( $volunteer, $this_page_url='#', $alternate='' ) {
+	public function manage_volunteers_row( $volunteer, $volunteer_data, $this_page_url='#', $alternate='' ) {
 	    /*
 	     * return a table row for a manage volunteers table
 	     * $volunteer = volunteer user object
@@ -1617,7 +1613,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    $submit_url = add_query_arg( 'volunteer_id', $volunteer->ID, $this_page_url );
 	    $volunteer_edit_href = admin_url( 'user-edit.php');
 	    $volunteer_edit_href = add_query_arg( 'user_id', $volunteer->ID, $volunteer_edit_href );
-	    return $this->volunteer_row( $volunteer, $submit_url, $alternate );
+	    return $this->volunteer_row( $volunteer, $volunteer_data, $submit_url, $alternate );
 	}
 	
 	public function volunteer_hour_row( $hour, $alternate='' ) {
