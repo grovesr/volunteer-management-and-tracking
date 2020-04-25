@@ -594,15 +594,14 @@
 					'email': {'selector': '#email'},
 					'first_name': {'selector': '#first_name'},
 					'last_name': {'selector': '#last_name'},
-					'vmat_is_volunteer': {'selector': '#vmat_is_volunteer'},
-					'vmat_volunteer_type': {'selector': 'input[name="vmat_volunteer_type[]"]'},
-					'vmat_phone_cell': {'selector': '#vmat_phone_cell'},
-					'vmat_phone_landline': {'selector': '#vmat_phone_landline'},
-					'vmat_address_street': {'selector': '#vmat_address_street'},
-					'vmat_address_city': {'selector': '#vmat_address_city'},
-					'vmat_address_zipcode': {'selector': '#vmat_address_zipcode'},
-					'vmat_volunteer_skillsets': {'selector': 'input[name="vmat_volunteer_skillsets[]"]'},
-					'vmat_volunteer_interests': {'selector': 'input[name="vmat_volunteer_interests[]"]'},
+					'_vmat_volunteer_type': {'selector': 'input[name="_vmat_volunteer_type[]"]'},
+					'_vmat_phone_cell': {'selector': '#_vmat_phone_cell'},
+					'_vmat_phone_landline': {'selector': '#_vmat_phone_landline'},
+					'_vmat_address_street': {'selector': '#_vmat_address_street'},
+					'_vmat_address_city': {'selector': '#_vmat_address_city'},
+					'_vmat_address_zipcode': {'selector': '#_vmat_address_zipcode'},
+					'_vmat_volunteer_skillsets': {'selector': 'input[name="_vmat_volunteer_skillsets[]"]'},
+					'_vmat_volunteer_interests': {'selector': 'input[name="_vmat_volunteer_interests[]"]'},
 					'volunteer_id': {'selector': 'input[name="volunteer_id"]'}
 			};
 			Object.keys( data ).forEach( function( key ) {
@@ -817,8 +816,6 @@
 			clear_admin_notice();
 			
 			$('#vmat_manage_volunteers_admin, #vmat_manage_volunteer_admin').hide();
-			$('#vmat_is_volunteer').prop('checked', true);
-			$('#vmat_is_volunteer').prop('disabled', true);
 			$('#vmat_update_volunteer_admin').show();
 	    }
 		
@@ -837,8 +834,6 @@
 			// provide Add button to 
 			clear_admin_notice();
 			$('#vmat_volunteer_participation_admin').hide();
-			$('#vmat_is_volunteer').prop('checked', true);
-			$('#vmat_is_volunteer').prop('disabled', true);
 			$('#vmat_register_and_add_volunteer_admin').show();
 		}
 		
@@ -880,15 +875,14 @@
 				'email',
 				'first_name',
 				'last_name',
-				'vmat_is_volunteer',
-				'vmat_volunteer_type',
-				'vmat_phone_cell',
-				'vmat_phone_landline',
-				'vmat_address_street',
-				'vmat_address_city',
-				'vmat_address_zipcode',
-				'vmat_volunteer_skillsets',
-				'vmat_volunteer_interests'
+				'_vmat_volunteer_type',
+				'_vmat_phone_cell',
+				'_vmat_phone_landline',
+				'_vmat_address_street',
+				'_vmat_address_city',
+				'_vmat_address_zipcode',
+				'_vmat_volunteer_skillsets',
+				'_vmat_volunteer_interests'
 	        ];
 	        var results = validate_inputs(volunteer_data, items_to_validate );
 	        var messages = results.errors;
@@ -936,15 +930,14 @@
 				'email',
 				'first_name',
 				'last_name',
-				'vmat_is_volunteer',
-				'vmat_volunteer_type',
-				'vmat_phone_cell',
-				'vmat_phone_landline',
-				'vmat_address_street',
-				'vmat_address_city',
-				'vmat_address_zipcode',
-				'vmat_volunteer_skillsets',
-				'vmat_volunteer_interests'
+				'_vmat_volunteer_type',
+				'_vmat_phone_cell',
+				'_vmat_phone_landline',
+				'_vmat_address_street',
+				'_vmat_address_city',
+				'_vmat_address_zipcode',
+				'_vmat_volunteer_skillsets',
+				'_vmat_volunteer_interests'
 	        ];
 	        var results = validate_inputs(volunteer_data, items_to_validate );
 	        var messages = results.errors;

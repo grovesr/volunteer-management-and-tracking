@@ -58,47 +58,42 @@ class Volunteer_Management_And_Tracking_Common {
 	 *
 	 */
 	private $volunteer_user_fields = [
-	    'vmat_is_volunteer' => [
-	        'type' => 'boolean', 
-	        'label' => 'Volunteer',
-	        'required' => false,
-	    ],
-	    'vmat_volunteer_type' => [
+	    '_vmat_volunteer_type' => [
 	        'type' => 'array',
 	        'label' => 'Volunteer Type',
 	        'required' => false,
 	    ],
-	    'vmat_phone_cell' => [
+	    '_vmat_phone_cell' => [
 	        'type' => 'text', 
 	        'label' => 'Phone (cell]', 
 	        'required' => false,
 	    ],
-	    'vmat_phone_landline' => [
+	    '_vmat_phone_landline' => [
 	        'type' => 'text', 
 	        'label' => 'Phone (landline]', 
 	        'required' => false,
 	    ],
-	    'vmat_address_street' => [
+	    '_vmat_address_street' => [
 	        'type' => 'text', 
 	        'label' => 'Street Address', 
 	        'required' => false,
 	    ],
-	    'vmat_address_city' => [
+	    '_vmat_address_city' => [
 	        'type' => 'text', 
 	        'label' => 'City', 
 	        'required' => false,
 	    ],
-	    'vmat_address_zipcode' => [
+	    '_vmat_address_zipcode' => [
 	        'type' => 'text', 
 	        'label' => 'Zip Code', 
 	        'required' => false,
 	    ],
-	    'vmat_volunteer_skillsets' => [
+	    '_vmat_volunteer_skillsets' => [
 	        'type' => 'array', 
 	        'label' => 'Skillsets', 
 	        'required' => false,
 	    ],
-	    'vmat_volunteer_interests' => [
+	    '_vmat_volunteer_interests' => [
 	        'type' => 'array', 
 	        'label' => 'Interests', 
 	        'required' => false,
@@ -183,7 +178,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    }
 	    return $values;
 	}
-	
+
 	private function get_default_wp_required_values() {
 	    $values = [];
 	    foreach ( $this->wp_required_user_fields as $field => $aspects ) {
@@ -274,26 +269,13 @@ class Volunteer_Management_And_Tracking_Common {
 	    } else {
 	        $section = 'div';
 	    }
-	    $is_volunteer = false;
-	    if ( array_key_exists( 'vmat_is_volunteer', $_POST ) ) {
-	        // re-POST due to a form submission error
-	        $is_volunteer = $_POST['vmat_is_volunteer'];
-	        if ( $is_volunteer ) {
-	            $values = $this->get_volunteer_values_from_post( $_POST );
-	        } else {
-	            $values = $this->get_default_volunteer_values();
-	        }
-	    } elseif ( $user ) {
+	    if( $user ) {
 	        // request to populate fields from a volunteer
 	        $values = $this->get_volunteer_values_from_umeta($user);
-	        $is_volunteer = $values['vmat_is_volunteer'];
 	    } else {
-	        // not a re-POST and not a request to populate fields from a volunteer
-	        $values = $this->get_default_volunteer_values();
+	        $values = $this->get_volunteer_values_from_post( $_POST );
 	    }
-	    if ( $values['vmat_is_volunteer'] ) {
-	        $reg_fields_display = 'show';
-	    }
+	    $reg_fields_display = 'show';
 	    if ( $section_type == 'table' ) {
 	        $page .= '<table class="form-table" role="presentation">';
 	    }
@@ -303,12 +285,8 @@ class Volunteer_Management_And_Tracking_Common {
 	            $aspects['type'] == 'email' ) {
 	                $field_class='form-field';
 	            }
-	        if ( $field == 'vmat_is_volunteer' ) {
-	            $page .= '<' . $section . ' class="' . $field_class . '">';
-	        } else {
-	            $page .= '<' . $section .  ' class="vmat-registration-fields ' . $field_class . '"
-	                                         style="display:' . $reg_fields_display . '">';
-	        }
+            $page .= '<' . $section .  ' class="vmat-registration-fields ' . $field_class . '"
+                                         style="display:' . $reg_fields_display . '">';
 	        if ( $aspects['type'] == 'boolean' ) {
 	            $page .= $this->boolean_choice_field(['option_name' => $field,
 	                'label' => $aspects['label'],
@@ -339,10 +317,10 @@ class Volunteer_Management_And_Tracking_Common {
 	                            'value' => $values[$field],
 	                        ]);
 	                }
-	            } else if ( current_user_can( 'create_users' ) && $field = 'vmat_volunteer_type' ) {
+	            } else if ( $field == '_vmat_volunteer_type' ) {
 	                // this is not a category
 	                ob_start();
-	                $this->link_posts_to_user_pulldown( $field, $section_type, $user );
+	                $this->link_posts_to_user_pulldown( substr( $field, 1 ) , $section_type, $user );
 	                $page .= ob_get_clean();
 	            }
 	        }
@@ -437,12 +415,8 @@ class Volunteer_Management_And_Tracking_Common {
 	            $aspects['type'] == 'email' ) {
 	                $field_class='form-field';
 	            }
-	        if ( $field == 'vmat_is_volunteer' ) {
-	            $page .= '<' . $section . ' class="' . $field_class . '">';
-	        } else {
-	            $page .= '<' . $section .  ' class="vmat-registration-fields ' . $field_class . '"
-	                                         style="display:' . $reg_fields_display . '">';
-	        }
+            $page .= '<' . $section .  ' class="vmat-registration-fields ' . $field_class . '"
+                                         style="display:' . $reg_fields_display . '">';
 	        if ( $aspects['type'] == 'boolean' ) {
 	            $page .= $this->boolean_choice_field(['option_name' => $field,
 	                'label' => $aspects['label'],
@@ -475,10 +449,10 @@ class Volunteer_Management_And_Tracking_Common {
 	                            'value' => $values[$field],
 	                        ]);
 	                }
-	            } else if ( current_user_can( 'create_users' ) && $field = 'vmat_volunteer_type' ) {
+	            } else if ( $field == '_vmat_volunteer_type' ) {
 	                // this is not a category
 	                ob_start();
-	                $this->link_posts_to_user_pulldown( $field, $section_type, $user );
+	                $this->link_posts_to_user_pulldown( substr( $field, 1 ), $section_type, $user );
 	                $page .= ob_get_clean();
 	            }
 	        }
@@ -612,15 +586,9 @@ class Volunteer_Management_And_Tracking_Common {
 	    /*
 	     * Check for errors on volunteer user registration
 	     */
-	    $is_volunteer = false;
-	    if ( array_key_exists( 'vmat_is_volunteer', $_POST ) ) {
-	        $is_volunteer = $_POST['vmat_is_volunteer'];
-	    }
-	    if ( $is_volunteer ) {
-	        /*
-	         * add error checking here
-	         */
-	    }
+        /*
+         * add error checking here
+         */
 	    return $errors;
 	}
 	
@@ -631,37 +599,21 @@ class Volunteer_Management_And_Tracking_Common {
 	    if( empty( $_POST['first_name'] ) ) {
 	        $errors->add( 'vmat_first_name_error', __( '<strong>ERROR</strong>: Please enter your first name.', 'vmattd' ) );
 	    }
-	    $is_volunteer = false;
-	    if ( array_key_exists( 'vmat_is_volunteer', $_POST ) ) {
-	        $is_volunteer = $_POST['vmat_is_volunteer'];
-	    }
-	    if ( $is_volunteer ) {
-	        /*
-	         * add error checking here
-	         */
-	    }
+        /*
+         * add error checking here
+         */
 	    return $errors;
 	}
 	
 	public function add_volunteer_user_role( $user_id ) {
-	    if( current_user_can( 'edit_users' ) ) {
-	        $wpuser = get_user_by('id', $user_id);
-	        if ( $wpuser ) {
-	            $is_volunteer = boolval(get_the_author_meta( 'vmat_is_volunteer', $wpuser->ID ));
-	            if ( $is_volunteer ) {
-	                if ( $wpuser ) {
-	                    if( ! in_array('volunteer', $wpuser->roles)) {
-	                        $wpuser->add_role('volunteer');
-	                    }
-	                }
-	            } else {
-	                // remove the volunteer role if it exists
-	                if( in_array('volunteer', $wpuser->roles)) {
-	                    $wpuser->remove_role('volunteer');
-	                }
-	            }
-	        }
-	    }
+        $wpuser = get_user_by('id', $user_id);
+        if ( $wpuser ) {
+            if ( $wpuser ) {
+                if( ! in_array('volunteer', $wpuser->roles)) {
+                    $wpuser->add_role('volunteer');
+                }
+            }
+        }
 	}
 	
 	public function link_posts_to_user_pulldown( $type='vmat_organization', $section_type='div', $user=null ) {
@@ -711,9 +663,9 @@ class Volunteer_Management_And_Tracking_Common {
 	    foreach( $posts_to_link as $post_to_link ){
 	        ?>
             <label>
-            <input type="checkbox" name="<?php echo $type; ?>[]" 
+            <input type="checkbox" name="<?php echo '_' . $type; ?>[]" 
             value="<?php echo $post_to_link['id']; ?>" 
-            <?php if ( $user && in_array( absint($post_to_link['id']), get_user_meta( $user->ID, $type , true ) ) ) { echo 'checked="checked"';} ?> /> 
+            <?php if ( $user && in_array( absint($post_to_link['id']), get_user_meta( $user->ID, '_' . $type , true ) ) ) { echo 'checked="checked"';} ?> /> 
             <?php echo $post_to_link['name'] ?>
             </label><br />          
             <?php
@@ -847,7 +799,7 @@ class Volunteer_Management_And_Tracking_Common {
 	        $type = $args['type'];
 	    }
 	    $page = '';
-	    $ms_var_name = 'vmat_volunteer_' . strtolower($category);
+	    $ms_var_name = '_vmat_volunteer_' . strtolower($category);
 	    if ( array_key_exists( 'value', $args ) ) {
 	        $ms_var = array_map(strval, $args['value']);
 	    } else {
@@ -1145,7 +1097,7 @@ class Volunteer_Management_And_Tracking_Common {
 	     * $selected = selected value, 0 if unselected
 	     */
 	    $output = '';
-	    $output .= '<select name="' . $name . '" id="vmat_' . $name . '" class="postform">';
+	    $output .= '<select name="' . $name . '" id="_vmat_' . $name . '" class="postform">';
 	    foreach ( $options as $opt_value=>$opt_name ) {
 	        $option_selected = 'selected="selected"';
 	        if ( $opt_value != $selected ) {
@@ -1980,13 +1932,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    /*
 	     * Updae the meta data for a volunteer user
 	     */
-	    if ( ! current_user_can( 'edit_user', $user_id ) ) {
-	        return false;
-	    }
-	    $is_volunteer = false;
-	    if ( array_key_exists( 'vmat_is_volunteer', $_POST ) ) {
-	        $is_volunteer = boolval($_POST['vmat_is_volunteer']);
-	    }
+	    $is_volunteer = true;
 	    foreach ( $this->volunteer_user_fields as $option => $aspects ) {
 	        if ( array_key_exists( $option, $_POST ) ) {
 	            if ( $is_volunteer ) {
@@ -2001,6 +1947,25 @@ class Volunteer_Management_And_Tracking_Common {
 	                }
 	            } else {
 	                delete_user_meta( $user_id, $option ); 
+	            }
+	        } else {
+	            delete_user_meta( $user_id, $option );
+	        }
+	    }
+	    foreach ( $this->common_user_fields as $option => $aspects ) {
+	        if ( array_key_exists( $option, $_POST ) ) {
+	            if ( $is_volunteer ) {
+	                $option_value = $_POST[$option];
+	                if ( $aspects['type'] == 'boolean' ) {
+	                    update_user_meta( $user_id, $option, boolval($option_value) );
+	                } elseif ( $aspects['type'] == 'text' ) {
+	                    update_user_meta( $user_id, $option, strval( $option_value ) );
+	                } elseif ( $aspects['type'] == 'array' ) {
+	                    $selections = array_map(strval, $option_value);
+	                    update_user_meta( $user_id, $option, $selections );
+	                }
+	            } else {
+	                delete_user_meta( $user_id, $option );
 	            }
 	        } else {
 	            delete_user_meta( $user_id, $option );

@@ -29,18 +29,7 @@
 	 * practising this, we should strive to set a better example in our own work.
 	 */
 	$(function() {
-		// show/hide volunteer registration fields and add or remove volunteer role
-		$("#vmat_is_volunteer").on("change", function() {
-			var role_inputs = $('input[name="md_multiple_roles[]"]');
-			if(this.checked) {
-				$(".vmat-registration-fields").show();
-				var role_inputs = 
-				$(role_inputs).filter('input[value="volunteer"]').attr("checked",true);
-			} else {
-				$(".vmat-registration-fields").hide();
-				$(role_inputs).filter('input[value="volunteer"]').attr("checked",false);
-			}
-		});
+		
 	});
 
 })( jQuery );

@@ -2108,7 +2108,6 @@ class Volunteer_Management_And_Tracking_Admin {
                 if( ! in_array('volunteer', $wpuser->roles)) {
                     $wpuser->add_role('volunteer');
                 }
-                update_user_meta( $wpuser->ID, 'vmat_is_volunteer', 1 );
                 if( array_key_exists( 'dbem_phone', $_POST ) &&
                     ! empty( $_POST['dbem_phone'] ) ) {
                         update_user_meta( $wpuser->ID, 'vmat_phone_cell', $_POST['dbem_phone'] );
