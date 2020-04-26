@@ -260,14 +260,23 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_filter( 'manage_posts_columns', $this->admin, 'add_orgs_column_to_em' );
         $this->loader->add_action( 'manage_posts_custom_column', $this->admin, 'fill_event_orgs_column', 10, 2);
         
-        // add Begin/End Dates column to vmat_funding_streams listing
-        $this->loader->add_filter( 'manage_vmat_funding_stream_posts_columns', $this->admin, 'add_start_end_dates_column_to_funding_streams' );
-        $this->loader->add_action( 'manage_vmat_funding_stream_posts_custom_column', $this->admin, 'fill_start_end_dates_funding_streams_column', 10, 2);
+        // add columns to vmat_funding_streams listing
+        $this->loader->add_filter( 'manage_vmat_funding_stream_posts_columns', $this->admin, 'add_columns_to_funding_streams' );
+        $this->loader->add_action( 'manage_vmat_funding_stream_posts_custom_column', $this->admin, 'fill_funding_streams_columns', 10, 2);
+        
+        // add columns to vmat_organizations listing
+        $this->loader->add_filter( 'manage_vmat_organization_posts_columns', $this->admin, 'add_columns_to_organizations' );
+        $this->loader->add_action( 'manage_vmat_organization_posts_custom_column', $this->admin, 'fill_organizations_columns', 10, 2);
         
         // Add Funding Streams selection meta box to Organizations edit page
         $this->loader->add_action('add_meta_boxes', $this->admin, 'add_org_funding_stream_meta_box');
         // Save Funding Stream meta box data into Organization meta data
         $this->loader-> add_action('save_post_vmat_organization',$this->admin, 'update_org_funding_streams_meta',1,2);
+        
+        // Add additional information fields meta box to Organizations edit page
+        $this->loader->add_action('add_meta_boxes', $this->admin, 'add_organization_fields_meta_box');
+        // Save additional information fields meta box data into Organizations meta data
+        $this->loader->add_action('save_post_vmat_organization',$this->admin, 'update_organization_fields_meta',1,2);
         
         // Add additional information fields meta box to Funding Streams edit page
         $this->loader->add_action('add_meta_boxes', $this->admin, 'add_funding_stream_fields_meta_box');

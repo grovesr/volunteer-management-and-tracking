@@ -91,7 +91,10 @@
   	top: 50px;
   	z-index: 2000;
   	background-color: #eee;
-  	border-radius: 5px
+  	border-radius: 5px;
+  	border-color: #007bff;
+  	border-style: solid;
+  	border-width: 1px;
 }
 
 #vmat_admin_nav ul {

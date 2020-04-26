@@ -2134,6 +2134,10 @@ class Volunteer_Management_And_Tracking_Admin {
 	    add_meta_box('organization-funding-streams', __('Funding Streams', 'vmattd'), array( $this, 'funding_streams_meta_box'), 'vmat_organization', 'side','low');
 	}
 	
+	public function add_organization_fields_meta_box(){
+	    add_meta_box('organization-fields', 'Additional Information', array( $this, 'organization_fields_meta_box'), 'vmat_organization', 'normal','low');
+	}
+	
 	public function add_funding_stream_fields_meta_box(){
 	    add_meta_box('funding-stream-fields', 'Additional Information', array( $this, 'funding_stream_fields_meta_box'), 'vmat_funding_stream', 'normal','low');
 	}
@@ -2162,12 +2166,14 @@ class Volunteer_Management_And_Tracking_Admin {
 	        if ( in_array( absint($post_to_link->ID), get_post_meta( $link_to_post->ID, '_' . $type . 's' , true ) ) ) {
 	            $selected_posts_to_link[] = array(
 	                'id' => $post_to_link->ID,
-	                'name' => __($post_to_link->post_title, 'vmattd')
+	                'name' => __($post_to_link->post_title, 'vmattd'),
+	                'description' => __( get_post_meta( $post_to_link->ID, '_description', true ), 'vmattd'),
 	            );
 	        } else {
 	            $unselected_posts_to_link[] = array(
 	                'id' => $post_to_link->ID,
-	                'name' => __($post_to_link->post_title, 'vmattd')
+	                'name' => __($post_to_link->post_title, 'vmattd'),
+	                'description' => __( get_post_meta( $post_to_link->ID, '_description', true ), 'vmattd'),
 	            );
 	        }
 	    }
@@ -2182,7 +2188,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    <?php
 	    foreach( $posts_to_link as $post_to_link ){
 	        ?>
-            <label>
+            <label title="<?php echo $post_to_link['description']; ?>">
             <input type="checkbox" name="<?php echo $type; ?>s[]" 
             value="<?php echo $post_to_link['id']; ?>" 
             <?php if ( in_array( absint($post_to_link['id']), get_post_meta( $link_to_post->ID, '_' . $type . 's' , true ) ) ) { echo 'checked="checked"';} ?> /> 
@@ -2195,10 +2201,33 @@ class Volunteer_Management_And_Tracking_Admin {
         <?php
 	}
 	
+	public function organization_fields_meta_box( $organization ) {
+	    global $vmat_plugin;
+    	if ($organization ) {
+	        $organization_data = $vmat_plugin->get_common()->get_organization_data( $organization->ID );
+	    }
+	    ?>
+    	<div class="row">
+	    	<div class="col-2 vmat-form-label">
+            	<label for="description">
+            		Description:        		
+            	</label>
+            </div>
+            <div class="col vmat-form-field">
+            	<input type="text" 
+            	       name="vmat_organization_description" 
+            	       size="50" 
+            	       value="<?php echo $organization_data['description']; ?>" 
+            	       id="description" 
+            	       autocomplete="off" 
+            	       required>
+            </div>
+    	</div>
+    	<?php 
+	}
+	
 	public function funding_stream_fields_meta_box( $funding_stream ) {
 	    global $vmat_plugin;
-	    $user_funding_start_date = '';
-	    $user_funding_end_date = '';
 	    $iso_funding_start_date = '';
 	    $iso_funding_end_date = '';
 	    $fiscal_start_months = array();
@@ -2279,6 +2308,22 @@ class Volunteer_Management_And_Tracking_Admin {
                 </fieldset>
         	</div>
     	</div>
+    	<div class="row">
+	    	<div class="col-2 vmat-form-label">
+            	<label for="description">
+            		Description:        		
+            	</label>
+            </div>
+            <div class="col vmat-form-field">
+            	<input type="text" 
+            	       name="vmat_funding_stream_description" 
+            	       size="50" 
+            	       value="<?php echo $funding_stream_data['description']; ?>" 
+            	       id="description" 
+            	       autocomplete="off" 
+            	       required>
+            </div>
+    	</div>
     	<?php 
 	}
 	
@@ -2320,7 +2365,7 @@ class Volunteer_Management_And_Tracking_Admin {
 
 	public function update_funding_stream_fields_meta( $funding_id ) {
 	    /*
-	     * Updae the funding stream meta data 
+	     * Update the funding stream meta dat 
 	     */
 	    global $vmat_plugin;
 	    if ( ! current_user_can( 'edit_vmat_funding_streams' ) ) {
@@ -2362,6 +2407,29 @@ class Volunteer_Management_And_Tracking_Admin {
 	    } else {
 	        delete_post_meta( $funding_id , '_fiscal_start_months' );
 	    }
+	    if ( array_key_exists(
+	        'vmat_funding_stream_description', $_POST ) ) {
+	            $funding_stream_description = sanitize_text_field( $_POST['vmat_funding_stream_description'] );
+	            update_post_meta( $funding_id, '_description', $funding_stream_description );
+	        } else {
+	            delete_post_meta( $funding_id , '_description' );
+	        }
+	}
+	
+	public function update_organization_fields_meta( $organization_id ) {
+	    /*
+	     * Update the funding stream meta dat
+	     */
+	    if ( ! current_user_can( 'edit_vmat_organizations' ) ) {
+	        return false;
+	    }
+        if ( array_key_exists(
+            'vmat_organization_description', $_POST ) ) {
+            $funding_stream_description = sanitize_text_field( $_POST['vmat_organization_description'] );
+            update_post_meta( $organization_id, '_description', $funding_stream_description );
+        } else {
+            delete_post_meta( $organization_id , '_description' );
+        }
 	}
 	
 	public function organization_filtering( $post_type ){
@@ -2424,7 +2492,7 @@ class Volunteer_Management_And_Tracking_Admin {
         return $query;
     }
     
-    function add_start_end_dates_column_to_funding_streams( $columns ) {
+    function add_columns_to_funding_streams( $columns ) {
         $post_type = get_post_type();
         if ( $post_type == 'vmat_funding_stream' &&
             ! empty( $columns['cb'] ) &&
@@ -2434,6 +2502,7 @@ class Volunteer_Management_And_Tracking_Admin {
             $new_columns = array();
             $new_columns['cb'] = $columns['cb'];
             $new_columns['title'] = $columns['title'];
+            $new_columns['description'] = __( 'Description', 'vmattd' );
             $new_columns['begin_end_dates'] = __( 'Begin/End Dates', 'vmattd' );
             $new_columns['date'] = $columns['date'];
             return $new_columns;
@@ -2441,15 +2510,56 @@ class Volunteer_Management_And_Tracking_Admin {
         return $columns;
     }
     
-    public function fill_start_end_dates_funding_streams_column( $column_name, $funding_stream_id ) {
+    public function fill_funding_streams_columns( $column_name, $funding_stream_id ) {
         global $vmat_plugin;
         $post_type = get_post_type();
-        if ( ( $post_type == 'vmat_funding_stream' ) &&
-            $column_name == 'begin_end_dates' ) {
+        if ( $post_type == 'vmat_funding_stream' ) {            
+            if( $column_name == 'begin_end_dates' ) {
                 $funding_stream_data = $vmat_plugin->get_common()->get_funding_stream_data( $funding_stream_id );
                 $field_data = $funding_stream_data['start_end_string'];
                 _e( $field_data );
             }
+            if( $column_name == 'description' ) {
+                $funding_stream_data = $vmat_plugin->get_common()->get_funding_stream_data( $funding_stream_id );
+                $field_data = $funding_stream_data['description'];
+                _e( $field_data );
+            }
+        }
+    }
+    
+    function add_columns_to_organizations( $columns ) {
+        $post_type = get_post_type();
+        if ( $post_type == 'vmat_organization' &&
+            ! empty( $columns['cb'] ) &&
+            ! empty( $columns['title'] ) &&
+            ! empty( $columns['date'] )
+            ) {
+                $new_columns = array();
+                $new_columns['cb'] = $columns['cb'];
+                $new_columns['title'] = $columns['title'];
+                $new_columns['description'] = __( 'Description', 'vmattd' );
+                $new_columns['funding_streams'] = __( 'Funding Streams', 'vmattd' );
+                $new_columns['date'] = $columns['date'];
+                return $new_columns;
+            }
+            return $columns;
+    }
+    
+    public function fill_organizations_columns( $column_name, $organization_id ) {
+        global $vmat_plugin;
+        $post_type = get_post_type();
+        if ( $post_type == 'vmat_organization' ) {
+            if( $column_name == 'description' ) {
+                $organization_data = $vmat_plugin->get_common()->get_organization_data( $organization_id );
+                $field_data = $organization_data['description'];
+                _e( $field_data );
+            }
+            if( $column_name == 'funding_streams' ) {
+                $organization_data = $vmat_plugin->get_common()->get_organization_data( $organization_id );
+                $field_data = $organization_data['funding_streams_string'];
+                _e( $field_data );
+            }
+        }
     }
     
     function add_orgs_column_to_em( $columns ) {

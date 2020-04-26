@@ -1131,7 +1131,7 @@ class Volunteer_Management_And_Tracking_Common {
 	public function get_organization_funding_streams ( $organization_id=0 ) {
 	    $org_funding_streams = array();
 	    if ( $organization_id ) {
-	        $org_funding_streams[] = get_post_meta( $organization_id, '_vmat_funding_streams', true);
+	        $org_funding_streams = get_post_meta( $organization_id, '_vmat_funding_streams', true);
 	    }
 	    return $org_funding_streams;
 	}
@@ -1191,6 +1191,7 @@ class Volunteer_Management_And_Tracking_Common {
 	public function get_funding_stream_data( $funding_stream_id=0 ) {
 	    $days = 0;
 	    $result = array(
+	        'description' => '',
 	        'days' => 0,
 	        'iso_start_date' => 'None',
 	        'iso_end_date' => 'None',
@@ -1200,6 +1201,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    );
 	    if ( $funding_stream_id ) {
 	        $funding_stream_meta = get_post_meta( $funding_stream_id, false);
+	        $result['description'] = $funding_stream_meta['_description'][0];
 	        $end_date = date_create_from_format('Y-m-d', $funding_stream_meta['_funding_end_date'][0]);
 	        $start_date=date_create_from_format('Y-m-d', $funding_stream_meta['_funding_start_date'][0]);
 	        if( $start_date && $end_date ) {
@@ -1211,6 +1213,28 @@ class Volunteer_Management_And_Tracking_Common {
 	            $result['end_date'] = date_format( $end_date, 'm/d/Y' );
 	            $result['start_end_string'] = date_format( $start_date, 'M d, Y' ) . ' - ' . date_format( $end_date, 'M d, Y' );
 	        }
+	    }
+	    return $result;
+	}
+	
+	public function get_organization_data( $organization_id=0 ) {
+	    $result = array(
+	        'description' => '',
+	    );
+	    if ( $organization_id ) {
+	        $organization_meta = get_post_meta( $organization_id, false);
+	        $result['description'] = $organization_meta['_description'][0];
+	        $funding_streams = $this->get_organization_funding_streams( $organization_id );
+	        $funding_streams = array_map( function( $funding_id ) {
+	            $fs = get_post_field( 'post_title', $funding_id );
+	            return $fs;
+	        },
+	        $funding_streams);
+	        $fs_string = implode( ',', $funding_streams );
+	        if ($fs_string == '' ) {
+	            $fs_string = 'None';
+	        }
+	        $result['funding_streams_string'] = $fs_string;
 	    }
 	    return $result;
 	}
