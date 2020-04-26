@@ -1251,7 +1251,7 @@ class Volunteer_Management_And_Tracking_Common {
 	        if( $approved == 1 ) {
 	            $return[$volunteer_id]['approved']['num_days'] = $return[$volunteer_id]['approved']['num_days'] + $num_days;
 	            $return[$volunteer_id]['approved']['num_hours'] = $return[$volunteer_id]['approved']['num_hours'] + $num_days * $num_hours;
-	            if( $num_hours > 0 ) {
+	            if( ($num_hours * $num_days) > 0 ) {
 	                $return[$volunteer_id]['approved']['num_events'] = $return[$volunteer_id]['approved']['num_events'] + 1;
 	                if($organizations){
 	                    $return[$volunteer_id]['orgs'] = array_unique( array_merge( $return[$volunteer_id]['orgs'], $organizations ) );
@@ -1260,7 +1260,7 @@ class Volunteer_Management_And_Tracking_Common {
 	        } else {
 	            $return[$volunteer_id]['unapproved']['num_days'] = $return[$volunteer_id]['unapproved']['num_days'] + $num_days;
 	            $return[$volunteer_id]['unapproved']['num_hours'] = $return[$volunteer_id]['unapproved']['num_hours'] + $num_days * $num_hours;
-	            if( $num_hours > 0 ) {
+	            if( ($num_hours * $num_days) > 0 ) {
 	                $return[$volunteer_id]['unapproved']['num_events'] = $return[$volunteer_id]['unapproved']['num_events'] + 1;
 	                if($organizations){
 	                    $return[$volunteer_id]['orgs'] = array_unique( array_merge( $return[$volunteer_id]['orgs'], $organizations ) );
