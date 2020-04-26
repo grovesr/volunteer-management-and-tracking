@@ -616,6 +616,52 @@ class Volunteer_Management_And_Tracking_Common {
         }
 	}
 	
+	public function add_volunteer_to_em_event( $em_event_id, $user_id ) {
+	   global $wpdb;
+	   $sql .= 'SELECT post_id FROM ' . EM_EVENTS_TABLE . ' WHERE event_id=%d';
+	   $event_id = $wpdb->get_var( $wpdb->prepare( $sql, $em_event_id ) );
+	   return $this->add_volunteer_to_event( $event_id, $user_id );
+	}
+	
+	public function add_volunteer_to_event( $event_id, $user_id ) {
+	    global $vmat_plugin;
+	    $hours = null;
+	    if( $event_id > 0 && $user_id ) {
+	        $args = array(
+	            'author' => $user_id,
+	            'post_type' => 'vmat_hours',
+	            'post_status' => 'publish',
+	            'meta_query' => array(
+	                array(
+	                    'key' => '_event_id',
+	                    'value' => $event_id,
+	                )
+	            )
+	        );
+	        $hours = new WP_Query( $args );
+	        if( ! $hours->posts ) {
+	            // hours are not already assigned to the event
+	            $event_data = $vmat_plugin->get_common()->get_event_data( $event_id );
+	            $args = array(
+	                    'author' => $user_id,
+	                    'post_type' => 'vmat_hours',
+	                    'post_status' => 'publish',
+	                    'post_title' => $event_data['title'],
+	                    'meta_input' => array(
+	                        '_event_id' => $event_id ,
+	                        '_volunteer_start_date' => $event_data['iso_start_date'],
+	                        '_hours_per_day' => $event_data['hours_per_day'],
+	                        '_volunteer_num_days' => 0,
+	                        '_approved' => false,
+	                    )
+	                );
+	            // Create a new vmat_hours post with the appropriate default information
+	            $hours = wp_insert_post( $args );
+	        }
+	    }
+	    return $hours;
+	}
+	
 	public function link_posts_to_user_pulldown( $type='vmat_organization', $section_type='div', $user=null ) {
 	    /*
 	     * Generic function to create a list for selecting multiple $type
@@ -801,7 +847,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    $page = '';
 	    $ms_var_name = '_vmat_volunteer_' . strtolower($category);
 	    if ( array_key_exists( 'value', $args ) ) {
-	        $ms_var = array_map(strval, $args['value']);
+	        $ms_var = array_map('strval', $args['value']);
 	    } else {
 	        $ms_var = [];
 	        /*
@@ -809,7 +855,7 @@ class Volunteer_Management_And_Tracking_Common {
 	         */
 	        if ( array_key_exists( $ms_var_name, $_POST ) ) {
 	            $ms_var = $_POST[$ms_var_name];
-	            $ms_var = array_map(strval, $ms_var);
+	            $ms_var = array_map('strval', $ms_var);
 	        }
 	    }
 	    if ( $type != 'div') {
@@ -1125,9 +1171,12 @@ class Volunteer_Management_And_Tracking_Common {
 	        }
 	    }
 	    return array( 
+	        'title' => get_post_field( 'post_title', $event_id ),
 	        'days' => $days, 
 	        'iso_start_date' => date_format( $start_date, 'Y-m-d' ),
 	        'iso_end_date' => date_format( $end_date, 'Y-m-d' ),
+	        'mdY_start_date' => date_format( $start_date, 'm/d/Y' ),
+	        'mdY_end_date' => date_format( $end_date, 'm/d/Y' ),
 	        'start_date' => date_format( $start_date, 'M m, Y' ),
 	        'end_date' => date_format( $end_date, 'M m, Y' ),
 	        'iso_start_time' => date_format( $start_time, 'H:i:s' ),
@@ -1197,19 +1246,21 @@ class Volunteer_Management_And_Tracking_Common {
 	        $volunteer_id = $hour->post_author;
 	        $organizations = get_post_meta(  get_post_meta( $hour->ID, '_event_id', true ), '_vmat_organizations', true );
 	        $approved = absint( get_post_meta( $hour->ID, '_approved', true ) );
+	        $num_days = absint( get_post_meta( $hour->ID, '_volunteer_num_days', true ) );
+	        $num_hours = absint( get_post_meta( $hour->ID, '_hours_per_day', true ) );
 	        if( $approved == 1 ) {
-	            $return[$volunteer_id]['approved']['num_days'] = $return[$volunteer_id]['approved']['num_days'] + absint( get_post_meta( $hour->ID, '_volunteer_num_days', true ) );
-	            $return[$volunteer_id]['approved']['num_hours'] = $return[$volunteer_id]['approved']['num_hours'] + $return[$volunteer_id]['approved']['num_days'] * absint( get_post_meta( $hour->ID, '_hours_per_day', true ) );
-	            if( $return[$volunteer_id]['approved']['num_hours'] > 0 ) {
+	            $return[$volunteer_id]['approved']['num_days'] = $return[$volunteer_id]['approved']['num_days'] + $num_days;
+	            $return[$volunteer_id]['approved']['num_hours'] = $return[$volunteer_id]['approved']['num_hours'] + $num_days * $num_hours;
+	            if( $num_hours > 0 ) {
 	                $return[$volunteer_id]['approved']['num_events'] = $return[$volunteer_id]['approved']['num_events'] + 1;
 	                if($organizations){
 	                    $return[$volunteer_id]['orgs'] = array_unique( array_merge( $return[$volunteer_id]['orgs'], $organizations ) );
 	                }
 	            }
 	        } else {
-	            $return[$volunteer_id]['unapproved']['num_days'] = $return[$volunteer_id]['unapproved']['num_days'] + absint( get_post_meta( $hour->ID, '_volunteer_num_days', true ) );
-	            $return[$volunteer_id]['unapproved']['num_hours'] = $return[$volunteer_id]['unapproved']['num_hours'] + $return[$volunteer_id]['unapproved']['num_days'] * absint( get_post_meta( $hour->ID, '_hours_per_day', true ) );
-	            if( $return[$volunteer_id]['unapproved']['num_hours'] > 0 ) {
+	            $return[$volunteer_id]['unapproved']['num_days'] = $return[$volunteer_id]['unapproved']['num_days'] + $num_days;
+	            $return[$volunteer_id]['unapproved']['num_hours'] = $return[$volunteer_id]['unapproved']['num_hours'] + $num_days * $num_hours;
+	            if( $num_hours > 0 ) {
 	                $return[$volunteer_id]['unapproved']['num_events'] = $return[$volunteer_id]['unapproved']['num_events'] + 1;
 	                if($organizations){
 	                    $return[$volunteer_id]['orgs'] = array_unique( array_merge( $return[$volunteer_id]['orgs'], $organizations ) );
@@ -1502,15 +1553,15 @@ class Volunteer_Management_And_Tracking_Common {
 	    }
 	    $location_id = get_post_meta( $event->ID, '_location_id', true);
 	    $event_data = $this->get_event_data( $event->ID );
-	    $event_start_date = $event_data['iso_start_date'];
-	    $event_end_date = $event_data['iso_end_date'];
+	    $event_start_date = $event_data['start_date'];
+	    $event_end_date = $event_data['end_date'];
 	    if ( $event_start_date == $event_end_date ) {
 	        $event_end_date = '';
 	    } else {
 	        $event_end_date = ' - ' . $event_end_date;
 	    }
-	    $event_start_time = $event_data['iso_start_time'];
-	    $event_end_time = $event_data['iso_end_time'];
+	    $event_start_time = $event_data['start_time'];
+	    $event_end_time = $event_data['end_time'];
 	    if ( $event_start_time == $event_end_time ) {
 	        $event_end_time = '';
 	    } else {
@@ -1662,7 +1713,7 @@ class Volunteer_Management_And_Tracking_Common {
    	    $output .= '</td>';
    	    $output .= '<td>';
    	    $output .= '<input class="vmat-check-before-save" data_name="volunteer_start_date" min="' . $event_data['iso_start_date'] .
-   	    '" max="' . $event_data['iso_end_date'] . '" type="date" id="vmat_start_date_' .
+   	    '" max="' . $event_data['iso_end_date'] . '" type="text" size="6" id="vmat_start_date_' .
    	    $hour_post->post_author . '_' . $hour_post->ID . '" value="' . $hour_meta['_volunteer_start_date'] . '" required>';
    	    $output .= '</td>';
    	    $output .= '<td>';
@@ -1774,7 +1825,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '</td>';
 	    $output .= '<td>';
 	    $output .= '<input class="vmat-check-before-save" data_name="volunteer_start_date" min="' . $event_data['iso_start_date'] . 
-	   	            '" max="' . $event_data['iso_end_date'] . '" type="date" id="vmat_start_date_' . 
+	   	            '" max="' . $event_data['iso_end_date'] . '" size="6" type="text" id="vmat_start_date_' . 
 	   	           $event_id . '_' . $volunteer->ID . '" value="' . $hours_meta['_volunteer_start_date'][0] . '" required>';
 	    $output .= '</td>';
 	    $output .= '<td>';
@@ -1938,7 +1989,7 @@ class Volunteer_Management_And_Tracking_Common {
 	                } elseif ( $aspects['type'] == 'text' ) {
 	                    update_user_meta( $user_id, $option, strval( $option_value ) );
 	                } elseif ( $aspects['type'] == 'array' ) {
-	                    $selections = array_map(strval, $option_value);
+	                    $selections = array_map( 'strval', $option_value);
 	                    update_user_meta( $user_id, $option, $selections );
 	                }
 	            } else {
@@ -1957,7 +2008,7 @@ class Volunteer_Management_And_Tracking_Common {
 	                } elseif ( $aspects['type'] == 'text' ) {
 	                    update_user_meta( $user_id, $option, strval( $option_value ) );
 	                } elseif ( $aspects['type'] == 'array' ) {
-	                    $selections = array_map(strval, $option_value);
+	                    $selections = array_map( 'strval', $option_value);
 	                    update_user_meta( $user_id, $option, $selections );
 	                }
 	            } else {

@@ -451,11 +451,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    }
 	    if ( empty( $errors ) ) {
 	        // get the meta data associated with this event
-	        $event_meta = get_post_meta( $event->ID, '', true);
-	        // save the default hours associated with this volunteer
-	        $end_time = date_create_from_format('H:i:s', $event_meta['_event_end_time'][0]);
-	        $begin_time=date_create_from_format('H:i:s', $event_meta['_event_start_time'][0]);
-	        $hours_per_day = $end_time->diff($begin_time)->h;
+	        $event_data = $vmat_plugin->get_common()->get_event_data( $event->ID );
 	        // Create a new vmat_hours post with the appropriate default information
             $hours = wp_insert_post( array(
                 'post_author' => $volunteer->ID,
@@ -464,8 +460,8 @@ class Volunteer_Management_And_Tracking_Admin {
                 'post_title' => $event->post_title,
                 'meta_input' => array(
                     '_event_id' => $event->ID,
-                    '_volunteer_start_date' => $event_meta['_event_start_date'][0],
-                    '_hours_per_day' => $hours_per_day,
+                    '_volunteer_start_date' => $event_data['iso_start_date'],
+                    '_hours_per_day' => $event_data['hours_per_day'],
                     '_volunteer_num_days' => 0,
                     '_approved' => false,
                 )
@@ -573,11 +569,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    }
 	    if ( empty( $errors ) ) {
 	        // get the meta data associated with this event
-	        $event_meta = get_post_meta( $event->ID, '', true);
-            // save the default hours associated with this volunteer
-            $end_time = date_create_from_format('H:i:s', $event_meta['_event_end_time'][0]);
-            $begin_time=date_create_from_format('H:i:s', $event_meta['_event_start_time'][0]);
-            $hours_per_day = $end_time->diff($begin_time)->h;
+	        $event_data = $vmat_plugin->get_common()->get_event_data( $event->ID );
             // Create a new vmat_hours post with the appropriate default information
             foreach ( $volunteers as $volunteer ) {
                 $hours = wp_insert_post( array(
@@ -587,8 +579,8 @@ class Volunteer_Management_And_Tracking_Admin {
                     'post_title' => $event->post_title,
                     'meta_input' => array(
                         '_event_id' => $event->ID,
-                        '_volunteer_start_date' => $event_meta['_event_start_date'][0],
-                        '_hours_per_day' => $hours_per_day,
+                        '_volunteer_start_date' => $event_data['iso_start_date'],
+                        '_hours_per_day' => $event_data['hours_per_day'],
                         '_volunteer_num_days' => 0,
                         '_approved' => false,
                     )
@@ -2097,20 +2089,37 @@ class Volunteer_Management_And_Tracking_Admin {
 	   }
 	}
 	
-	public function add_volunteer_role_to_new_em_user( $user_id ) {
-	    if( array_key_exists( 'action', $_POST ) && 
-	        $_POST['action'] == 'booking_add' &&
-	        array_key_exists( '_wpnonce', $_POST ) &&
-	        wp_verify_nonce( $_POST['_wpnonce'], 'booking_add' ) ) {
-	       // add volunteer role to user created from EM Booking
-            $wpuser = get_user_by('id', $user_id);
+	public function add_new_booking_volunteer_to_em_event( $user_id ) {
+	    global $vmat_plugin;
+       // add volunteer role to user created from EM Booking
+        $wpuser = get_user_by('id', $user_id);
+        if ( $wpuser ) {
+            if( ! in_array('volunteer', $wpuser->roles)) {
+                $wpuser->add_role('volunteer');
+            }
+            if( array_key_exists( 'dbem_phone', $_POST ) &&
+                ! empty( $_POST['dbem_phone'] ) ) {
+                update_user_meta( $wpuser->ID, 'vmat_phone_cell', $_POST['dbem_phone'] );
+            }
+            if( array_key_exists( 'event_id', $_POST ) &&
+                ! empty( $_POST['event_id'] ) ) {
+                    $vmat_plugin->get_common()->add_volunteer_to_em_event( $_POST['event_id'], $wpuser->ID );
+            }
+        }
+	}
+	
+	public function add_existing_volunteer_to_em_event( $em_event, $em_booking, $post_validation ) {
+	    global $vmat_plugin;
+	    $user_id = get_current_user_id();
+	    if( $user_id > 0 && $post_validation ) {
+            // add volunteer role to user when creating booking
+	        $wpuser = get_user_by( 'id', $user_id );
             if ( $wpuser ) {
                 if( ! in_array('volunteer', $wpuser->roles)) {
                     $wpuser->add_role('volunteer');
                 }
-                if( array_key_exists( 'dbem_phone', $_POST ) &&
-                    ! empty( $_POST['dbem_phone'] ) ) {
-                        update_user_meta( $wpuser->ID, 'vmat_phone_cell', $_POST['dbem_phone'] );
+                if( $em_event->post_id > 0 ) {
+                        $vmat_plugin->get_common()->add_volunteer_to_event( $em_event->post_id, $wpuser->ID );
                     }
             }
 	    }
@@ -2209,9 +2218,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    );
 	    if ($funding_stream ) {
 	        $funding_stream_data = $vmat_plugin->get_common()->get_funding_stream_data( $funding_stream->ID );
-	        $user_funding_start_date = $funding_stream_data['start_date']; // mm/dd/yyyy
 	        $iso_funding_start_date = $funding_stream_data['iso_start_date']; // yyyy-mm-dd
-	        $user_funding_end_date = $funding_stream_data['end_date']; // mm/dd/yyyy
 	        $iso_funding_end_date = $funding_stream_data['iso_end_date']; // yyyy-mm-dd
 	        $fiscal_start_months = get_post_meta( $funding_stream->ID, '_fiscal_start_months', true );
 	    }
@@ -2219,17 +2226,12 @@ class Volunteer_Management_And_Tracking_Admin {
     	<div class="row">
     		<div class="col-2 vmat-form-label">
         	<label for="funding_start_date">
-        		Funding Start Date: <span class="vmat-quick-link">(mm/dd/yyyy)</span>
+        		Funding Start Date:
         	</label>
         	</div>
         	<div class="col vmat-form-field">
         		<input id="datepicker_start" 
         		       type="text" 
-        		       name="user_funding_start_date" 
-        		       value="<?php echo $user_funding_start_date; ?>" 
-        		       autocomplete="off">
-        		<input id="vmat_funding_start_date" 
-        		       type="hidden" 
         		       name="funding_start_date" 
         		       value="<?php echo $iso_funding_start_date; ?>" 
         		       autocomplete="off">
@@ -2238,18 +2240,13 @@ class Volunteer_Management_And_Tracking_Admin {
     	<div class="row">
     		<div class="col-2 vmat-form-label">
         	<label for="funding_end_date">
-        		Funding End Date: <span class="vmat-quick-link">(mm/dd/yyyy)</span>
+        		Funding End Date:
         	</label>
         	</div>
         	<div class="col vmat-form-field">
         		<div class="col vmat-form-field">
         		<input id="datepicker_end" 
         		       type="text" 
-        		       name="user_funding_end_date" 
-        		       value="<?php echo $user_funding_end_date; ?>" 
-        		       autocomplete="off">
-        		<input id="vmat_funding_end_date" 
-        		       type="hidden" 
         		       name="funding_end_date" 
         		       value="<?php echo $iso_funding_end_date; ?>" 
         		       autocomplete="off">
@@ -2294,7 +2291,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	        return false;
 	    }
 	    if ( array_key_exists( 'vmat_organizations', $_POST ) ) {
-	        $organizations = array_map( absint, $_POST[ 'vmat_organizations' ] );
+	        $organizations = array_map( 'absint', $_POST[ 'vmat_organizations' ] );
 	        update_post_meta( $event_id, '_vmat_organizations', $organizations );
 	    } else {
 	        // no organization was selected, so we should delete any existing organization
@@ -2312,7 +2309,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	        return false;
 	    }
 	    if ( array_key_exists( 'vmat_funding_streams', $_POST ) ) {
-	        $funding_streams = array_map( absint, $_POST[ 'vmat_funding_streams' ] );
+	        $funding_streams = array_map( 'absint', $_POST[ 'vmat_funding_streams' ] );
 	        update_post_meta( $org_id, '_vmat_funding_streams', $funding_streams );
 	    } else {
 	        // no funding stream was selected, so we should delete any existing funding stream
@@ -2357,7 +2354,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	            }
 	        }
 	        if ( $valid ) {
-	            $fiscal_start_months = array_map( sanitize_text_field, $fiscal_start_months );
+	            $fiscal_start_months = array_map( 'sanitize_text_field', $fiscal_start_months );
 	            update_post_meta( $funding_id, '_fiscal_start_months', $fiscal_start_months );
 	        } else {
 	           return false;
@@ -3546,8 +3543,8 @@ class Volunteer_Management_And_Tracking_Admin {
         <div class="row">
             <div class="col">
         		<div class="row">
-        		    <div class="col-lg-2">
-                		<strong><?php _e( $event_select_prefix . 'Event:', 'vmattd' ); ?></strong>
+        		    <div class="col-lg-3">
+                		<h4><?php _e( $event_select_prefix . 'Event:', 'vmattd' ); ?></h4>
                 	</div>
                 		<?php 
                 		if( $event ) {
@@ -3593,7 +3590,7 @@ class Volunteer_Management_And_Tracking_Admin {
         <div class="row">
             <div class="col">
             	<div>
-            		<strong><?php _e('Select a Volunteer:')?></strong>
+            		<h4><?php _e('Select a Volunteer:')?></h4>
             	</div>
 				<div id="vmat_manage_volunteers_table">
 				<?php
@@ -3642,7 +3639,7 @@ class Volunteer_Management_And_Tracking_Admin {
             	<input type="hidden" name="event_id" value="<?php echo $event->ID; ?>">
         		<div class="row">
         			<div class="col-lg-4">
-        				<strong><?php _e( 'Add Volunteers to Event:', 'vmattd' ); ?></strong>
+        				<h4><?php _e( 'Add Volunteers to Event:', 'vmattd' ); ?></h4>
         				<div id="vmat_volunteers_table">
         				<?php
         			    $this->html_part_volunteer_participation_volunteers_table( $args );
@@ -3650,7 +3647,7 @@ class Volunteer_Management_And_Tracking_Admin {
         				</div>
         			</div><!--  volunteer selection table -->
         			<div class="col">
-        				<strong><?php _e( 'Manage Event Volunteer Hours:', 'vmattd' ); ?></strong>
+        				<h4><?php _e( 'Manage Event Volunteer Hours:', 'vmattd' ); ?></h4>
         				<div id="vmat_event_volunteers_table">
         				<?php
         			    $this->html_part_volunteer_participation_event_volunteers_table( $args );
@@ -3674,7 +3671,7 @@ class Volunteer_Management_And_Tracking_Admin {
             <div class="col">
             	<div class="row">
             		<div class="col-lg-4">
-            			<strong><?php _e( 'Register New Volunteer', 'vmattd' ); ?></strong>
+            			<h4><?php _e( 'Register New Volunteer:', 'vmattd' ); ?></h4>
             		</div>
             		<div class="col-lg-4">
             			<div class="alignleft">
@@ -3709,14 +3706,14 @@ class Volunteer_Management_And_Tracking_Admin {
             <div class="col">
             	<div class="row">
             		<div class="col-lg-4">
-            			<strong>
+            			<h4>
             			<?php if( $args['volunteer'] ) {
-            			    _e( 'Update Volunteer', 'vmattd' );
+            			    _e( 'Update Volunteer:', 'vmattd' );
             			} else {
-            			    _e( 'Register New Volunteer', 'vmattd' );
+            			    _e( 'Register New Volunteer:', 'vmattd' );
             			}
             			?>
-            			</strong>
+            			</h4>
             		</div>
             		<div class="col-lg-4">
             			<div class="alignleft">
@@ -3998,7 +3995,7 @@ class Volunteer_Management_And_Tracking_Admin {
 				        type="button" 
 				        value="show_register_and_add_new_volunteer_form" 
 				        title="Register and add a new volunteer to the selected event">
-				        <?php _e( 'Add New Vol', 'vmattd')?>
+				        <?php _e( 'Add New Vol ', 'vmattd')?>&raquo;
 				</button>
         	</div>
         </div>
@@ -4557,7 +4554,7 @@ class Volunteer_Management_And_Tracking_Admin {
         ?>
         <div class="row">
         	<div class="col-lg-3">
-        		<strong><?php _e( 'Select Event:', 'vmattd' ); ?></strong>
+        		<h4><?php _e( 'Select Event:', 'vmattd' ); ?></h4>
         	</div>
         	<div class="col-lg-3">
         		<a class="button action vmat-action-btn" href="<?php echo $add_new_event_href; ?>">
@@ -4717,7 +4714,7 @@ class Volunteer_Management_And_Tracking_Admin {
     			?>
     			</div>
         		<div>
-            		<strong><?php _e('Selected Volunteer:')?></strong>
+            		<h4><?php _e('Selected Volunteer:')?></h4>
             	</div>	
             	<?php 
             	echo $vmat_plugin->get_common()->volunteer_display( $args['volunteer'] );

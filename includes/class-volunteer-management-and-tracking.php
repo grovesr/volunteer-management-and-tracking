@@ -211,8 +211,10 @@ class Volunteer_Management_And_Tracking {
         // update the volunteer fields from the wp-admin/user-new.php form
         $this->loader->add_action('edit_user_created_user', $this->common, 'update_volunteer_user_meta');
         
-        // add volunteer role to new users created from events booking form
-        $this->loader->add_action('user_register', $this->admin, 'add_volunteer_role_to_new_em_user');
+        // add volunteer role to new users created during em booking and add default volunteer hours to event 
+        $this->loader->add_action('user_register', $this->admin, 'add_new_booking_volunteer_to_em_event');
+        // add logged in user's default volunteer hours to em event associated to a new em booking
+        $this->loader->add_action('em_booking_add', $this->admin, 'add_existing_volunteer_to_em_event', 10, 3 );
         
         // dashboard page
         $this->loader->add_action('admin_menu', $this->admin, 'admin_main_page', 5);
@@ -321,9 +323,9 @@ class Volunteer_Management_And_Tracking {
         // register custom post type Hours
         $this->loader->add_action('init', $this->common , 'register_hours_post_type');
         // register custom post type Funding Streams
-        $this->loader->add_action('init', $this->common , 'register_funding_streams_post_type');
+        $this->loader->add_action('init', $this->common , 'register_funding_stream_post_type');
         // register custom post type Organizations
-        $this->loader->add_action('init', $this->common , 'register_organizations_post_type');
+        $this->loader->add_action('init', $this->common , 'register_organization_post_type');
         /*
         // register Events taxonomy Organization
         $this->loader->add_action('init', $this->common , 'register_taxonomy_organization_for_em');
