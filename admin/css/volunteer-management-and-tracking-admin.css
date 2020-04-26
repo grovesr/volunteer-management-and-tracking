@@ -84,3 +84,20 @@
  	width: 2.2em;
 	vertical-align: top; 
 }
+
+#vmat_admin_nav {
+	position: -webkit-sticky;
+  	position: sticky;
+  	top: 50px;
+  	z-index: 2000;
+  	background-color: #eee;
+  	border-radius: 5px
+}
+
+#vmat_admin_nav ul {
+	padding-bottom: 0px;
+}
+
+#vmat_admin_nav li {
+	margin-bottom: 0px;
+}
