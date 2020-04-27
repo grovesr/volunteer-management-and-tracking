@@ -3183,7 +3183,7 @@ class Volunteer_Management_And_Tracking_Admin {
         $collapse = ' collapsed';
         $show = '';
         $content = '<div class="card">';
-        $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_general_help">';
+        $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_general">';
         $content .= '<strong id="general_help">
                      General Help. Click to see more information:
                      </strong>';
