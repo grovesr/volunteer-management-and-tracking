@@ -54,6 +54,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	     * get_events() to be sure we have all the args we need
 	     */
 	    return array(
+	        'post_status' => 'publish',
 	        'post_type' => EM_POST_TYPE_EVENT,
 	        'scope' => 'future',
 	        'pno' => 1,
@@ -253,6 +254,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	     */
 	    //$get_args = array_merge($this->default_get_events_args(), $args);
 	    $get_query = array(
+	        'post_status' => 'publish',
 	        'post_type' => $get_args['post_type'],
 	        'posts_per_page' => $get_args['posts_per_page'],
 	        'paged' => $get_args['epno'],
@@ -291,6 +293,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	        },
 	        $volunteered_hours );
 	        $get_query = array(
+	            'post_status' => 'publish',
 	            'post_type' => $get_args['post_type'],
 	            'posts_per_page' => $get_args['posts_per_page'],
 	            'paged' => $get_args['epno'],
@@ -2769,7 +2772,7 @@ class Volunteer_Management_And_Tracking_Admin {
             $args['epno'] = $vmat_plugin->get_common()->var_from_get( 'epno', 1 );
             // processing an events selection table filter form submission
             $args['events_search'] = $vmat_plugin->get_common()->var_from_get( 'events_search', '' );
-            $args['post_type'] = 'event';
+            $args['post_type'] = EM_POST_TYPE_EVENT;
             $args['scope'] = $vmat_plugin->get_common()->var_from_get( 'scope', 'future' );
             $args['vmat_org'] = $vmat_plugin->get_common()->var_from_get( 'vmat_org', '0' );
             $args['taxonomy'] = $vmat_plugin->get_common()->var_from_get( 'taxonomy', '' );
