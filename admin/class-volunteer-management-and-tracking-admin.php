@@ -3132,7 +3132,7 @@ class Volunteer_Management_And_Tracking_Admin {
                             echo 'active';
                         }
                         ?>" href="<?php 
-                        echo $vmat_admin_help_url;
+                        echo $vmat_admin_help_url . '#general_help';
                         ?>"><span class="vmat-quick-link"><?php _e('Help', 'vmattd'); ?></span></a>
                       </li>
                     </ul> 
@@ -3185,7 +3185,7 @@ class Volunteer_Management_And_Tracking_Admin {
                      General Help. Click to see more information:
                      </strong>';
         $content .= '</div><!-- card-header -->';
-        $content .= '<div id="collapse_general_help" class="collapse' . $show . '" data-parent="#help_accordian">';
+        $content .= '<div id="collapse_general" class="collapse' . $show . '" data-parent="#help_accordian">';
         $content .= '<div class="card-body">';
         $content .= '<p>';
         $content .= 'The <strong>Volunter Management and Tracking</strong> plugin is designed to provide a means
