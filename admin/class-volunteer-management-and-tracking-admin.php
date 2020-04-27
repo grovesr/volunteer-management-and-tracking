@@ -4214,7 +4214,7 @@ class Volunteer_Management_And_Tracking_Admin {
     			<button class="button action vmat-action-btn" 
         		        name="submit_button" 
         		        type="button" 
-        		        value="show_update_volunteer_form"><?php _e('Edit Volunteer', 'vmattd'); ?>
+        		        value="show_update_volunteer_form"><?php _e('Volunteer Profile', 'vmattd'); ?>
         		</button>
     		</div>
     		<div class="col-lg-2">

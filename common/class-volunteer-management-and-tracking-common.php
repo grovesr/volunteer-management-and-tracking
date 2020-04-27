@@ -1541,7 +1541,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    } else {
 	        $output .= '<strong>'. $display_name . '</strong>';
 	        $output .= '<div class="row-actions">';
-	        $output .= '<span class="vmat-link vmat-quick-link" id="show_update_volunteer_form" title="Edit volunteer">' . __('Edit', 'vmattd') . '</span>';
+	        $output .= '<span class="vmat-link vmat-quick-link" id="show_update_volunteer_form" title="Edit volunteer profile">' . __('Profile', 'vmattd') . '</span>';
 	        $output .= '</div>';
 	    }
 	    $output .= '</td>';
