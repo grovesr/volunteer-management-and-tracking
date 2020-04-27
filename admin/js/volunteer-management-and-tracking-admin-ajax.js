@@ -233,10 +233,11 @@
 		  var accordianMain = $('#wpwrap' );
 		  var containerScrollTop = accordianMain.scrollTop();
 		  var containerOffsetTop = accordianMain.offset().top;
+		  var navOffset = 60;
 		  var mainNode = $( selector );
 		  var selectionOffsetTop = mainNode.offset().top;
 		  $('html, body').animate({
-		     scrollTop: containerScrollTop+selectionOffsetTop-containerOffsetTop},
+		     scrollTop: containerScrollTop+selectionOffsetTop-containerOffsetTop-navOffset},
 		     200);
 
 		}

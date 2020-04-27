@@ -4421,7 +4421,7 @@ class Volunteer_Management_And_Tracking_Admin {
         					<td class="manage-column column-cb check-column"><input id="vmat_event_volunteers_select_all" type=checkbox></td>
         					<td class="manage-column"><?php _e('User', 'vmattd' );?></td>
         					<td class="manage-column"><?php _e('Hours/Day (' . $event_data['hours_per_day'] . ')', 'vmattd' );?></td>
-        					<td class="manage-column"><?php _e('Start (mm/dd/yyyy)', 'vmattd' );?></td>
+        					<td class="manage-column"><?php _e('Start', 'vmattd' );?></td>
         					<td class="manage-column"><?php _e('Vol. Days (' . $event_data['days'] . ')', 'vmattd' );?></td>
         					<td class="vmat-manage-column">
         						<?php _e('Appr', 'vmattd' );?><input id="vmat_event_volunteers_approve_all" type=checkbox>
