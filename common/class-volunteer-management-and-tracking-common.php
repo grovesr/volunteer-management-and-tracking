@@ -1519,6 +1519,10 @@ class Volunteer_Management_And_Tracking_Common {
 	    $unapproved_events = $volunteer_data['unapproved']['num_events'];
 	    $unapproved_hours = $volunteer_data['unapproved']['num_hours'];
 	    $unapproved_days = $volunteer_data['unapproved']['num_days'];
+	    $dsplay_name = $volunteer->first_name . ' ' . $volunteer->last_name;
+	    if( $display_name == '' ) {
+	        $display_name = $volunteer->data->user_login;
+	    }
 	    $output = '<tr class="' . $alternate . '" id="volunteer_' . $volunteer->ID . '">';
 	    if( $submit_url != '' ) {
 	        $output .= '<th class="check-column">';
@@ -1527,7 +1531,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    }
 	    $output .= '<td>';
 	    if( $submit_url != '' ) {
-	        $output .= '<a class="row-title" href="' . $submit_url . '">' . $volunteer->first_name . ' ' . $volunteer->last_name . '</a>';
+	        $output .= '<a class="row-title" href="' . $submit_url . '">' . $display_name . '</a>';
 	    } else {
 	        $output .= '<strong>'. $volunteer->first_name . ' ' . $volunteer->last_name . '</strong>';
 	        $output .= '<div class="row-actions">';
@@ -1768,13 +1772,17 @@ class Volunteer_Management_And_Tracking_Common {
 	        ),
 	        $volunteer_edit_href
 	    );
+	    $dsplay_name = $volunteer->first_name . ' ' . $volunteer->last_name;
+	    if( $display_name == '' ) {
+	        $display_name = $volunteer->data->user_login;
+	    }
 	    $output = '<tr class="' . $alternate . '" id="volunteer_' . $volunteer->ID . '">';
 	    $output .= '<th class="check-column">';
 	    $output .= '<input type="checkbox" id="vmat_volunteer_cb_' . $volunteer->ID . '" name="volunteers_checked[]">';
 	    $output .= '</th>';
 	    $output .= '<td>';
 	    $output .= '<strong>';
-	    $output .= $volunteer->first_name . ' ' . $volunteer->last_name;
+	    $output .= $display_name;
 	    $output .= '</strong>';
 	    $output .= '<div class="row-actions">';
 	    $output .= '<a id="vmat_volunteer_' . $volunteer->ID . '" title="' . __( 'Manage Volunteer', 'vmattd' ) . 
@@ -1817,6 +1825,10 @@ class Volunteer_Management_And_Tracking_Common {
 	       ),
 	        $volunteer_edit_href
 	    );
+	    $dsplay_name = $volunteer->first_name . ' ' . $volunteer->last_name;
+	    if( $display_name == '' ) {
+	        $display_name = $volunteer->data->user_login;
+	    }
 	    $days = $event_data['days'];
 	    $output = '<tr class="' . $alternate . '" id="event_volunteer_' . $volunteer->ID . '">';
 	    $output .= '<th class="check-column">';
@@ -1824,7 +1836,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '</th>';
 	    $output .= '<td>';
 	    $output .= '<strong>';
-	    $output .= $volunteer->first_name . ' ' . $volunteer->last_name;
+	    $output .= $display_name;
 	    $output .= '</strong>';
 	    $output .= '<div class="row-actions">';
 	    $output .= '<span>';

@@ -20,6 +20,17 @@ class Volunteer_Management_And_Tracking_Activator {
 	        add_role( 'volunteer', 'Volunteer', array( 'read' => true ) );
 	    }
 	    self::add_cpt_caps();
+	    $current_options = get_option( 'vmat_options' );
+	    if( ! array_key_exists( 'vmat_posts_per_page', $current_options ) ) {
+	        if( ! $current_options ) {
+	            $current_options = array(
+	                'vmat_posts_per_page' => 6,
+	            );
+	        } else {
+	            $current_options['vmat_posts_per_page'] = 6;
+	        }
+	        add_option( 'vamt_options' , $current_options );
+	    }
 	    
 	}
 	

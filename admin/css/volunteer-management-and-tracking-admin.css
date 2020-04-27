@@ -89,7 +89,7 @@
 	position: -webkit-sticky;
   	position: sticky;
   	top: 50px;
-  	z-index: 2000;
+  	z-index: 1;
   	background-color: #eee;
   	border-radius: 5px;
   	border-color: #007bff;
