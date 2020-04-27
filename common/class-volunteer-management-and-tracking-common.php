@@ -1519,7 +1519,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    $unapproved_events = $volunteer_data['unapproved']['num_events'];
 	    $unapproved_hours = $volunteer_data['unapproved']['num_hours'];
 	    $unapproved_days = $volunteer_data['unapproved']['num_days'];
-	    $dsplay_name = $volunteer->first_name . ' ' . $volunteer->last_name;
+	    $display_name = $volunteer->first_name . ' ' . $volunteer->last_name;
 	    if( $display_name == '' ) {
 	        $display_name = $volunteer->data->user_login;
 	    }
@@ -1772,7 +1772,7 @@ class Volunteer_Management_And_Tracking_Common {
 	        ),
 	        $volunteer_edit_href
 	    );
-	    $dsplay_name = $volunteer->first_name . ' ' . $volunteer->last_name;
+	    $display_name = $volunteer->first_name . ' ' . $volunteer->last_name;
 	    if( $display_name == '' ) {
 	        $display_name = $volunteer->data->user_login;
 	    }
@@ -1825,7 +1825,7 @@ class Volunteer_Management_And_Tracking_Common {
 	       ),
 	        $volunteer_edit_href
 	    );
-	    $dsplay_name = $volunteer->first_name . ' ' . $volunteer->last_name;
+	    $display_name = $volunteer->first_name . ' ' . $volunteer->last_name;
 	    if( $display_name == '' ) {
 	        $display_name = $volunteer->data->user_login;
 	    }
