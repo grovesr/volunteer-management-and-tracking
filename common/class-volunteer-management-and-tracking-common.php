@@ -1747,7 +1747,7 @@ class Volunteer_Management_And_Tracking_Common {
    	    $output .= '</td>';
    	    $output .= '<td>';
    	    $output .= '<input class="vmat-check-before-save" data_name="volunteer_start_date" min="' . $event_data['iso_start_date'] .
-   	    '" max="' . $event_data['iso_end_date'] . '" type="text" size="6" id="vmat_start_date_' .
+   	    '" max="' . $event_data['iso_end_date'] . '" type="text" size="8" placeholder="yyyy-mm-dd" id="vmat_start_date_' .
    	    $hour_post->post_author . '_' . $hour_post->ID . '" value="' . $hour_meta['_volunteer_start_date'] . '" required>';
    	    $output .= '</td>';
    	    $output .= '<td>';
@@ -1867,7 +1867,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '</td>';
 	    $output .= '<td>';
 	    $output .= '<input class="vmat-check-before-save" data_name="volunteer_start_date" min="' . $event_data['iso_start_date'] . 
-	   	            '" max="' . $event_data['iso_end_date'] . '" size="6" type="text" id="vmat_start_date_' . 
+	   	            '" max="' . $event_data['iso_end_date'] . '" size="8" type="text" placeholder="yyyy-mm-dd" id="vmat_start_date_' . 
 	   	           $event_id . '_' . $volunteer->ID . '" value="' . $hours_meta['_volunteer_start_date'][0] . '" required>';
 	    $output .= '</td>';
 	    $output .= '<td>';

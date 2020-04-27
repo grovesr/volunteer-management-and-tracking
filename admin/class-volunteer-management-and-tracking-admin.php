@@ -2293,6 +2293,7 @@ class Volunteer_Management_And_Tracking_Admin {
         	</div>
         	<div class="col vmat-form-field">
         		<input id="datepicker_start" 
+        		       placeholder="yyyy-mm-dd"
         		       type="text" 
         		       name="funding_start_date" 
         		       value="<?php echo $iso_funding_start_date; ?>" 
@@ -2308,6 +2309,7 @@ class Volunteer_Management_And_Tracking_Admin {
         	<div class="col vmat-form-field">
         		<div class="col vmat-form-field">
         		<input id="datepicker_end" 
+        		       placeholder="yyyy-mm-dd"
         		       type="text" 
         		       name="funding_end_date" 
         		       value="<?php echo $iso_funding_end_date; ?>" 
@@ -3589,6 +3591,55 @@ class Volunteer_Management_And_Tracking_Admin {
         $content .= '</div><!-- collapse_volunteer_types --!>';
         $content .= '</div><!-- card --!>';
         return $content;
+    }
+    
+    function html_part_reports_date_range_picker( $args=array() ) {
+        $report_start_date = '';
+        $report_end_date = '';
+        ?>
+        <div class="row">
+        	<div class="col">
+        		<div class="row">
+        			<div class="col">
+        				<label for="report_start_date">
+                        Report Start Date:
+                        </label>
+        			</div>
+        		</div>
+        		<div class="row">
+        			<div class="col">
+        				<input id="datepicker_start"
+        					   placeholder="yyyy-mm-dd"
+                       		   type="text"
+                       		   size="8"
+                               name="report_start_date"
+                               value="<?php echo $report_start_date; ?>"
+                               autocomplete="off">
+        			</div>
+        		</div>
+        	</div>
+        	<div class="col">
+        		<div class="row">
+        			<div class="col">
+        				<label for="report_end_date">
+                        Report End Date:
+                        </label>
+        			</div>
+        		</div>
+        		<div class="row">
+        			<div class="col">
+        				<input id="datepicker_end"
+        					   placeholder="yyyy-mm-dd"
+                               type="text"
+                               size="8"
+                               name="report_end_date"
+                               value="<?php echo $report_end_date; ?>"
+                               autocomplete="off">
+        			</div>
+        		</div>
+        	</div>
+        </div>
+    	<?php
     }
     
     function html_part_get_events_admin( $args=array() ) {
@@ -4873,7 +4924,14 @@ class Volunteer_Management_And_Tracking_Admin {
         $this->admin_header($args['message'], $args['message_class'] );
         ?>
         <h1>Reports Under Construction</h1>
-  		<!-- content here -->
+  		<div class="row">
+        	<div id="vmat_reports_admin" class="col">
+                <?php 
+                // display the date range picker
+                $this->html_part_reports_date_range_picker( $args );
+                ?>
+            </div>
+        </div>
         <?php
         $this->admin_footer();
     }
