@@ -1142,14 +1142,20 @@ class Volunteer_Management_And_Tracking_Common {
 	     * $options = array of option value=>name
 	     * $selected = selected value, 0 if unselected
 	     */
+	    global $vmat_plugin;
 	    $output = '';
 	    $output .= '<select name="' . $name . '" id="_vmat_' . $name . '" class="postform">';
 	    foreach ( $options as $opt_value=>$opt_name ) {
+	        $title = '';
+	        if( $options = 'vmat_org' ) {
+	            $org_data = $vmat_plugin->get_common()->get_organization_data( $opt_value );
+	            $title =  $org_data['description'];
+	        }
 	        $option_selected = 'selected="selected"';
 	        if ( $opt_value != $selected ) {
 	            $option_selected = '';
 	        }
-	        $output .= '<option  value="' . $opt_value . '" ' . $option_selected .'>' . $opt_name . '</option>';
+	        $output .= '<option  title="' . $title . '" value="' . $opt_value . '" ' . $option_selected .'>' . $opt_name . '</option>';
 	    }
 	    $output .= '</select>';
 	    return $output;

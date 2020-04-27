@@ -239,10 +239,10 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_filter( 'handle_bulk_actions-users', $this->admin, 'add_volunteer_role_handler', 10, 3 );
         $this->loader->add_action('admin_notices', $this->admin, 'bulk_add_volunteer_role_admin_notice');
         
-        // add Add Volunteer role quick action to Users posts
+        // add Add quick actions to Users list
         $this->loader->add_filter('user_row_actions', $this->admin, 'modify_user_list_row_actions', 10, 2);
         // Add volunteer row action handler
-        $this->loader->add_action('in_admin_header', $this->admin, 'add_volunteer_role_action');     
+        $this->loader->add_action('in_admin_header', $this->admin, 'add_volunteer_actions');     
         
         // add Add Hours quick action to Events posts
         $this->loader->add_filter('post_row_actions', $this->admin, 'modify_event_list_row_actions', 10, 2);

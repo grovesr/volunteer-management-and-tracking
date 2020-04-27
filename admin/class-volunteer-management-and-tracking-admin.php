@@ -1986,30 +1986,46 @@ class Volunteer_Management_And_Tracking_Admin {
 	     */
 	    if( current_user_can( 'edit_users' ) ) {
             // Build your links URL.
-            $add_link = admin_url( 'users.php' );
+            $admin_link = admin_url( 'users.php' );
             
             // You can check if the current user has some custom rights.
             // Include a nonce in this link
-            $add_link = wp_nonce_url( add_query_arg( 
+            $add_volunteer_role_link = wp_nonce_url( add_query_arg( 
                 array( 
                     'action' => 'add_volunteer_role',
                     'volunteer_id' => $user->ID,
                 ), 
-                $add_link ), 
+                $admin_link ), 
                 'add_volunteer_role_nonce' );
             // Add the new quick link.
             $actions = array_merge( $actions, array(
                 'add' => sprintf( '<a href="%1$s" title="Add volunteer role"><span class="vmat-quick-link">%2$s</span></a>',
-                    esc_url( $add_link ),
+                    $add_volunteer_role_link,
                     __( 'Add Volunteer Role', 'vmattd' )
                     )
             )
                 );
+            $admin_link = admin_url( 'admin.php' );
+            $manage_volunteer_link = add_query_arg(
+                array(
+                    'page' => 'vmat_admin_manage_volunteers',
+                    'volunteer_id' => $user->ID,
+                ),
+                $admin_link
+                );
+                // Add the new quick link.
+                $actions = array_merge( $actions, array(
+                    'manage' => sprintf( '<a href="%1$s" title="Manage Volunteer"><span class="vmat-quick-link">%2$s</span></a>',
+                        $manage_volunteer_link ,
+                        __( 'Manage Volunteer', 'vmattd' )
+                        )
+                )
+                    );
 	   }
 	   return $actions;
 	}
 	
-	public function add_volunteer_role_action( ) {
+	public function add_volunteer_actions( ) {
 	    $screen = get_current_screen();
 	    if( 'users' ==  $screen->id ) {
 	        $action = '';
@@ -2155,6 +2171,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	     * Generic function to create a meta box for selecting multiple $type
 	     * CPT posts to link to $link_to_post in the post edit page
 	     */
+	    global $vmat_plugin;
 	    if ( ! $type ) {
 	        return false;
 	    }
@@ -2163,17 +2180,28 @@ class Volunteer_Management_And_Tracking_Admin {
 	    $selected_posts_to_link = array();
 	    $unselected_posts_to_link = array();
 	    foreach ( $vmat_plugin->get_common()->get_post_type($type)->posts as $post_to_link ) {
+            $title = '';
+            if ( $type == 'vmat_organization' ) {
+                $org_data = $vmat_plugin->get_common()->get_organization_data( $post_to_link->ID );
+                $title = $org_data['description'];
+            }
+            if ( $type == 'vmat_funding_stream' ) {
+                $funding_data = $vmat_plugin->get_common()->get_funding_stream_data( $post_to_link->ID );
+                $title = $funding_data['description'];
+            }
 	        if ( in_array( absint($post_to_link->ID), get_post_meta( $link_to_post->ID, '_' . $type . 's' , true ) ) ) {
 	            $selected_posts_to_link[] = array(
 	                'id' => $post_to_link->ID,
 	                'name' => __($post_to_link->post_title, 'vmattd'),
 	                'description' => __( get_post_meta( $post_to_link->ID, '_description', true ), 'vmattd'),
+	                'title' => $title,
 	            );
 	        } else {
 	            $unselected_posts_to_link[] = array(
 	                'id' => $post_to_link->ID,
 	                'name' => __($post_to_link->post_title, 'vmattd'),
 	                'description' => __( get_post_meta( $post_to_link->ID, '_description', true ), 'vmattd'),
+	                'title' => $title,
 	            );
 	        }
 	    }
@@ -2191,7 +2219,9 @@ class Volunteer_Management_And_Tracking_Admin {
             <label title="<?php echo $post_to_link['description']; ?>">
             <input type="checkbox" name="<?php echo $type; ?>s[]" 
             value="<?php echo $post_to_link['id']; ?>" 
-            <?php if ( in_array( absint($post_to_link['id']), get_post_meta( $link_to_post->ID, '_' . $type . 's' , true ) ) ) { echo 'checked="checked"';} ?> /> 
+            <?php if ( in_array( absint($post_to_link['id']), get_post_meta( $link_to_post->ID, '_' . $type . 's' , true ) ) ) { echo 'checked="checked"';} ?> 
+            title="<?php echo $title; ?>"
+            > 
             <?php echo $post_to_link['name'] ?>
             </label><br />          
             <?php
@@ -2437,6 +2467,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	     * Provide an organizations dropdown to filter event _vmat_organizations
 	     * meta data
 	     */
+	    global $vmat_plugin;
 	    if( EM_POST_TYPE_EVENT != $post_type && 
 	        'event-recurring' != $post_type) {
 	        return;
@@ -2458,10 +2489,12 @@ class Volunteer_Management_And_Tracking_Admin {
 	    echo '<option value="0">' . __( 'Show all organizations', 'vmattd' ) . ' </option>';
 	    foreach($organizations as $org){
 	        $select = '';
+	        $org_data = $vmat_plugin->get_common()->get_organization_data( $org->ID );
+	        $description = $org_data['description'];
 	        if ( $selected == $org->ID ) {
 	            $select = ' selected="selected"';
 	        }
-	        echo '<option value="' . $org->ID . '"' . $select . '>' . $org->post_title . ' </option>';
+	        echo '<option title="' . $description . '" value="' . $org->ID . '"' . $select . '>' . $org->post_title . ' </option>';
 	    }
 	    echo '</select>';
 	}
