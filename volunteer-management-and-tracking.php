@@ -5,7 +5,7 @@
  Description:       Handle the basics with this plugin.
  Version:           0.0.0
  Requires at least: 5.3
- Requires PHP:      7.2
+ Requires PHP:      5.3
  Author:            Rob Groves
  Author URI:        https://author.example.com/
  License:           GPL v2 or later
