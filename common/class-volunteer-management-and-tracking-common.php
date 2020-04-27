@@ -1533,7 +1533,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    if( $submit_url != '' ) {
 	        $output .= '<a class="row-title" href="' . $submit_url . '">' . $display_name . '</a>';
 	    } else {
-	        $output .= '<strong>'. $volunteer->first_name . ' ' . $volunteer->last_name . '</strong>';
+	        $output .= '<strong>'. $display_name . '</strong>';
 	        $output .= '<div class="row-actions">';
 	        $output .= '<span class="vmat-link vmat-quick-link" id="show_update_volunteer_form" title="Edit volunteer">' . __('Edit', 'vmattd') . '</span>';
 	        $output .= '</div>';
