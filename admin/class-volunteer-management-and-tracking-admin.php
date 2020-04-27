@@ -3008,75 +3008,27 @@ class Volunteer_Management_And_Tracking_Admin {
         switch( $screen ) {
             case 'volunteer-mgmnt_page_vmat_admin_volunteer_participation':
                 $help_url .= '#volunteer_participation_help';
-                $help_url = add_query_arg( 
-                    array(
-                        'help_section' => 'volunteer_participation_help',
-                    ),
-                    $help_url
-                    );
                 break;
             case 'volunteer-mgmnt_page_vmat_admin_manage_volunteers':
                 $help_url .= '#manage_volunteers_help';
-                $help_url = add_query_arg(
-                    array(
-                        'help_section' => 'manage_volunteers_help',
-                    ),
-                    $help_url
-                    );
                 break;
             case 'volunteer-mgmnt_page_vmat_admin_reports':
                 $help_url .= '#reports_help';
-                $help_url = add_query_arg(
-                    array(
-                        'help_section' => 'reports_help',
-                    ),
-                    $help_url
-                    );
                 break;
             case 'volunteer-mgmnt_page_vmat_admin_settings':
                 $help_url .= '#settings_help';
-                $help_url = add_query_arg(
-                    array(
-                        'help_section' => 'settings_help',
-                    ),
-                    $help_url
-                    );
                 break;
             case 'vmat_funding_stream':
                 $help_url .= '#funding_streams_help';
-                $help_url = add_query_arg(
-                    array(
-                        'help_section' => 'funding_streams_help',
-                    ),
-                    $help_url
-                    );
                 break;
             case 'vmat_organization':
                 $help_url .= '#organizations_help';
-                $help_url = add_query_arg(
-                    array(
-                        'help_section' => 'organizations_help',
-                    ),
-                    $help_url
-                    );
                 break;
             case 'vmat_volunteer_type':
                 $help_url .= '#volunteer_types_help';
-                $help_url = add_query_arg(
-                    array(
-                        'help_section' => 'volunteer_types_help',
-                    ),
-                    $help_url
-                    );
                 break;
             case 'volunteer-mgmnt_page_vmat_help':
                 $help_url .= '#general_help';
-                $help_url = add_query_arg(
-                    array(
-                        'help_section' => 'general_help',
-                    ),
-                    $help_url
-                    );
                 break;
             default:
         }
@@ -3224,13 +3176,9 @@ class Volunteer_Management_And_Tracking_Admin {
         <?php 
     }
     
-    function get_general_help_text( $help_section='' ) {
+    function get_general_help_text() {
         $collapse = ' collapsed';
         $show = '';
-        if( $help_section === 'general_help' ) {
-            $collapse = '';
-            $show = ' show';
-        }
         $content = '<div class="card">';
         $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_general_help">';
         $content .= '<strong id="general_help">
@@ -3293,13 +3241,9 @@ class Volunteer_Management_And_Tracking_Admin {
         return $content;
     }
         
-    function get_volunteer_participation_help_text( $help_section='' ) {
+    function get_volunteer_participation_help_text() {
         $collapse = ' collapsed';
         $show = '';
-        if( $help_section === 'volunteer_participation_help' ) {
-            $collapse = '';
-            $show = ' show';
-        }
         $content = '<div class="card">';
         $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_volunteer_participation">';
         $content .= '<strong id="volunteer_participation_help">
@@ -3384,13 +3328,9 @@ class Volunteer_Management_And_Tracking_Admin {
         return $content;
     }
 
-    function get_manage_volunteers_help_text( $help_section='' ) {
+    function get_manage_volunteers_help_text() {
         $collapse = ' collapsed';
         $show = '';
-        if( $help_section === 'manage_volunteers_help' ) {
-            $collapse = '';
-            $show = ' show';
-        }
         $content = '<div class="card">';
         $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_manage_volunteers">';
         $content .= '<strong id="manage_volunteers_help">
@@ -3472,13 +3412,9 @@ class Volunteer_Management_And_Tracking_Admin {
         return $content;
     }
     
-    function get_reports_help_text( $help_section='' ) {
+    function get_reports_help_text() {
         $collapse = ' collapsed';
         $show = '';
-        if( $help_section === 'reports_help' ) {
-            $collapse = '';
-            $show = ' show';
-        }
         $content = '<div class="card">';
         $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_reports">';
         $content .= '<strong id="reports_help">
@@ -3494,13 +3430,9 @@ class Volunteer_Management_And_Tracking_Admin {
         return $content;
     }
     
-    function get_settings_help_text( $help_section='' ) {
+    function get_settings_help_text() {
         $collapse = ' collapsed';
         $show = '';
-        if( $help_section === 'settings_help' ) {
-            $collapse = '';
-            $show = ' show';
-        }
         $content = '<div class="card">';
         $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_settings">';
         $content .= '<strong id="settings_help">
@@ -3542,13 +3474,9 @@ class Volunteer_Management_And_Tracking_Admin {
         return $content;
     }
     
-    function get_funding_streams_help_text( $help_section='' ) {
+    function get_funding_streams_help_text() {
         $collapse = ' collapsed';
         $show = '';
-        if( $help_section === 'funding_streams_help' ) {
-            $collapse = '';
-            $show = ' show';
-        }
         $content = '<div class="card">';
         $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_funding_streams">';
         $content .= '<strong id="funding_streams_help">
@@ -3595,13 +3523,9 @@ class Volunteer_Management_And_Tracking_Admin {
         return $content;
     }
     
-    function get_organizations_help_text( $help_section='' ) {
+    function get_organizations_help_text() {
         $collapse = ' collapsed';
         $show = '';
-        if( $help_section === 'organizations_help' ) {
-            $collapse = '';
-            $show = ' show';
-        }
         $content = '<div class="card">';
         $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_organizations">';
         $content .= '<strong id="organizations_help">
@@ -3637,13 +3561,9 @@ class Volunteer_Management_And_Tracking_Admin {
         return $content;
     }
     
-    function get_volunteer_types_help_text( $help_section='' ) {
+    function get_volunteer_types_help_text() {
         $collapse = ' collapsed';
         $show = '';
-        if( $help_section === 'volunteer_types_help' ) {
-            $collapse = '';
-            $show = ' show';
-        }
         $content = '<div class="card">';
         $content .= '<div class="card-header' . $collapse . '" data-toggle="collapse" data-target="#collapse_volunteer_types">';
         $content .= '<strong id="volunteer_types_help">
@@ -4949,6 +4869,7 @@ class Volunteer_Management_And_Tracking_Admin {
         );
         $this->admin_header($args['message'], $args['message_class'] );
         ?>
+        <h1>Reports Under Construction</h1>
   		<!-- content here -->
         <?php
         $this->admin_footer();
@@ -4996,21 +4917,17 @@ class Volunteer_Management_And_Tracking_Admin {
             'message' => '',
             'message_class' => '',
         );
-        $help_section = 'general_help';
-        if( array_key_exists( 'help_section', $_GET ) ) {
-            $help_section = $_GET['help_section'];
-        }
         $this->admin_header($args['message'], $args['message_class'] );
         $content = '<div class="container">';
         $content .= '<div id="help_accordian">';
-        $content .= $this->get_general_help_text( $help_section );
-        $content .= $this->get_volunteer_participation_help_text( $help_section );
-        $content .= $this->get_manage_volunteers_help_text( $help_section );
-        $content .= $this->get_reports_help_text( $help_section );
-        $content .= $this->get_settings_help_text( $help_section );
-        $content .= $this->get_funding_streams_help_text( $help_section );
-        $content .= $this->get_organizations_help_text( $help_section );
-        $content .= $this->get_volunteer_types_help_text( $help_section );
+        $content .= $this->get_general_help_text();
+        $content .= $this->get_volunteer_participation_help_text();
+        $content .= $this->get_manage_volunteers_help_text();
+        $content .= $this->get_reports_help_text();
+        $content .= $this->get_settings_help_text();
+        $content .= $this->get_funding_streams_help_text();
+        $content .= $this->get_organizations_help_text();
+        $content .= $this->get_volunteer_types_help_text();
         $content .= '</div>';
         $content .= '</div>';
         echo $content;   

@@ -29,6 +29,18 @@
 	 * practising this, we should strive to set a better example in our own work.
 	 */
 	$( function() {
+		function scrollTo( selector ) {
+			  var accordianMain = $('#wpwrap' );
+			  var containerScrollTop = accordianMain.scrollTop();
+			  var containerOffsetTop = accordianMain.offset().top;
+			  var navOffset = 120;
+			  var mainNode = $( selector );
+			  var selectionOffsetTop = mainNode.offset().top;
+			  $('html, body').animate({
+			     scrollTop: containerScrollTop+selectionOffsetTop-containerOffsetTop-navOffset},
+			     200);
+
+			}
 		$('#datepicker_start').datepicker(
 				{
 					dateFormat: 'yy-mm-dd',
@@ -53,6 +65,14 @@
 					changeYear: true
 				}
 		);
+        
+        $('#help_accordian').on('shown.bs.collapse', function (e) {
+        	scrollTo( '#' + $(e.target).attr('id') );
+        });
+        var hash = $(location).attr('hash');
+        if( hash.indexOf( 'help' ) >= 0 ) {
+        	$(hash.replace( '_help','' ).replace( '#','#collapse_' )).collapse('show');
+        }
 	});
 
 })( jQuery );
