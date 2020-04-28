@@ -1,16 +1,16 @@
 <?php
 /*
  Plugin Name:       Volunteer Management And Tracking
- Plugin URI:        https://example.com/plugins/the-basics/
- Description:       Handle the basics with this plugin.
- Version:           0.0.0
+ Plugin URI:        https://ulstercorps.org/admin/admin.php?page=vmat_admin_volunteer_participation
+ Description:       Track volunteers and associate them with Events Manager Events.
+ Version:           0.1.0
  Requires at least: 5.3
  Requires PHP:      5.3
  Author:            Rob Groves
- Author URI:        https://author.example.com/
+ Author URI:        mailto:robgroves0@gmail.com
  License:           GPL v2 or later
  License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- Text Domain:       volunteer-management-and-tracking
+ Text Domain:       vmatd
  Domain Path:       /languages
  License:     GPL2
 
@@ -38,7 +38,12 @@ if ( ! defined( 'WPINC' ) ) {
  * Start at version 1.0.0 and use SemVer - https://semver.org
  * Rename this for your plugin and update it as you release new versions.
  */
-define( 'VOLUNTEER_MANAGEMENT_AND_TRACKING_VERSION', '0.0.0' );
+define( 'VOLUNTEER_MANAGEMENT_AND_TRACKING_VERSION', '0.1.0' );
+
+/*
+ * plugin author email
+ */
+define( 'PLUGIN_AUTHOR_EMAIL', 'robgroves0@gmail.com' );
 
 /*
  * Define dependent plugins required in order to use this plugin
@@ -46,8 +51,8 @@ define( 'VOLUNTEER_MANAGEMENT_AND_TRACKING_VERSION', '0.0.0' );
 global $vmat_plugin;
 
 $dependent_plugins = [
-    'events-manager/events-manager.php',
-    'multiple-roles/multiple-roles.php',
+    'events-manager/events-manager.php' => 'https://wordpress.org/plugins/events-manager/',
+    'multiple-roles/multiple-roles.php' => 'https://wordpress.org/plugins/multiple-roles/',
 ];
 
 /**
@@ -93,10 +98,11 @@ function run_volunteer_management_and_tracking() {
 
 function check_for_prerequisites($dependent_plugins) {
     $errors = '';
-    foreach ( $dependent_plugins as $plugin ) {
+    foreach ( $dependent_plugins as $plugin => $plugin_url ) {
         if ( is_admin() &&  ! is_plugin_active( $plugin ) ) {
             $errors .= '<p>' .
-                __( 'The Volunteer Management and Tracking plugin requires the ' . $plugin . ' plugin.', 'vmattd' ) .
+                __( 'The Volunteer Management and Tracking plugin requires the ' . $plugin . ' plugin (' . 
+                   '<a href="' . $plugin_url . '">WordPress plugin page</a>' . ').', 'vmattd' ) .
                 '</p>';
         } // output an error if missing
     } // for each dependent plugin

@@ -3168,6 +3168,7 @@ class Volunteer_Management_And_Tracking_Admin {
     public function admin_footer() {
         ?>
         	</div>
+        	<?php _e( 'Plugin author: ', 'vmattd' ); ?><a href="<?php echo 'mailto:' . PLUGIN_AUTHOR_EMAIL; ?>"><?php echo PLUGIN_AUTHOR_EMAIL; ?></a>
         </div>
         <?php
     }
