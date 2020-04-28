@@ -946,8 +946,12 @@ class Volunteer_Management_And_Tracking_Common {
 	    if ( array_key_exists( 'vmat_org', $args ) ) {
 	        $vmat_org = $args['vmat_org'];
 	    }
+	    $vmat_vol_type = 0;
+	    if ( array_key_exists( 'vmat_vol_type', $args ) ) {
+	        $vmat_vol_type = $args['vmat_vol_type'];
+	    }
 	    $volunteers = get_users( $volunteer_args );
-	    $volunteers = $vmat_plugin->get_common()->filter_volunteers( $volunteers, $search, $vmat_org );
+	    $volunteers = $vmat_plugin->get_common()->filter_volunteers( $volunteers, $search, $vmat_org, $vmat_vol_type );
 	    
 	    $volunteer_ids = array();
 	    foreach ( $volunteers as $volunteer ) {
@@ -984,12 +988,14 @@ class Volunteer_Management_And_Tracking_Common {
 	    return $hours_query;
 	}
 	
-	public function filter_volunteers( $volunteers, $volunteers_search='', $vmat_org=0 ) {
+	public function filter_volunteers( $volunteers, $volunteers_search='', $vmat_org=0, $vmat_vol_type=0 ) {
 
 	    $volunteers = array_map( function ( $a ) { return array('WP_User'=>$a);}, $volunteers);
 	    foreach( $volunteers as $key=>$user ) {
 	        // get additional data about each user
-	        $orgs = $this->get_volunteers_data( array( $user['WP_User'] ) )[$user['WP_User']->ID]['orgs'];
+	        $vol_data = $this->get_volunteers_data( array( $user['WP_User'] ) )[$user['WP_User']->ID];
+	        $orgs = $vol_data['orgs'];
+	        $vol_types = $vol_data['vol_types'];
 	        $meta_values = get_user_meta( $volunteers[$key]['WP_User']->ID );
 	        $volunteers[$key]['WP_User'] = get_userdata( $volunteers[$key]['WP_User']->ID );
 	        $meta_values = array_filter(
@@ -1002,7 +1008,9 @@ class Volunteer_Management_And_Tracking_Common {
 	        $volunteers[$key]['usermeta'] = $meta_values;
 	        $volunteers[$key]['search'] = $volunteers_search;
 	        $volunteers[$key]['orgs'] = $orgs;
+	        $volunteers[$key]['vol_types'] = $vol_types;
 	        $volunteers[$key]['vmat_org'] = $vmat_org;
+	        $volunteers[$key]['vmat_vol_type'] = $vmat_vol_type;
 	    }
 	    // filter the users based on the search criteria
 	    $volunteers = array_filter( $volunteers,
@@ -1012,8 +1020,12 @@ class Volunteer_Management_And_Tracking_Common {
 	            if( $user['vmat_org'] != 0 ) {
 	               $found_org = in_array( $user['vmat_org'], $user['orgs'] );
 	            }
+	            $found_vol_type = true;
+	            if( $user['vmat_vol_type'] != 0 ) {
+	                $found_vol_type = in_array( $user['vmat_vol_type'], $user['vol_types'] );
+	            }
 	            return
-	            $found_org && 
+	            $found_org && $found_vol_type &&
 	            ( preg_match( $like, $user['WP_User']->display_name ) === 1 ||
 	            preg_match( $like, $user['WP_User']->data->user_email ) === 1 ||
 	            preg_match( $like, $user['WP_User']->data->user_login ) === 1 ||
@@ -1258,17 +1270,22 @@ class Volunteer_Management_And_Tracking_Common {
 	    );
 	    $return = array();
 	    foreach( $volunteer_ids as $volunteer_id ) {
-	       $return[$volunteer_id]['orgs'] = array(); 
-	       $return[$volunteer_id]['approved']=array(
+	        $vol_types =  get_user_meta(  $volunteer_id, '_vmat_volunteer_type', true );
+	        $return[$volunteer_id]['vol_types'] = array();
+	        if( $vol_types ) {
+	            $return[$volunteer_id]['vol_types'] = $vol_types;
+	        }
+	        $return[$volunteer_id]['orgs'] = array(); 
+	        $return[$volunteer_id]['approved']=array(
 	           'num_events' => 0,
 	           'num_hours' => 0,
 	           'num_days' => 0,
-	       );
-	       $return[$volunteer_id]['unapproved']=array(
+	        );
+	        $return[$volunteer_id]['unapproved']=array(
 	           'num_events' => 0,
 	           'num_hours' => 0,
 	           'num_days' => 0,
-	       );
+	        );
 	    }
 	    
 	    $volunteers_hours_query = new WP_Query( $args );

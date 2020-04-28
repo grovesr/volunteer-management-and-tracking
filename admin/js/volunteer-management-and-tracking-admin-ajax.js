@@ -1080,6 +1080,7 @@
 			var self = this;
 	        var search = $('#vmat_manage_volunteers_table input[name="manage_volunteers_search"]').val();
 	        var vmat_org = $('#vmat_manage_volunteers_table select[name="vmat_org"]').val();
+	        var vmat_vol_type = $('#vmat_manage_volunteers_table select[name="vmat_vol_type"]').val();
 	        $(self).addClass('waiting');
 	        $('html').addClass('waiting');
 	        var request = {
@@ -1087,6 +1088,7 @@
 					action: "ajax_filter_manage_volunteers",
 					volunteers_search: search,
 					vmat_org: vmat_org,
+					vmat_vol_type: vmat_vol_type,
 					notice_id: 'manage_volunteers_status',
 					target: 'vmat_manage_volunteers_table',
 				};
