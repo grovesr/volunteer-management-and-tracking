@@ -681,9 +681,14 @@ class Volunteer_Management_And_Tracking_Admin {
 	            }
 	        }
 	        $reg_args['role'] = 'volunteer';
+	        $roles = array();
 	        if( ! empty( $volunteer_data['volunteer_id'] ) ) {
 	            // update rather than create new
 	            $reg_args['ID'] = $volunteer_data['volunteer_id']['val'];
+	            $user = get_user_by( 'id', $reg_args['ID'] );
+	            $roles = $user->roles;
+	            $roles[] = 'volunteer';
+	            unset( $reg_args['role'] );
 	        }
 	        $new_volunteer_id = wp_insert_user( $reg_args );
 	        if( is_wp_error( $new_volunteer_id ) ) {
@@ -695,6 +700,11 @@ class Volunteer_Management_And_Tracking_Admin {
 	        }
 	        if( empty( $errors ) ) {
 	            $volunteer = get_user_by( 'id', $new_volunteer_id);
+	            if( ! empty( $roles ) ) {
+	                foreach( $roles as $role ) {
+	                    $volunteer->add_role( $role );
+	                }
+	            }
 	            if( ! $volunteer ) {
 	                $errors[] = __('<strong>ERROR</strong>: Problem registering new user. Please try again', 'vmattd' );
 	            }
