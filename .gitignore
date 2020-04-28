@@ -29,3 +29,6 @@ nbproject
 intermediate
 .idea
 cache
+
+# individual files
+TODO.txt

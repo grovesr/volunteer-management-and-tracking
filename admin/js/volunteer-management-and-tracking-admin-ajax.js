@@ -377,8 +377,8 @@
 			} else {
 				// handle a wp_send_json_error response
 				handle_server_failure_response(  response ) ;
+				$('.waiting').removeClass('waiting');
 			}
-			$('.waiting').removeClass('waiting');
 			if ( $('.vmat-check-before-save-changed').length == 0 ) {
 				$(window).off('beforeunload');
 			}
