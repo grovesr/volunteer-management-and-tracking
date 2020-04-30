@@ -584,8 +584,8 @@ class Volunteer_Management_And_Tracking_Admin {
                         '_event_id' => $event->ID,
                         '_volunteer_start_date' => $event_data['iso_start_date'],
                         '_hours_per_day' => $event_data['hours_per_day'],
-                        '_volunteer_num_days' => 0,
-                        '_approved' => false,
+                        '_volunteer_num_days' => 1,
+                        '_approved' => true,
                     )
                 ) );
                 if ( is_wp_error( $hours ) || $hours == 0 ) {
@@ -636,6 +636,45 @@ class Volunteer_Management_And_Tracking_Admin {
 	    );
 	    // ajax request succeeded
 	    wp_send_json_success( $results );
+	}
+	
+	function add_volunteer_to_event( $event, $volunteer_id ) {
+	    global $vmat_plugin;
+	    $error_message = '';
+	    $args = array(
+	        'author'=> $volunteer_id,
+	        'post_type' => 'vmat_hours',
+	        'meta_query' => array(
+	            array(
+	                'key' => '_event_id',
+	                'value' => $event->ID,
+	            )
+	        ),
+	    );
+	    $hours = new WP_Query( $args );
+	    if( $hours->found_posts == 0 ) {
+	        $event_data = $vmat_plugin->get_common()->get_event_data( $event->ID );
+	        $hours = wp_insert_post( array(
+	            'post_author' => $volunteer_id,
+	            'post_type' => 'vmat_hours',
+	            'post_status' => 'publish',
+	            'post_title' => $event->post_title,
+	            'meta_input' => array(
+	                '_event_id' => $event->ID,
+	                '_volunteer_start_date' => $event_data['iso_start_date'],
+	                '_hours_per_day' => $event_data['hours_per_day'],
+	                '_volunteer_num_days' => 1,
+	                '_approved' => true,
+	            )
+	        ) );
+	        if ( is_wp_error( $hours ) || $hours == 0 ) {
+	            $error_message = '';
+	            if ( is_wp_error( $hours ) ) {
+	                $error_message = $hours->get_error_message();
+	            }
+	        }
+	    }
+	    return $error_message;
 	}
 	
 	function ajax_update_volunteer() {
@@ -1808,6 +1847,97 @@ class Volunteer_Management_And_Tracking_Admin {
 	    wp_send_json_success( $results );
 	}
 	
+	public function ajax_associate_event_bookings_with_volunteers() {
+	    global $vmat_plugin;
+	    check_ajax_referer( 'vmat_ajax' );
+	    $args = array();
+	    $args['errors'] = array();
+	    if ( ! empty( $_POST['target'] ) ) {
+	        $args['target'] = $_POST['target'];
+	    } else {
+	        $args['errors'][] = __('<strong>ERROR</strong>: No target provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['action'] ) ) {
+	        $args['action'] = $_POST['action'];
+	    } else {
+	        $args['errors'][] = __('<strong>ERROR</strong>: No action provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['notice_id'] ) ) {
+	        $args['notice_id'] = $_POST['notice_id'];
+	    } else {
+	        $args['errors'][] = __('<strong>ERROR</strong>: No notice_id provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if( ! empty( $args['errors'] ) ) {
+	        if ( ! empty( $args['errors'] ) ) {
+	            // ajax request failed
+	            $results = array(
+	                'ajax_notice' => $this->accumulate_messages( $args['errors'] ),
+	                'action' => $args['action'],
+	                'notice_id' => $args['notice_id'],
+	            );
+	            wp_send_json_error( $results );
+	        }
+	    }
+	    $args['vpno'] = 1;
+	    $args['manage_volunteers_search'] = '';
+	    $args['vmat_org'] = 0;
+	    $args['vmat_vol_type'] = 0;
+	    $num_associated = 0;
+	    $num_skipped = 0;
+        $results = $vmat_plugin->get_common()->get_volunteers_events_with_em_bookings();
+        foreach( $results as $row ) {
+            $error = '';
+            $volunteer_id = $row->volunteer_id;
+            $event_id = $row->event_id;
+            $event = get_post( $event_id );
+            if ( !$event ) {
+                $num_skipped = $num_skipped +1;
+                $error = __('<strong>ERROR</strong>: No event ' . $event_id . ' found. Please try again', 'vmattd' );
+                $args['errors'][] = $error;
+            }
+            if( empty( $error ) ) {
+                $volunteer = get_user_by( 'id', $volunteer_id);
+                if ( !$volunteer ) {
+                    $num_skipped = $num_skipped +1;
+                    $error = __('<strong>ERROR</strong>: No volunteer ' . $volunteer_id . ' found. Please try again', 'vmattd' );
+                    $args['errors'][] = $error;
+                }
+                if( empty( $error ) ) {
+                    $error_message = $this->add_volunteer_to_event( $event, $volunteer_id );
+                    if ( ! empty( $error_message ) ) {
+                        $error = __('<strong>ERROR</strong>: Problem saving hours for volunteer . Please try again', 'vmattd' );
+                        $args['errors'][] = $error;
+                        $num_skipped = $num_skipped + 1;
+                    } else {
+                        $num_associated = $num_associated + 1;
+                    }
+                }
+            }
+        }
+	    $html = $this->ajax_get_manage_volunteers_table_html( $args );
+	    if ( ! empty( $args['errors'] ) ) {
+	        // ajax request failed
+	        $results = array(
+	            'target' => $args['target'],
+	            'html' => $html,
+	            'ajax_notice' => $this->accumulate_messages( $args['errors'] ),
+	            'action' => $args['action'],
+	            'notice_id' => $args['notice_id'],
+	        );
+	        wp_send_json_error( $results );
+	    }
+	    $results = array(
+	        'target' => $args['target'],
+	        'html' => $html,
+	        'action' => $args['action'],
+	        'ajax_notice'=> $this->accumulate_messages( array( __( '<strong>SUCCESS</strong>: Associated ' . $num_associated . ' volunteers. Skipped ' . $num_skipped . ' volunteers.', 'vmattd' ) ) ),
+	        'notice_id' => $args['notice_id'],
+	        'target' => $args['target'],
+	    );
+	    // ajax request succeeded
+	    wp_send_json_success( $results );
+	}
+	
 	public function ajax_filter_manage_volunteers() {
 	    check_ajax_referer( 'vmat_ajax' );
 	    $args = $this->ajax_get_volunteers_search_data();
@@ -2127,6 +2257,38 @@ class Volunteer_Management_And_Tracking_Admin {
 	       wp_delete_post( $vmat_hour->ID );
 	   }
 	}
+	
+	public function post_remove_post_action( $post_id ) {
+	    // remove vmat_hours posts authored by this user when deleting user
+	    $post_type = get_post_type( $post_id );
+	    switch( $post_type ) {
+	        case 'event-recurring':
+	        case EM_POST_TYPE_EVENT:
+	            // remove vmat_hours associated with this event
+	            break;
+	        case 'vmat_volunteer_type':
+	            // remove this volunteer_type from the _volunteer_type usermeta array
+	            break;
+	        case 'vmat_funding_stream':
+	            // remove this funding_stream from the _vmat_funding_streams vmat_organization postmeta array
+	            break;
+	        case 'vmat_organization':
+	            // remove this organization from the _vmat_organizations event postmeta array
+	            break;
+	        default:
+	    }
+	    $args = array(
+	    'nopaging' => true,
+	    'post_type' => 'vmat_hours',
+	    'author' => $user_id,
+	    
+	    );
+	    $vmat_hours_query = new WP_Query( $args );
+	    foreach( $vmat_hours_query->posts as $vmat_hour ) {
+	        wp_delete_post( $vmat_hour->ID );
+	    }
+	}
+	
 	
 	public function add_new_booking_volunteer_to_em_event( $user_id ) {
 	    global $vmat_plugin;
@@ -2663,6 +2825,16 @@ class Volunteer_Management_And_Tracking_Admin {
 	        ),
             'vmat_admin_settings'
 	    );
+        // register a new section in the "vmat_admin_settings" page
+        add_settings_section(
+            'vmat_section_events',
+            '<h4>' . __( 'Events Related Settings.', 'vmat' ) . '</h4>',
+            array(
+                $this,
+                'section_events_cb'
+	        ),
+            'vmat_admin_settings'
+        );
         
         // register a new field in the "section_view" section, inside the "admin_vmat_settings" page
         add_settings_field(
@@ -2680,11 +2852,11 @@ class Volunteer_Management_And_Tracking_Admin {
                 'custom_data' => 'custom',
             )
         );
-        // register a new field in the "section_view" section, inside the "admin_vmat_settings" page
+        // register a new field in the "section_email" section, inside the "admin_vmat_settings" page
         add_settings_field(
             'vmat_new_user_notification_email', // as of WP 4.6 this value is used only internally
             // use $args' label_for to populate the id inside the callback
-            __( 'Send To: Email When New Users Are Created in the Frontend', 'vmattd' ),
+            __( 'Send To: Email', 'vmattd' ),
             array( 
                 $this, 
                 'vmat_new_user_notification_email_cb' 
@@ -2697,6 +2869,23 @@ class Volunteer_Management_And_Tracking_Admin {
                 'custom_data' => 'custom',
             )
         );
+        // register a new field in the "section_events" section, inside the "admin_vmat_settings" page
+        add_settings_field(
+            'vmat_enable_event_bookings_assoc', // as of WP 4.6 this value is used only internally
+            // use $args' label_for to populate the id inside the callback
+            __( 'Assoc. Event Bookings', 'vmattd' ),
+            array(
+                $this,
+                'vmat_enable_event_bookings_assoc_cb'
+	        ),
+            'vmat_admin_settings',
+            'vmat_section_events',
+            array(
+                'label_for' => 'vmat_enable_event_bookings_assoc',
+                'class' => 'vmat_row',
+                'custom_data' => 'custom',
+            )
+	    );
     }
     
     // view section cb
@@ -2712,7 +2901,13 @@ class Volunteer_Management_And_Tracking_Admin {
     
     public function section_email_cb( $args ) {
         ?>
-         <p id="<?php echo esc_attr( $args['id'] ); ?>"><?php esc_html_e( 'Settings for Email Notificationss.', 'vmattd' ); ?></p>
+         <p id="<?php echo esc_attr( $args['id'] ); ?>"><?php esc_html_e( 'Settings for Email Notifications.', 'vmattd' ); ?></p>
+         <?php
+    }
+    
+    public function section_events_cb( $args ) {
+        ?>
+         <p id="<?php echo esc_attr( $args['id'] ); ?>"><?php esc_html_e( 'Settings for Events.', 'vmattd' ); ?></p>
          <?php
     }
     
@@ -2758,6 +2953,29 @@ class Volunteer_Management_And_Tracking_Admin {
          >
          <p class="description">
          <?php esc_html_e( 'Set the email address that gets notification emails when new users are created', 'vmattd' ); ?>
+         </p>
+         <?php
+    }
+    
+    function vmat_enable_event_bookings_assoc_cb( $args ) {
+        // get the value of the setting we've registered with register_setting()
+        $options = get_option( 'vmat_options' );
+        $checked = '';
+        if( isset( $options[ $args['label_for'] ] ) && $options[ $args['label_for'] ] == true ) {
+            $checked = 'checked';
+        }
+        // output the field
+        ?>
+         <input type="checkbox" 
+         id="<?php echo esc_attr( $args['label_for'] ); ?>"
+         data-custom="<?php echo esc_attr( $args['custom_data'] ); ?>"
+         name="vmat_options[<?php echo esc_attr( $args['label_for'] ); ?>]"
+         <?php 
+         echo $checked;
+         ?>
+         >
+         <p class="description">
+         <?php esc_html_e( 'Enable the "Assoc. Event Bookings" button on the "Manage Volunteers" page.', 'vmattd' ); ?>
          </p>
          <?php
     }
@@ -3168,7 +3386,9 @@ class Volunteer_Management_And_Tracking_Admin {
     public function admin_footer() {
         ?>
         	</div>
+        	<span class="vmat-footer">
         	<?php _e( 'Plugin author: ', 'vmattd' ); ?><a href="<?php echo 'mailto:' . PLUGIN_AUTHOR_EMAIL; ?>"><?php echo PLUGIN_AUTHOR_EMAIL; ?></a>
+        	</span>
         </div>
         <?php
     }
@@ -3486,6 +3706,24 @@ class Volunteer_Management_And_Tracking_Admin {
         $content .= 'The <strong>"Send To: Email When New Users Are Created in the Frontend"</strong> settings determines where 
                      to send notification emails when new volunteers are created from the site\'s frontend. New volunteers 
                      created from the dashboard don\'t generate emails.';
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</li>';
+        // Events Settings
+        $content .= '<li>';
+        $content .= 'The <strong>"Events Settings"</strong> section allows you to configure settings related to 
+                     <strong>Events Manager</strong> events:';
+        $content .= '<ul>';
+        $content .= '<li>';
+        $content .= 'The <strong>"Assoc. Events Bookings"</strong> setting enables a <strong>"Assoc. Events Bookings"</strong> 
+                     button on the <strong>Manage Volunteers</strong> page. If this button is clicked a database search
+                     will be done to find volunteers that have booked events and have not been added to those events 
+                     in the <strong>Volunteer Management and Tracking</strong> plugin. This should only need to be done 
+                     once, when the plugin is first installed to sync the bookings with the VMAT plugin. It can also be done 
+                     if the VMAT plugin has been deactivated for some time, during which event bookings have been made. This
+                     will ensure that the bookings remain in sync with the VMAT plugin. In the normal course of events, 
+                     bookings will automatically cause a volunteer to be added to events in the VMAT plugin and everything
+                     should remain in sync.';
         $content .= '</li>';
         $content .= '</ul>';
         $content .= '</li>';
@@ -3983,6 +4221,17 @@ class Volunteer_Management_And_Tracking_Admin {
 				        <?php _e( 'Add New Vol', 'vmattd')?>
 				</button>
         	</div>
+        	<?php if( get_option( 'vmat_options')['vmat_enable_event_bookings_assoc'] ) {?>
+        	<div class="col-lg-3">
+				<button id="vmat_associate_bookings" 
+				        class="button action vmat-action-btn" 
+				        type="button" 
+				        value="associate_event_bookings_with_volunteers" 
+				        title="Associate Event Bookings">
+				        <?php _e( 'Assoc. Event Bookings', 'vmattd')?>
+				</button>
+        	</div>
+        	<?php }?>
         	<div class="col">
     			<div class="alignright">
     				<div class="clearable-input">
@@ -4008,22 +4257,13 @@ class Volunteer_Management_And_Tracking_Admin {
     		</div>
         </div>
         <div class="row">
-        	<div class="col-lg-4">
+        	<div class="col-lg-8">
         		<?php
             	echo $org_pulldown;
-            	?>
-            	<button id="manage_volunteers_filter" 
-        		        class="button action" 
-        		        type="button" 
-        		        value="filter_manage_volunteers" >
-        		        <?php _e( 'Filter', 'vmattd')?>
-        		</button>
-        	</div>
-        	<div class="col-lg-4">
-        		<?php
+            	echo '&nbsp;';
             	echo $type_pulldown;
             	?>
-            	<button id="manage_volunteers_type_filter" 
+            	<button id="manage_volunteers_filter" 
         		        class="button action" 
         		        type="button" 
         		        value="filter_manage_volunteers" >
@@ -4053,12 +4293,11 @@ class Volunteer_Management_And_Tracking_Admin {
         					<td class="manage-column"><?php _e( 'Volunteer', 'vmattd' ); ?></td>
         					<td class="manage-column"><?php _e( 'Email', 'vmattd' ); ?></td>
         					<td class="manage-column"><?php _e( 'Orgs', 'vmattd' ); ?></td>
-        					<td class="manage-column"><?php _e( 'Events Vol. (apprvd)', 'vmattd' ); ?></td>
-        					<td class="manage-column"><?php _e( 'Days Vol. (apprvd)', 'vmattd' ); ?></td>
-        					<td class="manage-column"><?php _e( 'Hours Vol. (apprvd)', 'vmattd' ); ?></td>
-        					<td class="manage-column"><?php _e( 'Events Vol. (not apprvd)', 'vmattd' ); ?></td>
-        					<td class="manage-column"><?php _e( 'Days Vol. (not apprvd)', 'vmattd' ); ?></td>
-        					<td class="manage-column"><?php _e( 'Hours Vol. (not apprvd)', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Generation Date', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Last Volunteered Date', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Events Vol.', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Days Vol.', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Hours Vol.', 'vmattd' ); ?></td>
         				</tr>
         			</thead>
         			<tbody>
@@ -4556,22 +4795,13 @@ class Volunteer_Management_And_Tracking_Admin {
             );
         ?>
         <div class="row">
-        	<div class="col-lg-4">
+        	<div class="col-lg-8">
         		<?php
             	echo $org_pulldown;
-            	?>
-            	<button id="events_filter" 
-        		        class="button action" 
-        		        type="button" 
-        		        value="filter_events" >
-        		        <?php _e( 'Filter', 'vmattd')?>
-        		</button>
-        	</div>
-        	<div class="col-lg-4">
-        		<?php
+            	echo '&nbsp;';
             	echo $scope_pulldown;
             	?>
-        		<button id="events_filter" 
+            	<button id="events_filter" 
         		        class="button action" 
         		        type="button" 
         		        value="filter_events" >

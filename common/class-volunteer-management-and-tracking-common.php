@@ -989,11 +989,11 @@ class Volunteer_Management_And_Tracking_Common {
 	}
 	
 	public function filter_volunteers( $volunteers, $volunteers_search='', $vmat_org=0, $vmat_vol_type=0 ) {
-
+	    $volunteers_data = $this->get_volunteers_data( $volunteers );
 	    $volunteers = array_map( function ( $a ) { return array('WP_User'=>$a);}, $volunteers);
 	    foreach( $volunteers as $key=>$user ) {
 	        // get additional data about each user
-	        $vol_data = $this->get_volunteers_data( array( $user['WP_User'] ) )[$user['WP_User']->ID];
+	        $vol_data = $volunteers_data[$user['WP_User']->ID];
 	        $orgs = $vol_data['orgs'];
 	        $vol_types = $vol_data['vol_types'];
 	        $meta_values = get_user_meta( $volunteers[$key]['WP_User']->ID );
@@ -1102,6 +1102,18 @@ class Volunteer_Management_And_Tracking_Common {
 	        return $ev_query;
 	    }
 	    return $this->filter_volunteers( $ev_query->results, $search );
+	}
+	
+	public function get_volunteers_events_with_em_bookings() {
+	   global $wpdb;
+	   $sql = 'select tb_t_b.person_id as volunteer_id, events.post_id as event_id from ';
+	   $sql .= '(select tb_t.event_id, bookings.person_id from ';
+	   $sql .= '(select tickets_bookings.ticket_id, tickets_bookings.booking_id, tickets.event_id  from ';
+	   $sql .= 'wp_em_tickets_bookings as tickets_bookings left join `wp_em_tickets` as tickets on ';
+	   $sql .= 'tickets.ticket_id=tickets_bookings.ticket_id) as tb_t left join wp_em_bookings as bookings on ';
+	   $sql .= 'tb_t.booking_id=bookings.booking_id) as tb_t_b left join wp_em_events as events on events.event_id=tb_t_b.event_id';
+	   $results = $wpdb->get_results( $sql );
+	   return $results;
 	}
 	
 	public function get_all_volunteer_hours( $volunteer ) {
@@ -1272,6 +1284,8 @@ class Volunteer_Management_And_Tracking_Common {
 	    foreach( $volunteer_ids as $volunteer_id ) {
 	        $vol_types =  get_user_meta(  $volunteer_id, '_vmat_volunteer_type', true );
 	        $return[$volunteer_id]['vol_types'] = array();
+	        $return[$volunteer_id]['generation_date'] = '';
+	        $return[$volunteer_id]['last_volunteer_date'] = '';
 	        if( $vol_types ) {
 	            $return[$volunteer_id]['vol_types'] = $vol_types;
 	        }
@@ -1291,6 +1305,23 @@ class Volunteer_Management_And_Tracking_Common {
 	    $volunteers_hours_query = new WP_Query( $args );
 	    foreach( $volunteers_hours_query->posts as $hour) {
 	        $volunteer_id = $hour->post_author;
+	        $start_date =  get_post_meta(  $hour->ID, '_volunteer_start_date', true );
+	        if( $start_date && $return[$volunteer_id]['generation_date'] == '' ) {
+	            $return[$volunteer_id]['generation_date'] = $start_date;
+	        }
+	        if( $start_date && $return[$volunteer_id]['last_volunteer_date'] == '' ) {
+	            $return[$volunteer_id]['last_volunteer_date'] = $start_date;
+	        }
+	        if( $start_date ) {
+	            if( $return[$volunteer_id]['generation_date'] > $start_date ) {
+	                // then this is an earlier volunteer date
+	               $return[$volunteer_id]['generation_date'] = $start_date;
+	            }
+	            if( $return[$volunteer_id]['last_volunteer_date'] < $start_date ) {
+	                // then this is an earlier volunteer date
+	                $return[$volunteer_id]['last_volunteer_date'] = $start_date;
+	            }
+	        }
 	        $organizations = get_post_meta(  get_post_meta( $hour->ID, '_event_id', true ), '_vmat_organizations', true );
 	        $approved = absint( get_post_meta( $hour->ID, '_approved', true ) );
 	        $num_days = absint( get_post_meta( $hour->ID, '_volunteer_num_days', true ) );
@@ -1298,21 +1329,17 @@ class Volunteer_Management_And_Tracking_Common {
 	        if( $approved == 1 ) {
 	            $return[$volunteer_id]['approved']['num_days'] = $return[$volunteer_id]['approved']['num_days'] + $num_days;
 	            $return[$volunteer_id]['approved']['num_hours'] = $return[$volunteer_id]['approved']['num_hours'] + $num_days * $num_hours;
-	            if( ($num_hours * $num_days) > 0 ) {
-	                $return[$volunteer_id]['approved']['num_events'] = $return[$volunteer_id]['approved']['num_events'] + 1;
-	                if($organizations){
-	                    $return[$volunteer_id]['orgs'] = array_unique( array_merge( $return[$volunteer_id]['orgs'], $organizations ) );
-	                }
-	            }
+                $return[$volunteer_id]['approved']['num_events'] = $return[$volunteer_id]['approved']['num_events'] + 1;
+                if($organizations){
+                    $return[$volunteer_id]['orgs'] = array_unique( array_merge( $return[$volunteer_id]['orgs'], $organizations ) );
+                }
 	        } else {
 	            $return[$volunteer_id]['unapproved']['num_days'] = $return[$volunteer_id]['unapproved']['num_days'] + $num_days;
 	            $return[$volunteer_id]['unapproved']['num_hours'] = $return[$volunteer_id]['unapproved']['num_hours'] + $num_days * $num_hours;
-	            if( ($num_hours * $num_days) > 0 ) {
-	                $return[$volunteer_id]['unapproved']['num_events'] = $return[$volunteer_id]['unapproved']['num_events'] + 1;
-	                if($organizations){
-	                    $return[$volunteer_id]['orgs'] = array_unique( array_merge( $return[$volunteer_id]['orgs'], $organizations ) );
-	                }
-	            }
+                $return[$volunteer_id]['unapproved']['num_events'] = $return[$volunteer_id]['unapproved']['num_events'] + 1;
+                if( $organizations ){
+                    $return[$volunteer_id]['orgs'] = array_unique( array_merge( $return[$volunteer_id]['orgs'], $organizations ) );
+                }
 	        }
 	    }
 	    return $return;
@@ -1508,22 +1535,19 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= 'Orgs.';
 	    $output .= '</th>';
 	    $output .= '<th>';
-	    $output .= 'Events Vol. (apprvd)';
+	    $output .= 'Generation Date';
 	    $output .= '</th>';
 	    $output .= '<th>';
-	    $output .= 'Days Vol. (apprvd)';
+	    $output .= 'Last Volunteered Date';
 	    $output .= '</th>';
 	    $output .= '<th>';
-	    $output .= 'Hours. Vol. (apprvd)';
+	    $output .= 'Events Vol.';
 	    $output .= '</th>';
 	    $output .= '<th>';
-	    $output .= 'Events Vol. (not apprvd)';
+	    $output .= 'Days Vol.';
 	    $output .= '</th>';
 	    $output .= '<th>';
-	    $output .= 'Days Vol. (not apprvd)';
-	    $output .= '</th>';
-	    $output .= '<th>';
-	    $output .= 'Hours. Vol. (not apprvd)';
+	    $output .= 'Hours. Vol.';
 	    $output .= '</th>';
 	    $output .= '</tr>';
 	    $output .= '</thead>';
@@ -1542,6 +1566,11 @@ class Volunteer_Management_And_Tracking_Common {
 	    $unapproved_events = $volunteer_data['unapproved']['num_events'];
 	    $unapproved_hours = $volunteer_data['unapproved']['num_hours'];
 	    $unapproved_days = $volunteer_data['unapproved']['num_days'];
+	    $generation_date = $volunteer_data['generation_date'];
+	    $last_volunteer_date = $volunteer_data['last_volunteer_date'];
+	    $num_events = $approved_events + $unapproved_events;
+	    $num_days = $approved_days + $unapproved_days;
+	    $num_hours = $approved_hours + $unapproved_hours;
 	    $display_name = $volunteer->first_name . ' ' . $volunteer->last_name;
 	    if( $display_name == ' ' ) {
 	        $display_name = $volunteer->data->display_name;
@@ -1569,22 +1598,19 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= $this->get_organizations_string_from_array( $orgs );
 	    $output .= '</td>';
 	    $output .= '<td>';
-	    $output .= $approved_events;
+	    $output .= $generation_date;
 	    $output .= '</td>';
 	    $output .= '<td>';
-	    $output .= $approved_days;
+	    $output .= $last_volunteer_date;
 	    $output .= '</td>';
 	    $output .= '<td>';
-	    $output .= $approved_hours;
+	    $output .= $num_events;
 	    $output .= '</td>';
 	    $output .= '<td>';
-	    $output .= $unapproved_events;
+	    $output .= $num_days;
 	    $output .= '</td>';
 	    $output .= '<td>';
-	    $output .= $unapproved_days;
-	    $output .= '</td>';
-	    $output .= '<td>';
-	    $output .= $unapproved_hours;
+	    $output .= $num_hours;
 	    $output .= '</td>';
 	    $output .= '</tr>';
 	    return $output;

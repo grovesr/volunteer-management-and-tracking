@@ -121,6 +121,10 @@
 	        $('button[value^="bulk_remove_volunteers"]')
 	        .off( 'click', remove_volunteers )
 	        .on( 'click', remove_volunteers );
+	        // associate event bookings with volunteers
+	        $('button[value="associate_event_bookings_with_volunteers"]')
+	        .off( 'click', associate_event_bookings_with_volunteers )
+	        .on( 'click', associate_event_bookings_with_volunteers );
 		}
 		function attach_vmat_hours_volunteers_handlers() {
 			attach_vmat_general_handlers();
@@ -435,7 +439,7 @@
 							$(volunteer_data[volunteer_id][item].selector).val(event_data['days']).change();
 							break;
 						case '_approved':
-							$(volunteer_data[volunteer_id][item].selector).attr('checked', false).change();
+							$(volunteer_data[volunteer_id][item].selector).attr('checked', true).change();
 							break;
 						default:
 						}
@@ -1069,6 +1073,25 @@
 				};
 	        clear_admin_notice();
 	        show_ajax_notice( 'volunteers_status', 'working....' );
+	        $.post( my_ajax_obj.ajax_url, request )
+	        .done( handle_volunteers_action_for_event ) // handle any successful wp_send_json_success/error
+	        .fail( handle_failed_ajax_call ); // fall through to handle general ajax failures
+	    }
+		
+		function associate_event_bookings_with_volunteers() {
+			// no need to check for unsaved data because this occurs in a view where there are
+			// no inputs that could be lost
+			var self = this;
+	        $(self).addClass('waiting');
+	        $('html').addClass('waiting');
+	        var request = {
+					_ajax_nonce: my_ajax_obj.nonce,
+					action: "ajax_associate_event_bookings_with_volunteers",
+					notice_id: 'manage_volunteers_status',
+					target: 'vmat_manage_volunteers_table',
+				};
+	        clear_admin_notice();
+	        show_ajax_notice( 'manage_volunteers_status', 'working....' );
 	        $.post( my_ajax_obj.ajax_url, request )
 	        .done( handle_volunteers_action_for_event ) // handle any successful wp_send_json_success/error
 	        .fail( handle_failed_ajax_call ); // fall through to handle general ajax failures

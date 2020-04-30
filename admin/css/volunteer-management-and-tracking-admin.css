@@ -104,3 +104,9 @@
 #vmat_admin_nav li {
 	margin-bottom: 0px;
 }
+
+.vmat-footer {
+	font-style: italic;
+	font-size: 13px;
+	line-height: 1.55;
+}

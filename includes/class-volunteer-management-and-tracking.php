@@ -185,7 +185,7 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_action( 'wp_ajax_ajax_save_volunteer_hours_data', $this->admin, 'ajax_save_volunteer_hours_data' );
         $this->loader->add_action( 'wp_ajax_ajax_remove_hours_from_volunteer', $this->admin, 'ajax_remove_hours_from_volunteer' );
         $this->loader->add_action( 'wp_ajax_ajax_remove_volunteers', $this->admin, 'ajax_remove_volunteers' );
-        
+        $this->loader->add_action( 'wp_ajax_ajax_associate_event_bookings_with_volunteers', $this->admin, 'ajax_associate_event_bookings_with_volunteers' );
         
         // add vmat settings page
         $this->loader->add_action( 'admin_init', $this->admin, 'settings_init' );
@@ -286,6 +286,9 @@ class Volunteer_Management_And_Tracking {
         // action to remove vmat_hours from user when user is deleted
         $this->loader->add_action( 'delete_user', $this->admin, 'post_remove_volunteer_action');
         
+        // action to remove either post or postmeta associated with a post when the post is deleted
+        //$this->loader->add_action( 'after_delete_post', $this->admin, 'post_remove_post_action' );
+        
         // register custom post type Hours
         $this->loader->add_action('init', $this->common , 'register_hours_post_type');
         // register custom post type Funding Streams
@@ -335,10 +338,6 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_action('init', $this->common , 'register_funding_stream_post_type');
         // register custom post type Organizations
         $this->loader->add_action('init', $this->common , 'register_organization_post_type');
-        /*
-        // register Events taxonomy Organization
-        $this->loader->add_action('init', $this->common , 'register_taxonomy_organization_for_em');
-        */
 
     }
 
