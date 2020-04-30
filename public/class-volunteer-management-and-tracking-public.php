@@ -54,7 +54,7 @@ class Volunteer_Management_And_Tracking_Public {
 
 		wp_enqueue_style( $this->plugin_name . '-css-public', plugin_dir_url( __FILE__ ) . 'css/volunteer-management-and-tracking-public.css', array(), $this->version, 'all' );
 		wp_enqueue_style( $this->plugin_name . '-css-common', plugin_dir_url( __FILE__ ) . '../common/css/volunteer-management-and-tracking-common.css', array(), $this->version, 'all' );
-		wp_enqueue_style( $this->plugin_name . '-css-bootstrap', plugin_dir_url( __FILE__ ) . '../common/css/bootstrap.css', array(), $this->version, 'all' );
+		//wp_enqueue_style( $this->plugin_name . '-css-bootstrap', plugin_dir_url( __FILE__ ) . '../common/css/bootstrap.css', array(), $this->version, 'all' );
 	}
 
 	/**
