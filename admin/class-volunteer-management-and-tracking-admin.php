@@ -3612,7 +3612,35 @@ class Volunteer_Management_And_Tracking_Admin {
                      those logged hours have been approved.';
         $content .= '</li>';
         $content .= '<li>';
-        $content .= 'You can filter the list of volunteers using the Search box.';
+        $content .= 'You can filter the list of volunteers several ways:';
+        $content .= '<ul>';
+        $content .= '<li>';
+        $content .= 'By <strong>Organization</strong>: filter volunteers that have volunteered for one or 
+                     more events associated with an <strong>Organization</strong>.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'By <strong>Volunteer Type</strong>';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'By various sorting criteria:';
+        $content .= '<ul>';
+        $content .= '<li>';
+        $content .= '<strong>Sort by name</strong> will sort by user\'s displayed name.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= '<strong>Sort by recently generated</strong> will sort by most recently
+                     generated volunteers first.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= '<strong>Sort by recently volunteered</strong> will sort by volunteers that 
+                     have volunteered most recently.';
+        $content .= '</li>';
+        $content .= '</ul>';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= '<strong>Search</strong> for a volunteer\'s displayed name';
+        $content .= '</li>';
+        $content .= '</ul>';
         $content .= '</li>';
         $content .= '<li>';
         $content .= 'Once you have found the volunteer of interest, you can click on the volunteer\'s
