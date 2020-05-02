@@ -1039,7 +1039,21 @@ class Volunteer_Management_And_Tracking_Common {
         $volunteer_data = array();
         $volunteers = array();
         foreach( $results as $row ) {
-        $volunteers[$row->user_id] = array(
+            $hours_args = array(
+                'no_found_rows' => true,
+                'post_type' => 'vmat_hours',
+                'author' => $row->user_id,
+                'nopaging' => true,
+            );
+            $hours_query = new WP_Query( $hours_args );
+            $orgs = array();
+            foreach( $hours_query->posts as $hour ) {
+                $organizations = get_post_meta(  get_post_meta( $hour->ID, '_event_id', true ), '_vmat_organizations', true );
+                if($organizations){
+                    $orgs = array_unique( array_merge( $orgs, $organizations ) );
+                }
+            }
+            $volunteers[$row->user_id] = array(
                 'display_name' => $row->display_name,
                 'generation_date' => $row->generation_date,
                 'last_volunteer_date' => $row->last_volunteer_date,
@@ -1047,7 +1061,7 @@ class Volunteer_Management_And_Tracking_Common {
                 'user_email' => $row->user_email,
                 'volunteer_num_days' => $row->volunteer_num_days,
                 'volunteer_num_hours' => $row->volunteer_num_hours,
-                'orgs' => array(0),
+                'orgs' => $orgs,
             );
         }
         $volunteer_data['count'] = $count;
