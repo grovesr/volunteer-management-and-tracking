@@ -921,18 +921,155 @@ class Volunteer_Management_And_Tracking_Common {
 	    return new WP_User_Query( $user_query_args );
 	}
 	
-	public function get_volunteers_not_added_to_event( $args=array() ) {
-	    // find the volunteers that are already associated with this event, nopaging=true the results
-	    global $vmat_plugin;
-	    $event = $args['event'];
-	    $ev_args = array(
-	        'event_id' => $event->ID,
-	        'nopaging' => true,
-	        'paged' => 1,
-	        'fields' => 'ids'
+	public function get_manage_volunteers( $args=array() ) {
+	    global $wpdb;
+	    // exclude the volunteers associated with this event from the list
+	    $volunteer_args = array(
+	    'role' => 'volunteer',
 	    );
-	    $ev_query = $vmat_plugin->get_common()->get_event_volunteers( $ev_args );
-	    $event_volunteer_ids = $ev_query->results;
+	    $search = '';
+	    if ( array_key_exists( 'manage_volunteers_search', $args ) ) {
+	        $search = $args['manage_volunteers_search'];
+	    }
+	    $vmat_org = 0;
+	    if ( array_key_exists( 'vmat_org', $args ) ) {
+	        $vmat_org = $args['vmat_org'];
+	    }
+	    $vmat_vol_type = 0;
+	    if ( array_key_exists( 'vmat_vol_type', $args ) ) {
+	        $vmat_vol_type = $args['vmat_vol_type'];
+	    }
+	    $vmat_vol_sort = 'sort_by_name';
+	    if ( array_key_exists( 'vmat_vol_sort', $args ) ) {
+	        $vmat_vol_sort = $args['vmat_vol_sort'];
+	    }
+	    $volunteers = get_users( $volunteer_args );
+	    $volunteers = $this->filter_volunteers( $volunteers, $search, $vmat_org, $vmat_vol_type );
+	    $volunteer_ids = array_map( function( $user ) {
+	        return $user['WP_User']->ID;
+	    },
+	    $volunteers);
+        if ( empty( $volunteer_ids ) ) {
+            $volunteer_ids[] = array( 0 );
+        }
+        switch( $vmat_vol_sort ) {
+            case 'sort_by_recent_generated':
+                $order_by = 'generation_date DESC, ';
+                break;
+            case 'sort_by_recent_volunteered':
+                $order_by = 'last_volunteer_date DESC, ';
+                break;
+            default:
+                $order_by = '';
+        }
+        $offset = (absint( $args['vpno'] ) - 1) * absint( $args['posts_per_page'] );
+        // sort by generation_date of last_volunteer_date
+        $volunteer_ids = implode( ',', $volunteer_ids );
+        $prefix = $wpdb->prefix;
+        $sql =  'SELECT SQL_CALC_FOUND_ROWS cum_data.user_id, ';
+        $sql .= 'MIN(cum_data.display_name) as display_name, ';
+        $sql .= 'MIN(cum_data.user_email) as user_email, ';
+        $sql .= 'COUNT(cum_data.user_id) as volunteer_num_events, ';
+        $sql .= 'MIN(cum_data.volunteer_start_date) as generation_date, ';
+        $sql .= 'MAX(cum_data.volunteer_start_date) as last_volunteer_date, ';
+        $sql .= 'SUM(cum_data.volunteer_num_days) as volunteer_num_days, ';
+        $sql .= 'SUM(cum_data.volunteer_num_hours) as volunteer_num_hours ';
+        $sql .= 'FROM (SELECT vhdays.user_id, ';
+        $sql .=              'vhdays.display_name, ';
+        $sql .=              'vhdays.user_email, ';
+        $sql .=              'vhdays.hours_id, ';
+        $sql .=              'vhdays.volunteer_start_date as volunteer_start_date,  ';
+        $sql .=              'vhdays.volunteer_num_days as volunteer_num_days, ';
+        $sql .=              '(hh.meta_value * vhdays.volunteer_num_days) as volunteer_num_hours ';
+        $sql .= 'FROM (SELECT vol_data.user_id, ';
+        $sql .=              'vol_data.hours_id, ';
+        $sql .=              'vol_data.display_name, ';
+        $sql .=              'vol_data.user_email, ';
+        $sql .=              'vol_data.volunteer_start_date, ';
+        $sql .=              'hd.meta_value as volunteer_num_days ';
+        $sql .= 'FROM (SELECT vh.post_author AS user_id, ';
+        $sql .=              'vh.id as hours_id, ';
+        $sql .=              'vh.display_name as display_name, ';
+        $sql .=              'vh.user_email, ';
+        $sql .=              'pm.meta_value AS volunteer_start_date ';
+        $sql .= 'FROM (SELECT p.id, ';
+        $sql .=              'p.post_author, ';
+        $sql .=              'dn.display_name, ';
+        $sql .=              'dn.user_email ';
+        $sql .= 'FROM (SELECT uumfn.id as user_id, ';
+        $sql .=              'uumfn.user_email, ';
+        $sql .= 'TRIM(IF(';
+        $sql .=      '(STRCMP(uumfn.first_name, "") = 0 OR uumfn.first_name IS NULL)  AND ';
+        $sql .=      '((STRCMP(umln.last_name, "") = 0 OR umln.last_name IS NULL)) , ';
+        $sql .=    'uumfn.display_name, ';
+        $sql .=    'CONCAT(uumfn.first_name, " ", umln.last_name))) as display_name ';
+        $sql .= 'FROM (SELECT u.id, ';
+        $sql .=              'u.display_name, ';
+        $sql .=              'u.user_email, ';
+        $sql .=              'umfn.first_name ';
+        $sql .= 'FROM (SELECT id, ';
+        $sql .=              'user_email, ';
+        $sql .=              'display_name ';
+        $sql .= 'FROM ' . $prefix . 'users WHERE id in (' . $volunteer_ids . '))as u ';
+        $sql .= 'LEFT JOIN ';
+        $sql .= '(SELECT user_id, ';
+        $sql .=         'meta_value as first_name ';
+        $sql .= 'FROM ' . $prefix . 'usermeta WHERE meta_key="first_name") AS umfn ';
+        $sql .= 'ON u.id=umfn.user_id) as uumfn ';
+        $sql .= 'LEFT JOIN ';
+        $sql .= '(SELECT user_id, meta_value as last_name ';
+        $sql .= 'FROM ' . $prefix . 'usermeta WHERE meta_key="last_name") AS umln ';
+        $sql .= 'ON uumfn.id=umln.user_id) AS dn ';
+        $sql .= 'LEFT JOIN ' . $prefix . 'posts AS p ON p.post_author=dn.user_id ';
+        $sql .= 'WHERE p.post_type="vmat_hours") AS vh ';
+        $sql .= 'LEFT JOIN ' . $prefix . 'postmeta AS pm ON vh.id=pm.post_id ';
+        $sql .= 'WHERE meta_key="_volunteer_start_date") as vol_data ';
+        $sql .= 'LEFT JOIN ' . $prefix . 'postmeta as hd on hd.post_id=vol_data.hours_id ';
+        $sql .= 'WHERE hd.meta_key="_volunteer_num_days") as vhdays ';
+        $sql .= 'LEFT JOIN ' . $prefix . 'postmeta as hh on hh.post_id=vhdays.hours_id ';
+        $sql .= 'WHERE hh.meta_key="_hours_per_day") as cum_data ';
+        $sql .= 'GROUP BY cum_data.user_id ORDER BY ' . $order_by . ' display_name ASC ';
+        $sql .= 'LIMIT ' . $offset . ',' . absint( $args['posts_per_page'] );
+        
+        // logging error message to given log file
+        //error_log($wpdb->prepare( $sql, $volunteer_ids ).PHP_EOL);
+        
+        $results = $wpdb->get_results( $sql );
+        $count = $wpdb->get_var( 'SELECT FOUND_ROWS()' );
+        $volunteer_data = array();
+        $volunteers = array();
+        foreach( $results as $row ) {
+        $volunteers[$row->user_id] = array(
+                'display_name' => $row->display_name,
+                'generation_date' => $row->generation_date,
+                'last_volunteer_date' => $row->last_volunteer_date,
+                'volunteer_num_events' => $row->volunteer_num_events,
+                'user_email' => $row->user_email,
+                'volunteer_num_days' => $row->volunteer_num_days,
+                'volunteer_num_hours' => $row->volunteer_num_hours,
+                'orgs' => array(0),
+            );
+        }
+        $volunteer_data['count'] = $count;
+        $volunteer_data['volunteers'] = $volunteers;
+        return $volunteer_data;
+	}
+	
+	public function get_volunteers_not_added_to_event( $args=array() ) {
+	    global $wpdb;
+	    // find the volunteers that are already associated with this event, nopaging=true the results
+	    $event_volunteer_ids = array( 0 );
+	    if( ! empty( $args['event'] ) ) {
+	        $event = $args['event'];
+	        $ev_args = array(
+	            'event_id' => $event->ID,
+	            'nopaging' => true,
+	            'paged' => 1,
+	            'fields' => 'ids'
+	        );
+	        $ev_query = $this->get_event_volunteers( $ev_args );
+	        $event_volunteer_ids = $ev_query->results;
+	    }
 	    // exclude the volunteers associated with this event from the list
 	    $volunteer_args = array(
 	        'role' => 'volunteer',
@@ -951,22 +1088,21 @@ class Volunteer_Management_And_Tracking_Common {
 	        $vmat_vol_type = $args['vmat_vol_type'];
 	    }
 	    $volunteers = get_users( $volunteer_args );
-	    $volunteers = $vmat_plugin->get_common()->filter_volunteers( $volunteers, $search, $vmat_org, $vmat_vol_type );
-	    
-	    $volunteer_ids = array();
-	    foreach ( $volunteers as $volunteer ) {
-	        $volunteer_ids[] = $volunteer['WP_User']->ID;
-	    }
+	    $volunteers = $this->filter_volunteers( $volunteers, $search, $vmat_org, $vmat_vol_type );
+	    $volunteer_ids = array_map( function( $user ) {
+	        return $user['WP_User']->ID;
+	    },
+	    $volunteers);
 	    if ( empty( $volunteer_ids ) ) {
-	        $volunteer_ids[] = 0;
+	        $volunteer_ids[] = array( 0 );
 	    }
-	    $user_query_args = array(
-	        'count_total' => true,
-	        'include' => $volunteer_ids,
-	        'paged' => absint( $args['vpno'] ),
-	        'number' => absint( $args['posts_per_page'] ),
-	        'orderby' => 'display_name',
-	    );
+	        $user_query_args = array(
+	            'count_total' => true,
+	            'include' => $volunteer_ids,
+	            'paged' => absint( $args['vpno'] ),
+	            'number' => absint( $args['posts_per_page'] ),
+	            'orderby' => 'display_name',
+	        );
 	    return new WP_User_Query( $user_query_args );
 	}
 	
@@ -988,7 +1124,10 @@ class Volunteer_Management_And_Tracking_Common {
 	    return $hours_query;
 	}
 	
-	public function filter_volunteers( $volunteers, $volunteers_search='', $vmat_org=0, $vmat_vol_type=0 ) {
+	public function filter_volunteers( $volunteers, 
+	                                   $volunteers_search='', 
+	                                   $vmat_org=0, 
+	                                   $vmat_vol_type=0 ) {
 	    $volunteers_data = $this->get_volunteers_data( $volunteers );
 	    $volunteers = array_map( function ( $a ) { return array('WP_User'=>$a);}, $volunteers);
 	    foreach( $volunteers as $key=>$user ) {
@@ -1012,7 +1151,7 @@ class Volunteer_Management_And_Tracking_Common {
 	        $volunteers[$key]['vmat_org'] = $vmat_org;
 	        $volunteers[$key]['vmat_vol_type'] = $vmat_vol_type;
 	    }
-	    // filter the users based on the search criteria
+	    // filter the users based on the search and filter criteria
 	    $volunteers = array_filter( $volunteers,
 	        function ( $user ) {
 	            $like = '/.*' . $user['search'] . '.*/i';
@@ -1106,12 +1245,12 @@ class Volunteer_Management_And_Tracking_Common {
 	
 	public function get_volunteers_events_with_em_bookings() {
 	   global $wpdb;
-	   $sql = 'select tb_t_b.person_id as volunteer_id, events.post_id as event_id from ';
-	   $sql .= '(select tb_t.event_id, bookings.person_id from ';
-	   $sql .= '(select tickets_bookings.ticket_id, tickets_bookings.booking_id, tickets.event_id  from ';
-	   $sql .= 'wp_em_tickets_bookings as tickets_bookings left join `wp_em_tickets` as tickets on ';
-	   $sql .= 'tickets.ticket_id=tickets_bookings.ticket_id) as tb_t left join wp_em_bookings as bookings on ';
-	   $sql .= 'tb_t.booking_id=bookings.booking_id) as tb_t_b left join wp_em_events as events on events.event_id=tb_t_b.event_id';
+	   $sql = 'SELECT tb_t_b.person_id AS volunteer_id, events.post_id AS event_id FROM ';
+	   $sql .= '(SELECT tb_t.event_id, bookings.person_id FROM ';
+	   $sql .= '(SELECT tickets_bookings.ticket_id, tickets_bookings.booking_id, tickets.event_id  FROM ';
+	   $sql .= EM_TICKETS_BOOKINGS_TABLE . ' AS tickets_bookings LEFT JOIN ' . EM_TICKETS_TABLE . ' AS tickets ON ';
+	   $sql .= 'tickets.ticket_id=tickets_bookings.ticket_id) AS tb_t LEFT JOIN ' . EM_BOOKINGS_TABLE . ' AS bookings ON ';
+	   $sql .= 'tb_t.booking_id=bookings.booking_id) AS tb_t_b LEFT JOIN ' . EM_EVENTS_TABLE . ' AS events on events.event_id=tb_t_b.event_id';
 	   $results = $wpdb->get_results( $sql );
 	   return $results;
 	}
@@ -1145,6 +1284,8 @@ class Volunteer_Management_And_Tracking_Common {
 	                $orgs[] = $org->post_title;
 	            }
 	            $orgs = implode( ',', $orgs);
+	        } else {
+	            $orgs = 'None';
 	        }
 	    } else {
 	        $orgs = 'None';
@@ -1156,6 +1297,9 @@ class Volunteer_Management_And_Tracking_Common {
 	    $org_funding_streams = array();
 	    if ( $organization_id ) {
 	        $org_funding_streams = get_post_meta( $organization_id, '_vmat_funding_streams', true);
+	        if( empty( $org_funding_streams ) ) {
+	           $org_funding_streams = array();
+	        }
 	    }
 	    return $org_funding_streams;
 	}
@@ -1171,11 +1315,11 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '<select name="' . $name . '" id="_vmat_' . $name . '" class="postform">';
 	    foreach ( $options as $opt_value=>$opt_name ) {
 	        $title = '';
-	        if( $options = 'vmat_org' ) {
+	        if( 'vmat_org' == $name ) {
 	            $org_data = $vmat_plugin->get_common()->get_organization_data( $opt_value );
 	            $title =  $org_data['description'];
 	        }
-	        $option_selected = 'selected="selected"';
+	        $option_selected = 'selected';
 	        if ( $opt_value != $selected ) {
 	            $option_selected = '';
 	        }
@@ -1252,8 +1396,10 @@ class Volunteer_Management_And_Tracking_Common {
 	        'description' => '',
 	    );
 	    if ( $organization_id ) {
-	        $organization_meta = get_post_meta( $organization_id, false);
-	        $result['description'] = $organization_meta['_description'][0];
+	        $organization_meta = get_post_meta( $organization_id );
+	        if( ! empty( $organization_meta['_description'] ) ) {
+	            $result['description'] = $organization_meta['_description'][0];
+	        }
 	        $funding_streams = $this->get_organization_funding_streams( $organization_id );
 	        $funding_streams = array_map( function( $funding_id ) {
 	            $fs = get_post_field( 'post_title', $funding_id );
@@ -1732,16 +1878,61 @@ class Volunteer_Management_And_Tracking_Common {
 	    return $output;
 	}
 	
-	public function manage_volunteers_row( $volunteer, $volunteer_data, $this_page_url='#', $alternate='' ) {
+	public function manage_volunteers_row( $volunteer_id, $volunteer_data, $this_page_url='#', $alternate='' ) {
 	    /*
 	     * return a table row for a manage volunteers table
 	     * $volunteer = volunteer user object
 	     * $this_page_url = url to the page that will allow take event_id as an arg
 	     */
-	    $submit_url = add_query_arg( 'volunteer_id', $volunteer->ID, $this_page_url );
+	    $submit_url = add_query_arg( 'volunteer_id', $volunteer_id, $this_page_url );
 	    $volunteer_edit_href = admin_url( 'user-edit.php');
-	    $volunteer_edit_href = add_query_arg( 'user_id', $volunteer->ID, $volunteer_edit_href );
-	    return $this->volunteer_row( $volunteer, $volunteer_data, $submit_url, $alternate );
+	    $volunteer_edit_href = add_query_arg( 'user_id', $volunteer_id, $volunteer_edit_href );
+	    $orgs = $volunteer_data['orgs'];
+	    $num_events = $volunteer_data['volunteer_num_events'];
+	    $num_hours = $volunteer_data['volunteer_num_hours'];
+	    $num_days = $volunteer_data['volunteer_num_days'];
+	    $display_name = $volunteer_data['display_name'];
+	    $generation_date = $volunteer_data['generation_date'];
+	    $last_volunteer_date = $volunteer_data['last_volunteer_date'];
+	    $output = '<tr class="' . $alternate . '" id="volunteer_' . $volunteer_id . '">';
+	    if( $submit_url != '' ) {
+	        $output .= '<th class="check-column">';
+	        $output .= '<input type="checkbox" id="vmat_manage_volunteer_cb_' . $volunteer_id . '" name="manage_volunteers_checked[]">';
+	        $output .= '</th>';
+	    }
+	    $output .= '<td>';
+	    if( $submit_url != '' ) {
+	        $output .= '<a class="row-title" href="' . $submit_url . '">' . $display_name . '</a>';
+	    } else {
+	        $output .= '<strong>'. $display_name . '</strong>';
+	        $output .= '<div class="row-actions">';
+	        $output .= '<span class="vmat-link vmat-quick-link" id="show_update_volunteer_form" title="Edit volunteer profile">' . __('Profile', 'vmattd') . '</span>';
+	        $output .= '</div>';
+	    }
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $volunteer_data['user_email'];
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $this->get_organizations_string_from_array( $orgs );
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $generation_date;
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $last_volunteer_date;
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $num_events;
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $num_days;
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $num_hours;
+	    $output .= '</td>';
+	    $output .= '</tr>';
+	    return $output;
 	}
 	
 	public function volunteer_hour_row( $hour, $alternate='' ) {

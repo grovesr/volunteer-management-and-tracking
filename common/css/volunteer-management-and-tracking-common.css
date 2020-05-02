@@ -78,7 +78,7 @@ div.vmat-notice p  {
 	float: right;
     top: 1.3em;
   	left: 0;
-  	padding-top: 14px;
+  	padding-top: 9px;
   	cursor: pointer; 
   	background: 0 0;
   	color: #999;
@@ -98,11 +98,11 @@ div.vmat-notice p  {
 }
 .clearable-input > [data-clear-input] {
   position: absolute;
-  top: 0.3em;
+  top: 0.4em;
   right: 0;
   font-weight: bold;
   font-size: 1.4em;
-  padding: 0 0.2em;
+  padding: 0 0.3em;
   line-height: 1em;
   cursor: pointer; 
   background: 0 0;

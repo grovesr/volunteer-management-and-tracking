@@ -1104,6 +1104,7 @@
 	        var search = $('#vmat_manage_volunteers_table input[name="manage_volunteers_search"]').val();
 	        var vmat_org = $('#vmat_manage_volunteers_table select[name="vmat_org"]').val();
 	        var vmat_vol_type = $('#vmat_manage_volunteers_table select[name="vmat_vol_type"]').val();
+	        var vmat_vol_sort = $('#vmat_manage_volunteers_table select[name="vmat_vol_sort"]').val();
 	        $(self).addClass('waiting');
 	        $('html').addClass('waiting');
 	        var request = {
@@ -1112,6 +1113,7 @@
 					volunteers_search: search,
 					vmat_org: vmat_org,
 					vmat_vol_type: vmat_vol_type,
+					vmat_vol_sort: vmat_vol_sort,
 					notice_id: 'manage_volunteers_status',
 					target: 'vmat_manage_volunteers_table',
 				};
@@ -1683,9 +1685,12 @@
 		attach_vmat_events_handlers();
         attach_vmat_hours_volunteers_handlers();
         attach_vmat_manage_volunteers_handlers();
-        // search text fields not getting reset to empty on page reloads for some reason
-        
+        // fields not getting reset to dafault on page reloads due to caching on firefox    
         $('div.clearable-input input[type="text"]').val('');
+        $('#_vmat_scope').val('all');
+        $('#_vmat_vmat_org').val('0');
+        $('#_vmat_vmat_vol_type').val('0');
+        $('#_vmat_vmat_vol_sort').val('sort_by_name');
 	});
 
 })( jQuery );

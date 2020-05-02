@@ -393,9 +393,9 @@ class Volunteer_Management_And_Tracking_Admin {
 	        foreach ( $messages as $message ) {
 	            $message_display .= $message . '<br />';
     	    } // accumulate errors
+    	    // remove last line break
+    	    $message_display = substr_replace( $message_display, '', -6);
 	    }
-	    // remove last line break
-	    $message = substr_replace( $message, '', -6);
 	    return $message_display;
 	}
 	
@@ -1038,6 +1038,11 @@ class Volunteer_Management_And_Tracking_Admin {
 	                } else {
 	                    $errors[] = __( '<strong>ERROR</strong>: Missing vmat_vol_type page indicator.', 'vmattd' );
 	                }
+	                if ( array_key_exists( 'vmat_vol_sort', $data ) ) {
+	                    $result['vmat_vol_sort'] = $data['vmat_vol_sort'];
+	                } else {
+	                    $errors[] = __( '<strong>ERROR</strong>: Missing vmat_vol_sort page indicator.', 'vmattd' );
+	                }
 	                if ( array_key_exists( 'volunteers_search', $data ) ) {
 	                    $result['volunteers_search'] = $data['volunteers_search'];
 	                } else {
@@ -1172,6 +1177,11 @@ class Volunteer_Management_And_Tracking_Admin {
                     } else {
                         $errors[] = __( '<strong>ERROR</strong>: Missing vmat_vol_type filter.', 'vmattd' );
                     }
+                    if ( array_key_exists( 'vmat_vol_sort', $_POST ) ) {
+                        $result['vmat_vol_sort'] = $_POST['vmat_vol_sort'];
+                    } else {
+                        $errors[] = __( '<strong>ERROR</strong>: Missing vmat_vol_sort filter.', 'vmattd' );
+                    }
 	                break;
 	            case 'vmat_volunteers_table':
 	                if ( empty( $_POST['event_id'] ) ) {
@@ -1278,9 +1288,6 @@ class Volunteer_Management_And_Tracking_Admin {
 	}
 	
 	function ajax_get_manage_volunteers_table_html( $args=array() ) {
-	    global $vmat_plugin;
-	    
-	    $args['volunteers'] = $vmat_plugin->get_common()->get_volunteers_not_added_to_event( $args );
 	    // generate replacement html for the volunteers and event_volunteers tables
 	    ob_start();
 	    $this->html_part_manage_volunteers_table( $args );
@@ -1623,7 +1630,6 @@ class Volunteer_Management_And_Tracking_Admin {
 	}
 	
 	function ajax_remove_volunteers() {
-	    global $vmat_plugin;
 	    $check = $this->ajax_check_remove_volunteers_input();
 	    $errors = $check['errors'];
 	    $volunteer_ids = $check['volunteer_ids'];
@@ -1649,7 +1655,6 @@ class Volunteer_Management_And_Tracking_Admin {
 	        wp_send_json_error( $results );
 	    }
 	    $args = array();
-	    $args['volunteers']= $args['volunteers'] = $vmat_plugin->get_common()->get_volunteers_not_added_to_event();
 	    $args['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
 	    $args['vpno'] = 1;
 	    $args['manage_volunteers_search'] = '';
@@ -1882,6 +1887,8 @@ class Volunteer_Management_And_Tracking_Admin {
 	    $args['manage_volunteers_search'] = '';
 	    $args['vmat_org'] = 0;
 	    $args['vmat_vol_type'] = 0;
+	    $args['vmat_vol_sort'] = 'sort_by_name';
+	    $args['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
 	    $num_associated = 0;
 	    $num_skipped = 0;
         $results = $vmat_plugin->get_common()->get_volunteers_events_with_em_bookings();
@@ -3077,6 +3084,9 @@ class Volunteer_Management_And_Tracking_Admin {
         if ( 'filter_volunteers' == $submit_button || 'search_volunteers' == $submit_button ) {
             $args['vpno'] = 1;
         }
+        $args['vmat_org'] = 0;
+        $args['vmat_vol_type'] = 0;
+        $args['vmat_vol_sort'] = 'sort_by_name';
         $args['volunteers'] = $vmat_plugin->get_common()->get_volunteers_not_added_to_event( $args );
         $message = $this->accumulate_messages( $infos );
         $message = $this->accumulate_messages( $warnings );
@@ -4149,13 +4159,13 @@ class Volunteer_Management_And_Tracking_Admin {
          *
          */
         global $vmat_plugin;
-        $user_query = $args['volunteers'];
-        $volunteers = $user_query->results;
-        $volunteers_data = $vmat_plugin->get_common()->get_volunteers_data( $volunteers );
-        $found_users = $user_query->total_users;
+        $manage_volunteers = $vmat_plugin->get_common()->get_manage_volunteers( $args );
+        $found_users = $manage_volunteers['count'];
+        $volunteers = $manage_volunteers['volunteers'];
         $page = $args['vpno'];
         $vmat_org = $args['vmat_org'];
         $vmat_vol_type = $args['vmat_vol_type'];
+        $vmat_vol_sort = $args['vmat_vol_sort'];
         $max_num_pages = ceil( $found_users / $args['posts_per_page'] );
         $search = $args['volunteers_search'];
         
@@ -4184,10 +4194,21 @@ class Volunteer_Management_And_Tracking_Admin {
             $volunteer_types,
             $vmat_vol_type
             );
+        $volunteer_sorts = array(
+            'sort_by_name' => 'Sort by name',
+            'sort_by_recent_generated' => 'Sort by recently generated',
+            'sort_by_recent_volunteered' => 'Sort by recently volunteered',
+        );
+        $sort_pulldown = $vmat_plugin->get_common()->select_options_pulldown(
+            'vmat_vol_sort',
+            $volunteer_sorts,
+            $vmat_vol_sort
+            );
         $ajax_args = array(
             'volunteers_search' => $search,
             'vmat_org' => $vmat_org,
             'vmat_vol_type' => $vmat_vol_type,
+            'vmat_vol_sort' => $vmat_vol_sort,
             'admin_page' => 'vmat_admin_volunteers',
             'posts_per_page' => $args['posts_per_page'],
             'target' => 'vmat_manage_volunteers_table',
@@ -4262,6 +4283,8 @@ class Volunteer_Management_And_Tracking_Admin {
             	echo $org_pulldown;
             	echo '&nbsp;';
             	echo $type_pulldown;
+            	echo '&nbsp;';
+            	echo $sort_pulldown;
             	?>
             	<button id="manage_volunteers_filter" 
         		        class="button action" 
@@ -4304,8 +4327,8 @@ class Volunteer_Management_And_Tracking_Admin {
         			<?php 
         			if ( $volunteers ) {
         			    $alternate = 'alternate';
-        			    foreach ( $volunteers as $volunteer ) {
-        			        echo $vmat_plugin->get_common()->manage_volunteers_row( $volunteer, $volunteers_data[$volunteer->ID], $this_page_url, $alternate );
+        			    foreach ( $volunteers as $volunteer_id=>$volunteer_data ) {
+        			        echo $vmat_plugin->get_common()->manage_volunteers_row( $volunteer_id, $volunteer_data, $this_page_url, $alternate );
         			        if ( empty( $alternate ) ) {
         			            $alternate = 'alternate';
         			        } else {
