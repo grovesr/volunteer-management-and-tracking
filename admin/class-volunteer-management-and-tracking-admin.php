@@ -4292,7 +4292,7 @@ class Volunteer_Management_And_Tracking_Admin {
         $vmat_vol_type = $args['vmat_vol_type'];
         $vmat_vol_sort = $args['vmat_vol_sort'];
         $max_num_pages = ceil( $found_users / $args['posts_per_page'] );
-        $search = $args['volunteers_search'];
+        $search = $args['manage_volunteers_search'];
         
         $page_name = 'vpno';
         $this_page_url = admin_url() . 'admin.php';
