@@ -1163,7 +1163,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	        switch ( $result['target'] ) {
 	            case 'vmat_manage_volunteers_table':
                     if ( array_key_exists( 'volunteers_search', $_POST ) ) {
-                        $result['volunteers_search'] = $_POST['volunteers_search'];
+                        $result['manage_volunteers_search'] = $_POST['volunteers_search'];
                     } else {
                         $errors[] = __( '<strong>ERROR</strong>: Missing volunteers_search filter.', 'vmattd' );
                     }
@@ -2265,37 +2265,109 @@ class Volunteer_Management_And_Tracking_Admin {
 	   }
 	}
 	
-	public function post_remove_post_action( $post_id ) {
-	    // remove vmat_hours posts authored by this user when deleting user
+	public function post_remove_event_action( $post_id ) {
+	    // remove vmat_hours that are related to this event
 	    $post_type = get_post_type( $post_id );
-	    switch( $post_type ) {
-	        case 'event-recurring':
-	        case EM_POST_TYPE_EVENT:
-	            // remove vmat_hours associated with this event
-	            break;
-	        case 'vmat_volunteer_type':
-	            // remove this volunteer_type from the _volunteer_type usermeta array
-	            break;
-	        case 'vmat_funding_stream':
-	            // remove this funding_stream from the _vmat_funding_streams vmat_organization postmeta array
-	            break;
-	        case 'vmat_organization':
-	            // remove this organization from the _vmat_organizations event postmeta array
-	            break;
-	        default:
-	    }
-	    $args = array(
-	    'nopaging' => true,
-	    'post_type' => 'vmat_hours',
-	    'author' => $user_id,
-	    
-	    );
-	    $vmat_hours_query = new WP_Query( $args );
-	    foreach( $vmat_hours_query->posts as $vmat_hour ) {
-	        wp_delete_post( $vmat_hour->ID );
+	    if( EM_POST_TYPE_EVENT == $post_type || 'event-recurring' == $post_type ) {
+	        $args = array(
+	            'no_found_rows' => true,
+	            'nopaging' => true,
+	            'fields' => 'ids',
+	            'post_type' => 'vmat_hours',
+	            'meta_query' => array(
+	                array(
+	                    'key' => '_event_id',
+	                    'value' => $post_id,
+	                )
+	            ),
+	            
+	        );
+	        $vmat_hours_query = new WP_Query( $args );
+	        foreach( $vmat_hours_query->posts as $hour_id ) {
+	            wp_delete_post( $hour_id );
+	        }
 	    }
 	}
 	
+	public function post_remove_vmat_organization_action( $post_id ) {
+	    // remove this organization id from the event post meta _vmat_organizations array
+	    $post_type = get_post_type( $post_id );
+	    if( 'vmat_organization' == $post_type ) {
+	        $args = array(
+	            'post_type' => array( EM_POST_TYPE_EVENT, 'event-recurring' ),
+	            'no_found_rows' => true,
+	            'nopaging' => true,
+	            'fields' => 'ids',
+	            'meta_query' => array(
+	                array(
+	                    'key' => '_vmat_organizations',
+	                    'value' => $post_id,
+	                    'compare' => 'LIKE',
+	                )
+	            )
+	        );
+	        $events_query = new WP_Query( $args );
+	        foreach( $events_query->posts as $event_id ) {
+	           $organizations = get_post_meta( $event_id, '_vmat_organizations', true );
+	           if( ( $key = array_search( $post_id, $organizations ) ) !== false ) {
+	               unset( $organizations[$key] );
+	           }
+	           update_post_meta( $event_id, '_vmat_organizations', $organizations );
+	        }
+	    }
+	}
+	
+	public function post_remove_vmat_funding_stream_action( $post_id ) {
+	    // remove this funding stream id from the organization post meta _vmat_funding_streams array
+	    $post_type = get_post_type( $post_id );
+	    if( 'vmat_funding_stream' == $post_type ) {
+	        $args = array(
+	            'post_type' => 'vmat_organization',
+	            'no_found_rows' => true,
+	            'nopaging' => true,
+	            'fields' => 'ids',
+	            'meta_query' => array(
+	                array(
+	                    'key' => '_vmat_funding_streams',
+	                    'value' => $post_id,
+	                    'compare' => 'LIKE',
+	                )
+	            )
+	        );
+	        $organizations_query = new WP_Query( $args );
+	        foreach( $organizations_query->posts as $org_id ) {
+	            $funding_streams = get_post_meta( $org_id, '_vmat_funding_streams', true );
+	            if( ( $key = array_search( $post_id, $funding_streams ) ) !== false ) {
+	                unset( $funding_streams[$key] );
+	            }
+	            update_post_meta( $org_id, '_vmat_funding_streams', $funding_streams );
+	        }
+	    }
+	}
+	
+	public function post_remove_vmat_volunteer_type_action( $post_id ) {
+	    // remove this volunteer type id from the user meta _vmat_volunteer_types array
+	    $post_type = get_post_type( $post_id );
+	    if( 'vmat_volunteer_type' == $post_type ) {
+	        $args = array(
+	            'meta_query' => array(
+	                array(
+	                    'key' => '_vmat_volunteer_types',
+	                    'value' => $post_id,
+	                    'compare' => 'LIKE',
+	                )
+	            )
+	        );
+	        $users_query = new WP_User_Query( $args );
+	        foreach( $users_query->get_results() as $user ) {
+	            $volunteer_types = get_user_meta( $user->ID, '_vmat_volunteer_types', true );
+	            if( ( $key = array_search( $post_id, $volunteer_types ) ) !== false ) {
+	                unset( $volunteer_types[$key] );
+	            }
+	            update_user_meta( $user->ID, '_vmat_volunteer_types', $volunteer_types );
+	        }
+	    }
+	}
 	
 	public function add_new_booking_volunteer_to_em_event( $user_id ) {
 	    global $vmat_plugin;

@@ -287,7 +287,10 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_action( 'delete_user', $this->admin, 'post_remove_volunteer_action');
         
         // action to remove either post or postmeta associated with a post when the post is deleted
-        //$this->loader->add_action( 'after_delete_post', $this->admin, 'post_remove_post_action' );
+        $this->loader->add_action( 'delete_post', $this->admin, 'post_remove_event_action' );
+        $this->loader->add_action( 'delete_post', $this->admin, 'post_remove_vmat_funding_stream_action' );
+        $this->loader->add_action( 'delete_post', $this->admin, 'post_remove_vmat_volunteer_type_action' );
+        $this->loader->add_action( 'delete_post', $this->admin, 'post_remove_vmat_organization_action' );
         
         // register custom post type Hours
         $this->loader->add_action('init', $this->common , 'register_hours_post_type');

@@ -58,7 +58,7 @@ class Volunteer_Management_And_Tracking_Common {
 	 *
 	 */
 	private $volunteer_user_fields = [
-	    '_vmat_volunteer_type' => [
+	    '_vmat_volunteer_types' => [
 	        'type' => 'array',
 	        'label' => 'Volunteer Type',
 	        'required' => false,
@@ -317,10 +317,10 @@ class Volunteer_Management_And_Tracking_Common {
 	                            'value' => $values[$field],
 	                        ]);
 	                }
-	            } else if ( $field == '_vmat_volunteer_type' ) {
+	            } else if ( $field == '_vmat_volunteer_types' ) {
 	                // this is not a category
 	                ob_start();
-	                $this->link_posts_to_user_pulldown( substr( $field, 1 ) , $section_type, $user );
+	                $this->link_posts_to_user_pulldown( substr( $field, 1, strlen( $field ) -2), $section_type, $user );
 	                $page .= ob_get_clean();
 	            }
 	        }
@@ -449,10 +449,10 @@ class Volunteer_Management_And_Tracking_Common {
 	                            'value' => $values[$field],
 	                        ]);
 	                }
-	            } else if ( $field == '_vmat_volunteer_type' ) {
+	            } else if ( $field == '_vmat_volunteer_types' ) {
 	                // this is not a category
 	                ob_start();
-	                $this->link_posts_to_user_pulldown( substr( $field, 1 ), $section_type, $user );
+	                $this->link_posts_to_user_pulldown( substr( $field, 1, strlen( $field ) -2), $section_type, $user );
 	                $page .= ob_get_clean();
 	            }
 	        }
@@ -675,7 +675,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    $selected_posts_to_link = array();
 	    $unselected_posts_to_link = array();
 	    foreach ( $vmat_plugin->get_common()->get_post_type($type)->posts as $post_to_link ) {
-	        if ( $user && in_array( absint($post_to_link->ID), get_post_meta( $user->ID, '_' . $type , true ) ) ) {
+	        if ( $user && in_array( absint($post_to_link->ID), get_post_meta( $user->ID, $type , true ) ) ) {
 	            $selected_posts_to_link[] = array(
 	                'id' => $post_to_link->ID,
 	                'name' => __($post_to_link->post_title, 'vmattd')
@@ -709,9 +709,9 @@ class Volunteer_Management_And_Tracking_Common {
 	    foreach( $posts_to_link as $post_to_link ){
 	        ?>
             <label>
-            <input type="checkbox" name="<?php echo '_' . $type; ?>[]" 
+            <input type="checkbox" name="<?php echo '_' . $type . 's'; ?>[]" 
             value="<?php echo $post_to_link['id']; ?>" 
-            <?php if ( $user && in_array( absint($post_to_link['id']), get_user_meta( $user->ID, '_' . $type , true ) ) ) { echo 'checked="checked"';} ?> /> 
+            <?php if ( $user && in_array( absint($post_to_link['id']), get_user_meta( $user->ID, '_' . $type . 's', true ) ) ) { echo 'checked="checked"';} ?> /> 
             <?php echo $post_to_link['name'] ?>
             </label><br />          
             <?php
@@ -1070,7 +1070,6 @@ class Volunteer_Management_And_Tracking_Common {
 	}
 	
 	public function get_volunteers_not_added_to_event( $args=array() ) {
-	    global $wpdb;
 	    // find the volunteers that are already associated with this event, nopaging=true the results
 	    $event_volunteer_ids = array( 0 );
 	    if( ! empty( $args['event'] ) ) {
@@ -1442,7 +1441,7 @@ class Volunteer_Management_And_Tracking_Common {
 	    );
 	    $return = array();
 	    foreach( $volunteer_ids as $volunteer_id ) {
-	        $vol_types =  get_user_meta(  $volunteer_id, '_vmat_volunteer_type', true );
+	        $vol_types =  get_user_meta(  $volunteer_id, '_vmat_volunteer_types', true );
 	        $return[$volunteer_id]['vol_types'] = array();
 	        $return[$volunteer_id]['generation_date'] = '';
 	        $return[$volunteer_id]['last_volunteer_date'] = '';
