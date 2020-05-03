@@ -923,7 +923,8 @@ class Volunteer_Management_And_Tracking_Common {
 	
 	public function get_manage_volunteers( $args=array() ) {
 	    global $wpdb;
-	    // exclude the volunteers associated with this event from the list
+	    // special custom query to allow for sorting on 
+	    // display_name, generation_date, or last_volunteer_date
 	    $volunteer_args = array(
 	    'role' => 'volunteer',
 	    );
@@ -935,6 +936,10 @@ class Volunteer_Management_And_Tracking_Common {
 	    if ( array_key_exists( 'vmat_org', $args ) ) {
 	        $vmat_org = $args['vmat_org'];
 	    }
+	    $vmat_funding_stream = 0;
+	    if ( array_key_exists( 'vmat_funding_stream', $args ) ) {
+	        $vmat_funding_stream = $args['vmat_funding_stream'];
+	    }
 	    $vmat_vol_type = 0;
 	    if ( array_key_exists( 'vmat_vol_type', $args ) ) {
 	        $vmat_vol_type = $args['vmat_vol_type'];
@@ -944,7 +949,7 @@ class Volunteer_Management_And_Tracking_Common {
 	        $vmat_vol_sort = $args['vmat_vol_sort'];
 	    }
 	    $volunteers = get_users( $volunteer_args );
-	    $volunteers = $this->filter_volunteers( $volunteers, $search, $vmat_org, $vmat_vol_type );
+	    $volunteers = $this->filter_volunteers( $volunteers, $search, $vmat_org, $vmat_funding_stream, $vmat_vol_type );
 	    $volunteer_ids = array_map( function( $user ) {
 	        return $user['WP_User']->ID;
 	    },
@@ -963,7 +968,7 @@ class Volunteer_Management_And_Tracking_Common {
                 $order_by = '';
         }
         $offset = (absint( $args['vpno'] ) - 1) * absint( $args['posts_per_page'] );
-        // sort by generation_date of last_volunteer_date
+        // sort by display_name, generation_date or last_volunteer_date
         $volunteer_ids = implode( ',', $volunteer_ids );
         $prefix = $wpdb->prefix;
         $sql =  'SELECT SQL_CALC_FOUND_ROWS cum_data.user_id, ';
@@ -1030,10 +1035,7 @@ class Volunteer_Management_And_Tracking_Common {
         $sql .= 'WHERE hh.meta_key="_hours_per_day") as cum_data ';
         $sql .= 'GROUP BY cum_data.user_id ORDER BY ' . $order_by . ' display_name ASC ';
         $sql .= 'LIMIT ' . $offset . ',' . absint( $args['posts_per_page'] );
-        
-        // logging error message to given log file
-        //error_log($wpdb->prepare( $sql, $volunteer_ids ).PHP_EOL);
-        
+
         $results = $wpdb->get_results( $sql );
         $count = $wpdb->get_var( 'SELECT FOUND_ROWS()' );
         $volunteer_data = array();
@@ -1047,10 +1049,22 @@ class Volunteer_Management_And_Tracking_Common {
             );
             $hours_query = new WP_Query( $hours_args );
             $orgs = array();
+            $fund_streams = array();
+            $vol_types = array();
+            $volunteer_types = get_user_meta( $row->user_id, '_vmat_volunteer_types', true );
+            if( $volunteer_types ) {
+                $vol_types = $volunteer_types;
+            }
             foreach( $hours_query->posts as $hour ) {
                 $organizations = get_post_meta(  get_post_meta( $hour->ID, '_event_id', true ), '_vmat_organizations', true );
                 if($organizations){
                     $orgs = array_unique( array_merge( $orgs, $organizations ) );
+                    foreach( $organizations as $org ) {
+                        $funding_streams = get_post_meta( $org, '_vmat_funding_streams', true );
+                        if( $funding_streams ) {
+                            $fund_streams = array_unique( array_merge( $fund_streams, $funding_streams ) );
+                        }
+                    }
                 }
             }
             $volunteers[$row->user_id] = array(
@@ -1062,6 +1076,8 @@ class Volunteer_Management_And_Tracking_Common {
                 'volunteer_num_days' => $row->volunteer_num_days,
                 'volunteer_num_hours' => $row->volunteer_num_hours,
                 'orgs' => $orgs,
+                'funding_streams' => $fund_streams,
+                'vol_types' => $vol_types,
             );
         }
         $volunteer_data['count'] = $count;
@@ -1095,6 +1111,10 @@ class Volunteer_Management_And_Tracking_Common {
 	    $vmat_org = 0;
 	    if ( array_key_exists( 'vmat_org', $args ) ) {
 	        $vmat_org = $args['vmat_org'];
+	    }
+	    $vmat_funding_stream = 0;
+	    if ( array_key_exists( 'vmat_funding_stream', $args ) ) {
+	        $vmat_funding_stream = $args['vmat_funding_stream'];
 	    }
 	    $vmat_vol_type = 0;
 	    if ( array_key_exists( 'vmat_vol_type', $args ) ) {
@@ -1140,6 +1160,7 @@ class Volunteer_Management_And_Tracking_Common {
 	public function filter_volunteers( $volunteers, 
 	                                   $volunteers_search='', 
 	                                   $vmat_org=0, 
+	                                   $vmat_funding_stream=0,
 	                                   $vmat_vol_type=0 ) {
 	    $volunteers_data = $this->get_volunteers_data( $volunteers );
 	    $volunteers = array_map( function ( $a ) { return array('WP_User'=>$a);}, $volunteers);
@@ -1147,6 +1168,7 @@ class Volunteer_Management_And_Tracking_Common {
 	        // get additional data about each user
 	        $vol_data = $volunteers_data[$user['WP_User']->ID];
 	        $orgs = $vol_data['orgs'];
+	        $funding_streams = $vol_data['funding_streams'];
 	        $vol_types = $vol_data['vol_types'];
 	        $meta_values = get_user_meta( $volunteers[$key]['WP_User']->ID );
 	        $volunteers[$key]['WP_User'] = get_userdata( $volunteers[$key]['WP_User']->ID );
@@ -1160,8 +1182,10 @@ class Volunteer_Management_And_Tracking_Common {
 	        $volunteers[$key]['usermeta'] = $meta_values;
 	        $volunteers[$key]['search'] = $volunteers_search;
 	        $volunteers[$key]['orgs'] = $orgs;
+	        $volunteers[$key]['funding_streams'] = $funding_streams;
 	        $volunteers[$key]['vol_types'] = $vol_types;
 	        $volunteers[$key]['vmat_org'] = $vmat_org;
+	        $volunteers[$key]['vmat_funding_stream'] = $vmat_funding_stream;
 	        $volunteers[$key]['vmat_vol_type'] = $vmat_vol_type;
 	    }
 	    // filter the users based on the search and filter criteria
@@ -1176,8 +1200,12 @@ class Volunteer_Management_And_Tracking_Common {
 	            if( $user['vmat_vol_type'] != 0 ) {
 	                $found_vol_type = in_array( $user['vmat_vol_type'], $user['vol_types'] );
 	            }
+	            $found_funding_stream = true;
+	            if( $user['vmat_funding_stream'] != 0 ) {
+	                $found_funding_stream = in_array( $user['vmat_funding_stream'], $user['funding_streams'] );
+	            }
 	            return
-	            $found_org && $found_vol_type &&
+	            $found_org && $found_vol_type && $found_funding_stream &&
 	            ( preg_match( $like, $user['WP_User']->display_name ) === 1 ||
 	            preg_match( $like, $user['WP_User']->data->user_email ) === 1 ||
 	            preg_match( $like, $user['WP_User']->data->user_login ) === 1 ||
@@ -1306,6 +1334,52 @@ class Volunteer_Management_And_Tracking_Common {
 	    return $orgs;
 	}
 	
+	public function get_funding_streams_string_from_array( $funding_streams ) {
+	    if ( is_array( $funding_streams ) && count($funding_streams) > 0 ) {
+	        // found the funding_streams, only select the first one for the pulldown
+	        $funding_streams = get_posts(array(
+	        'post_type' => 'vmat_funding_stream',
+	        'include' => $funding_streams,
+	        'nopaging' =>  true
+	        ));
+	        if ( is_array( $funding_streams ) && count($funding_streams) > 0 ) {
+	            $fund_streams = array();
+	            foreach ( $funding_streams as $fs ) {
+	                $fund_streams[] = $fs->post_title;
+	            }
+	            $fund_streams = implode( ',', $fund_streams);
+	        } else {
+	            $fund_streams = 'None';
+	        }
+	    } else {
+	        $fund_streams = 'None';
+	    }
+	    return $fund_streams;
+	}
+	
+	public function get_volunteer_types_string_from_array( $volunteer_types ) {
+	    if ( is_array( $volunteer_types ) && count($volunteer_types) > 0 ) {
+	        $volunteer_types = get_posts(array(
+	            'post_type' => 'vmat_volunteer_type',
+	            'include' => $volunteer_types,
+	            'nopaging' =>  true
+	        ));
+	        if ( is_array( $volunteer_types ) && count($volunteer_types) > 0 ) {
+	        // found the volunteer_types, only select the first one for the pulldown
+                $vol_types = array();
+                foreach ( $volunteer_types as $vt ) {
+                    $vol_types[] = $vt->post_title;
+                }
+                $vol_types = implode( ',', $vol_types);
+        	    } else {
+        	        $vol_types = 'None';
+        	    }
+	    } else {
+	        $vol_types = 'None';
+	    }
+	    return $vol_types;
+	}
+	
 	public function get_organization_funding_streams ( $organization_id=0 ) {
 	    $org_funding_streams = array();
 	    if ( $organization_id ) {
@@ -1353,8 +1427,15 @@ class Volunteer_Management_And_Tracking_Common {
 	        $days = $end_date->diff($start_date)->days + 1;
 	        $hours_per_day = $end_time->diff($start_time)->h;
 	        $organizations = get_post_meta( $event_id, '_vmat_organizations', true );
-	        if( empty( $organizations ) ) {
-	           $organizations = array();
+	        $fund_streams = array();
+	        $funding_streams = array();
+	        if( $organizations ) {
+	            foreach( $organizations as $org ) {
+	                $funding_streams = get_post_meta( $org, '_vmat_funding_streams', true );
+	                if( $funding_streams ) {
+	                    $fund_streams = array_unique( array_merge( $fund_streams, $funding_streams ) );
+	                }
+	            }
 	        }
 	    }
 	    return array( 
@@ -1372,6 +1453,7 @@ class Volunteer_Management_And_Tracking_Common {
 	        'end_time' => date_format( $end_time, 'g:i a' ),
 	        'hours_per_day' => $hours_per_day,
 	        'organizations' => $organizations,
+	        'funding_streams' => $funding_streams,
 	    );
 	}
 	
@@ -1449,6 +1531,7 @@ class Volunteer_Management_And_Tracking_Common {
 	            $return[$volunteer_id]['vol_types'] = $vol_types;
 	        }
 	        $return[$volunteer_id]['orgs'] = array(); 
+	        $return[$volunteer_id]['funding_streams'] = array();
 	        $return[$volunteer_id]['approved']=array(
 	           'num_events' => 0,
 	           'num_hours' => 0,
@@ -1482,6 +1565,14 @@ class Volunteer_Management_And_Tracking_Common {
 	            }
 	        }
 	        $organizations = get_post_meta(  get_post_meta( $hour->ID, '_event_id', true ), '_vmat_organizations', true );
+	        if( $organizations ) {
+	            foreach( $organizations as $org ) {
+	                $funding_streams = get_post_meta( $org, '_vmat_funding_streams', true );
+	                if( $funding_streams ) {
+	                    $return[$volunteer_id]['funding_streams'] = array_unique( array_merge( $return[$volunteer_id]['funding_streams'], $funding_streams ) );
+	                }
+	            }
+	        }
 	        $approved = absint( get_post_meta( $hour->ID, '_approved', true ) );
 	        $num_days = absint( get_post_meta( $hour->ID, '_volunteer_num_days', true ) );
 	        $num_hours = absint( get_post_meta( $hour->ID, '_hours_per_day', true ) );
@@ -1624,7 +1715,8 @@ class Volunteer_Management_And_Tracking_Common {
 	    $event_edit_href = add_query_arg( 'action', 'edit', $event_edit_href );
 	    $location = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . EM_LOCATIONS_TABLE . ' WHERE location_id=%s', $location_id ), ARRAY_A);
 	    // get event sponsoring organizations
-	    $orgs = $this->get_event_organizations_string( $event->ID );
+	    $orgs = $this->get_organizations_string_from_array( $event_data['organizations'] );
+	    $funding_streams = $this->get_funding_streams_string_from_array( $event_data['funding_streams'] );
 	    $output = '<div id="vmat_event_display_admin">';
 	    $output .= '<table class="widefat">';
 	    $output .= '<thead>';
@@ -1633,7 +1725,10 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= 'Event';
 	    $output .= '</th>';
 	    $output .= '<th>';
-	    $output .= 'Sponsoring Organization';
+	    $output .= 'Sponsoring Organizations';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Funding Streams';
 	    $output .= '</th>';
 	    $output .= '<th>';
 	    $output .= 'Volunteers';
@@ -1656,6 +1751,9 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '</td>';
 	    $output .= '<td>';
 	    $output .= '<strong>' . $orgs . '</strong>';
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= '<strong>' . $funding_streams . '</strong>';
 	    $output .= '</td>';
 	    $output .= '<td>';
 	    $output .= $this->get_number_event_volunteers( $event );
@@ -1693,6 +1791,13 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '<th>';
 	    $output .= 'Orgs.';
 	    $output .= '</th>';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Funding Streams';
+	    $output .= '</th>';
+	    $output .= '<th>';
+	    $output .= 'Vol. Types';
+	    $output .= '</th>';
 	    $output .= '<th>';
 	    $output .= 'Generation Date';
 	    $output .= '</th>';
@@ -1719,6 +1824,8 @@ class Volunteer_Management_And_Tracking_Common {
 	public function volunteer_row( $volunteer, $volunteer_data, $submit_url='', $alternate='' ) {
 	    
 	    $orgs = $volunteer_data['orgs'];
+	    $volunteer_types = $volunteer_data['vol_types'];
+	    $funding_streams = $volunteer_data['funding_streams'];
 	    $approved_events = $volunteer_data['approved']['num_events'];
 	    $approved_hours = $volunteer_data['approved']['num_hours'];
 	    $approved_days = $volunteer_data['approved']['num_days'];
@@ -1755,6 +1862,12 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '</td>';
 	    $output .= '<td>';
 	    $output .= $this->get_organizations_string_from_array( $orgs );
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $this->get_funding_streams_string_from_array( $funding_streams );
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $this->get_volunteer_types_string_from_array( $volunteer_types );
 	    $output .= '</td>';
 	    $output .= '<td>';
 	    $output .= $generation_date;
@@ -1809,7 +1922,8 @@ class Volunteer_Management_And_Tracking_Common {
 	    $event_edit_href = add_query_arg( 'action', 'edit', $event_edit_href );
 	    $location = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . EM_LOCATIONS_TABLE . ' WHERE location_id=%s', $location_id ), ARRAY_A);
 	    // get event sponsoring organizations
-	    $orgs = $this->get_event_organizations_string( $event->ID );
+	    $orgs = $this->get_organizations_string_from_array( $event_data['organizations'] );
+	    $funding_streams = $this->get_funding_streams_string_from_array( $event_data['funding_streams'] );
 	    $output = '<tr class="event ' . $alternate . '" id="event_' . $event->ID . '">';
 	    $output .= '<td>';
 	    $output .= '<strong>';
@@ -1820,9 +1934,12 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '<a id="vmat_event_' . $event->ID . '" href="' . $event_edit_href . '"><span class="vmat-quick-link">' . __('Edit', 'vmattd') . '</span></a>';
 	    $output .= '</div>';
 	    $output .= '</td>';
-	    $output .= '<td><b>';
+	    $output .= '<td>';
 	    $output .= $orgs;
-	    $output .= '</b></td>';
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $funding_streams;
+	    $output .= '</td>';
 	    $output .= '<td>';
 	    $output .= $this->get_number_event_volunteers( $event );
 	    $output .= '</td>';
@@ -1901,6 +2018,8 @@ class Volunteer_Management_And_Tracking_Common {
 	    $volunteer_edit_href = admin_url( 'user-edit.php');
 	    $volunteer_edit_href = add_query_arg( 'user_id', $volunteer_id, $volunteer_edit_href );
 	    $orgs = $volunteer_data['orgs'];
+	    $funding_streams = $volunteer_data['funding_streams'];
+	    $volunteer_types = $volunteer_data['vol_types'];
 	    $num_events = $volunteer_data['volunteer_num_events'];
 	    $num_hours = $volunteer_data['volunteer_num_hours'];
 	    $num_days = $volunteer_data['volunteer_num_days'];
@@ -1928,6 +2047,12 @@ class Volunteer_Management_And_Tracking_Common {
 	    $output .= '</td>';
 	    $output .= '<td>';
 	    $output .= $this->get_organizations_string_from_array( $orgs );
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $this->get_funding_streams_string_from_array( $funding_streams );
+	    $output .= '</td>';
+	    $output .= '<td>';
+	    $output .= $this->get_volunteer_types_string_from_array( $volunteer_types );
 	    $output .= '</td>';
 	    $output .= '<td>';
 	    $output .= $generation_date;

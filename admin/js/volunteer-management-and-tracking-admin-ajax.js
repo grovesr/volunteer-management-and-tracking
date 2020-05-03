@@ -1103,6 +1103,7 @@
 			var self = this;
 	        var search = $('#vmat_manage_volunteers_table input[name="manage_volunteers_search"]').val();
 	        var vmat_org = $('#vmat_manage_volunteers_table select[name="vmat_org"]').val();
+	        var vmat_funding_stream = $('#vmat_manage_volunteers_table select[name="vmat_funding_stream"]').val();
 	        var vmat_vol_type = $('#vmat_manage_volunteers_table select[name="vmat_vol_type"]').val();
 	        var vmat_vol_sort = $('#vmat_manage_volunteers_table select[name="vmat_vol_sort"]').val();
 	        $(self).addClass('waiting');
@@ -1112,6 +1113,7 @@
 					action: "ajax_filter_manage_volunteers",
 					volunteers_search: search,
 					vmat_org: vmat_org,
+					vmat_funding_stream: vmat_funding_stream,
 					vmat_vol_type: vmat_vol_type,
 					vmat_vol_sort: vmat_vol_sort,
 					notice_id: 'manage_volunteers_status',
@@ -1687,8 +1689,9 @@
         attach_vmat_manage_volunteers_handlers();
         // fields not getting reset to dafault on page reloads due to caching on firefox    
         $('div.clearable-input input[type="text"]').val('');
-        $('#_vmat_scope').val('all');
+        $('#_vmat_scope').val('future');
         $('#_vmat_vmat_org').val('0');
+        $('#_vmat_vmat_funding_stream').val('0');
         $('#_vmat_vmat_vol_type').val('0');
         $('#_vmat_vmat_vol_sort').val('sort_by_name');
 	});

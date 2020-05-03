@@ -1033,6 +1033,11 @@ class Volunteer_Management_And_Tracking_Admin {
 	                } else {
 	                    $errors[] = __( '<strong>ERROR</strong>: Missing vmat_org page indicator.', 'vmattd' );
 	                }
+	                if ( array_key_exists( 'vmat_funding_stream', $data ) ) {
+	                    $result['vmat_funding_stream'] = $data['vmat_funding_stream'];
+	                } else {
+	                    $errors[] = __( '<strong>ERROR</strong>: Missing vmat_funding_stream page indicator.', 'vmattd' );
+	                }
 	                if ( array_key_exists( 'vmat_vol_type', $data ) ) {
 	                    $result['vmat_vol_type'] = $data['vmat_vol_type'];
 	                } else {
@@ -1171,6 +1176,11 @@ class Volunteer_Management_And_Tracking_Admin {
                         $result['vmat_org'] = $_POST['vmat_org'];
                     } else {
                         $errors[] = __( '<strong>ERROR</strong>: Missing vmat_org filter.', 'vmattd' );
+                    }
+                    if ( array_key_exists( 'vmat_funding_stream', $_POST ) ) {
+                        $result['vmat_funding_stream'] = $_POST['vmat_funding_stream'];
+                    } else {
+                        $errors[] = __( '<strong>ERROR</strong>: Missing vmat_funding_stream filter.', 'vmattd' );
                     }
                     if ( array_key_exists( 'vmat_vol_type', $_POST ) ) {
                         $result['vmat_vol_type'] = $_POST['vmat_vol_type'];
@@ -1886,6 +1896,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    $args['vpno'] = 1;
 	    $args['manage_volunteers_search'] = '';
 	    $args['vmat_org'] = 0;
+	    $args['vmat_funding_stream'] = 0;
 	    $args['vmat_vol_type'] = 0;
 	    $args['vmat_vol_sort'] = 'sort_by_name';
 	    $args['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
@@ -3157,6 +3168,7 @@ class Volunteer_Management_And_Tracking_Admin {
             $args['vpno'] = 1;
         }
         $args['vmat_org'] = 0;
+        $args['vmat_funding_stream'] = 0;
         $args['vmat_vol_type'] = 0;
         $args['vmat_vol_sort'] = 'sort_by_name';
         $args['volunteers'] = $vmat_plugin->get_common()->get_volunteers_not_added_to_event( $args );
@@ -4264,6 +4276,7 @@ class Volunteer_Management_And_Tracking_Admin {
         $volunteers = $manage_volunteers['volunteers'];
         $page = $args['vpno'];
         $vmat_org = $args['vmat_org'];
+        $vmat_funding_stream = $args['vmat_funding_stream'];
         $vmat_vol_type = $args['vmat_vol_type'];
         $vmat_vol_sort = $args['vmat_vol_sort'];
         $max_num_pages = ceil( $found_users / $args['posts_per_page'] );
@@ -4282,6 +4295,17 @@ class Volunteer_Management_And_Tracking_Admin {
             'vmat_org',
             $organizations,
             $vmat_org
+            );
+        $funding_streams = array(
+            0 => __('View all funding streams', 'vmattd'),
+        );
+        foreach ( $vmat_plugin->get_common()->get_post_type('vmat_funding_stream')->posts as $fs ) {
+            $funding_streams[$fs->ID] = __($fs->post_title, 'vmattd');
+        }
+        $funding_stream_pulldown = $vmat_plugin->get_common()->select_options_pulldown(
+            'vmat_funding_stream',
+            $funding_streams,
+            $vmat_funding_stream
             );
         $volunteer_types = array(
             0 => __('View all volunteer types', 'vmattd'),
@@ -4307,6 +4331,7 @@ class Volunteer_Management_And_Tracking_Admin {
         $ajax_args = array(
             'volunteers_search' => $search,
             'vmat_org' => $vmat_org,
+            'vmat_funding_stream' => $vmat_funding_stream,
             'vmat_vol_type' => $vmat_vol_type,
             'vmat_vol_sort' => $vmat_vol_sort,
             'admin_page' => 'vmat_admin_volunteers',
@@ -4379,19 +4404,30 @@ class Volunteer_Management_And_Tracking_Admin {
         </div>
         <div class="row">
         	<div class="col-lg-8">
-        		<?php
-            	echo $org_pulldown;
-            	echo '&nbsp;';
-            	echo $type_pulldown;
-            	echo '&nbsp;';
-            	echo $sort_pulldown;
-            	?>
-            	<button id="manage_volunteers_filter" 
-        		        class="button action" 
-        		        type="button" 
-        		        value="filter_manage_volunteers" >
-        		        <?php _e( 'Filter', 'vmattd')?>
-        		</button>
+            	<div class="row">
+                	<div class="col">
+                		<?php
+                    	echo $org_pulldown;
+                    	echo '&nbsp;';
+                    	echo $funding_stream_pulldown;
+                    	?>
+                	</div>
+                </div>
+                <div class="row">
+                	<div class="col">
+                		<?php
+                		echo $type_pulldown;
+                    	echo '&nbsp;';
+                    	echo $sort_pulldown;
+                    	?>
+                    	<button id="manage_volunteers_filter" 
+                		        class="button action" 
+                		        type="button" 
+                		        value="filter_manage_volunteers" >
+                		        <?php _e( 'Filter', 'vmattd')?>
+                		</button>
+                	</div>	
+                </div>
         	</div>
         	<div class="col">
         		<div class="tablenav alignright">
@@ -4416,6 +4452,8 @@ class Volunteer_Management_And_Tracking_Admin {
         					<td class="manage-column"><?php _e( 'Volunteer', 'vmattd' ); ?></td>
         					<td class="manage-column"><?php _e( 'Email', 'vmattd' ); ?></td>
         					<td class="manage-column"><?php _e( 'Orgs', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Funding Streams', 'vmattd' ); ?></td>
+        					<td class="manage-column"><?php _e( 'Vol. Types', 'vmattd' ); ?></td>
         					<td class="manage-column"><?php _e( 'Generation Date', 'vmattd' ); ?></td>
         					<td class="manage-column"><?php _e( 'Last Volunteered Date', 'vmattd' ); ?></td>
         					<td class="manage-column"><?php _e( 'Events Vol.', 'vmattd' ); ?></td>
@@ -4977,6 +5015,7 @@ class Volunteer_Management_And_Tracking_Admin {
         				<tr>
         					<th><?php _e( 'Name', 'vmattd' ); ?></th>
         					<th><?php _e( 'Orgs', 'vmattd' ); ?></th>
+        					<th><?php _e( 'Funding Streams', 'vmattd' ); ?></th>
         					<th><?php _e( 'Volunteers', 'vmattd' ); ?></th>
         					<th><?php _e( 'Location', 'vmattd' ); ?></th>
         					<th><?php _e('Date and time', 'vmattd' ); ?></th>
