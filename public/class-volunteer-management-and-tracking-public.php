@@ -38,7 +38,7 @@ class Volunteer_Management_And_Tracking_Public {
 	 * Register the stylesheets for the public-facing side of the site.
 	 *
 	 */
-	public function enqueue_styles() {
+	public function enqueue_styles( $hook ) {
 
 		/**
 		 * This function is provided for demonstration purposes only.
@@ -62,7 +62,7 @@ class Volunteer_Management_And_Tracking_Public {
 	 * Register the JavaScript for the public-facing side of the site.
 	 *
 	 */
-	public function enqueue_scripts() {
+	public function enqueue_scripts( $hook ) {
 
 		/**
 		 * This function is provided for demonstration purposes only.

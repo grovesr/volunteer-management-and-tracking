@@ -1399,7 +1399,7 @@ class Volunteer_Management_And_Tracking_Common {
 	     */
 	    global $vmat_plugin;
 	    $output = '';
-	    $output .= '<select name="' . $name . '" id="_vmat_' . $name . '" class="postform">';
+	    $output .= '<select name="' . $name . '" id="_vmat_' . $name . '" class="postform vmat-select">';
 	    foreach ( $options as $opt_value=>$opt_name ) {
 	        $title = '';
 	        if( 'vmat_org' == $name ) {

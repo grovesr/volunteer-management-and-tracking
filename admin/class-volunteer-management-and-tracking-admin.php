@@ -324,7 +324,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	 * Register the stylesheets for the admin area.
 	 *
 	 */
-	public function enqueue_styles() {
+	public function enqueue_styles( $hook ) {
 
 		/**
 		 * This function is provided for demonstration purposes only.
@@ -337,11 +337,14 @@ class Volunteer_Management_And_Tracking_Admin {
 		 * between the defined hooks and the functions defined in this
 		 * class.
 		 */
-	    
-		wp_enqueue_style( $this->plugin_name . '-css-admin', plugin_dir_url( __FILE__ ) . 'css/volunteer-management-and-tracking-admin.css', array(), $this->version, 'all' );
-		wp_enqueue_style( $this->plugin_name . '-css-common', plugin_dir_url( __FILE__ ) . '../common/css/volunteer-management-and-tracking-common.css', array(), $this->version, 'all' );
-		wp_enqueue_style( $this->plugin_name . '-css-bootstrap', plugin_dir_url( __FILE__ ) . '../common/css/bootstrap.css', array(), $this->version, 'all' );
-		wp_enqueue_style( $this->plugin_name . 'jquery-ui', 'https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css', array(), $this->version, 'all'  );
+	    $screen = str_replace( 'edit-', '', get_current_screen()->id );
+	    if( strpos( $screen, 'volunteer-mgmnt' ) !== false ||
+	        strpos( $screen, 'vmat_' ) !== false ) {
+	            wp_enqueue_style( $this->plugin_name . '-css-admin', plugin_dir_url( __FILE__ ) . 'css/volunteer-management-and-tracking-admin.css', array(), $this->version, 'all' );
+	            wp_enqueue_style( $this->plugin_name . '-css-common', plugin_dir_url( __FILE__ ) . '../common/css/volunteer-management-and-tracking-common.css', array(), $this->version, 'all' );
+	            wp_enqueue_style( $this->plugin_name . '-css-bootstrap', plugin_dir_url( __FILE__ ) . '../common/css/bootstrap.css', array(), $this->version, 'all' );
+	            wp_enqueue_style( $this->plugin_name . 'jquery-ui', 'https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css', array(), $this->version, 'all'  );
+	        }
 	}
 
 	/**
@@ -361,30 +364,32 @@ class Volunteer_Management_And_Tracking_Admin {
 		 * between the defined hooks and the functions defined in this
 		 * class.
 		 */
-
-		wp_enqueue_script( $this->plugin_name . '-js-admin', plugin_dir_url( __FILE__ ) . 'js/volunteer-management-and-tracking-admin.js', array( 'jquery' ), $this->version, false );
-		wp_enqueue_script( $this->plugin_name . '-js-common', plugin_dir_url( __FILE__ ) . '../common/js/volunteer-management-and-tracking-common.js', array( 'jquery' ), $this->version, false );
-		wp_enqueue_script( $this->plugin_name . '-js-bootstrap', plugin_dir_url( __FILE__ ) . '../common/js/bootstrap.js', array( 'jquery' ), $this->version, true );
-		wp_enqueue_script( 'jquery-ui-datepicker' );
-		// only enqueue ajax scripts where they're needed
-		if( 'volunteer-mgmnt_page_vmat_admin_volunteer_participation' == $hook ||
-		    'volunteer-mgmnt_page_vmat_admin_volunteers' == $hook ||
-		    'volunteer-mgmnt_page_vmat_admin_manage_volunteers' == $hook ) {
-		//wp_deregister_script('heartbeat');
-    		wp_enqueue_script( 'ajax-script',
-    		    plugin_dir_url( __FILE__ ) . 'js/volunteer-management-and-tracking-admin-ajax.js',
-    		    array( 'jquery' )
-    		    );
-    		$ajax_nonce = wp_create_nonce( 'vmat_ajax' );
-    		wp_localize_script( 
-    		    'ajax-script', 'my_ajax_obj', 
-    		    array(
-    		        'ajax_url' => admin_url( 'admin-ajax.php' ),
-    		        'nonce'    => $ajax_nonce,
-    		    ) 
-    		);
-		}
-
+	    $screen = str_replace( 'edit-', '', get_current_screen()->id );
+	    if( strpos( $screen, 'volunteer-mgmnt' ) !== false || 
+	        strpos( $screen, 'vmat_' ) !== false ) {
+	            wp_enqueue_script( $this->plugin_name . '-js-admin', plugin_dir_url( __FILE__ ) . 'js/volunteer-management-and-tracking-admin.js', array( 'jquery' ), $this->version, false );
+	            wp_enqueue_script( $this->plugin_name . '-js-common', plugin_dir_url( __FILE__ ) . '../common/js/volunteer-management-and-tracking-common.js', array( 'jquery' ), $this->version, false );
+	            wp_enqueue_script( $this->plugin_name . '-js-bootstrap', plugin_dir_url( __FILE__ ) . '../common/js/bootstrap.js', array( 'jquery' ), $this->version, true );
+	            wp_enqueue_script( 'jquery-ui-datepicker' );
+	            // only enqueue ajax scripts where they're needed
+	            if( 'volunteer-mgmnt_page_vmat_admin_volunteer_participation' == $hook ||
+	                'volunteer-mgmnt_page_vmat_admin_volunteers' == $hook ||
+	                'volunteer-mgmnt_page_vmat_admin_manage_volunteers' == $hook ) {
+	                //wp_deregister_script('heartbeat');
+	            wp_enqueue_script( 'ajax-script',
+	                plugin_dir_url( __FILE__ ) . 'js/volunteer-management-and-tracking-admin-ajax.js',
+	                array( 'jquery' )
+	                );
+	            $ajax_nonce = wp_create_nonce( 'vmat_ajax' );
+	            wp_localize_script(
+	                'ajax-script', 'my_ajax_obj',
+	                array(
+	                    'ajax_url' => admin_url( 'admin-ajax.php' ),
+	                    'nonce'    => $ajax_nonce,
+	                )
+	                );
+	            }
+	        }
 	}
 	
 	public function accumulate_messages( $messages=array() ) {
@@ -3543,11 +3548,13 @@ class Volunteer_Management_And_Tracking_Admin {
                      plugin-specific privileges.';
         $content .= '</p>';
         $content .= '<p>';
-        $content .= 'When creating or updating a WordPress User, a <strong>"Volunteer"</strong> checkbox is provided, which causes
-                     the user to become a <strong>Volunter Management and Tracking</strong> volunteer with the <strong>"volunteer"</strong> role.
-                     Checking this box opens new fields for additional information about a volunteer. 
-                     These additional fields are all optional. Once the <strong>"volunteer"</strong> role has been assigned
-                     to a user, that user becomes available to the <strong>Volunter Management and Tracking</strong> plugin.';
+        $content .= 'When creating or updating a WordPress User using the WordPress dashboard, the user should have the 
+                     <strong>"volunteer"</strong> role
+                     assigned in order to show up in the <strong>Volunter Management and Tracking</strong> plugin.
+                     Additional fields are provided to record additional information about a volunteer. 
+                     These additional fields are all optional. If a new volunteer is created from within the 
+                     <strong>Volunter Management and Tracking</strong> plugin dashboard, the <strong>"volunteer"</strong> role
+                     is automatically assigned.';
         $content .= '</p>';
         $content .= '<p>';
         $content .= 'The <strong>Volunter Management and Tracking</strong> plugin is tightly integrated with the 
@@ -3701,6 +3708,11 @@ class Volunteer_Management_And_Tracking_Admin {
         $content .= '<li>';
         $content .= 'By <strong>Organization</strong>: filter volunteers that have volunteered for one or 
                      more events associated with an <strong>Organization</strong>.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'By <strong>Funding Stream</strong>: filter volunteers that have volunteered for one or
+                     more events associated with an <strong>Organization</strong> that has one or  
+                     more associated <strong>Funding Streams</strong>.';
         $content .= '</li>';
         $content .= '<li>';
         $content .= 'By <strong>Volunteer Type</strong>';
@@ -4403,7 +4415,7 @@ class Volunteer_Management_And_Tracking_Admin {
     		</div>
         </div>
         <div class="row">
-        	<div class="col-lg-8">
+        	<div class="col card">
             	<div class="row">
                 	<div class="col">
                 		<?php
@@ -4412,21 +4424,23 @@ class Volunteer_Management_And_Tracking_Admin {
                     	echo $funding_stream_pulldown;
                     	?>
                 	</div>
-                </div>
-                <div class="row">
                 	<div class="col">
                 		<?php
                 		echo $type_pulldown;
                     	echo '&nbsp;';
                     	echo $sort_pulldown;
                     	?>
-                    	<button id="manage_volunteers_filter" 
+                	</div>	
+                </div>
+                <div class="row">
+                	<div class="col">
+                		<button id="manage_volunteers_filter" 
                 		        class="button action" 
                 		        type="button" 
                 		        value="filter_manage_volunteers" >
                 		        <?php _e( 'Filter', 'vmattd')?>
                 		</button>
-                	</div>	
+                	</div>
                 </div>
         	</div>
         	<div class="col">
