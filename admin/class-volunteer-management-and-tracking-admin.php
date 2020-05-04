@@ -3166,7 +3166,7 @@ class Volunteer_Management_And_Tracking_Admin {
             $args['edit_volunteer'] = true;
         }
         $args['vpno'] = $vmat_plugin->get_common()->var_from_get( 'vpno', 1 );
-        $args['volunteers_search'] = $vmat_plugin->get_common()->var_from_get( 'volunteers_search', '' );
+        $args['manage_volunteers_search'] = $vmat_plugin->get_common()->var_from_get( 'manage_volunteers_search', '' );
         // processing a volunteers selection table form submission
         $submit_button = $vmat_plugin->get_common()->var_from_get( 'submit_button', '' );
         if ( 'filter_volunteers' == $submit_button || 'search_volunteers' == $submit_button ) {
@@ -4358,6 +4358,7 @@ class Volunteer_Management_And_Tracking_Admin {
             $page_name,
             $ajax_args
             );
+        $options = get_option( 'vmat_options' );
         ?>
     	<div class="row">
         	<div class="col-lg-2">
@@ -4379,7 +4380,8 @@ class Volunteer_Management_And_Tracking_Admin {
 				        <?php _e( 'Add New Vol', 'vmattd')?>
 				</button>
         	</div>
-        	<?php if( get_option( 'vmat_options')['vmat_enable_event_bookings_assoc'] ) {?>
+        	<?php if( isset( $options['vmat_enable_event_bookings_assoc'] ) && 
+        	                 $options['vmat_enable_event_bookings_assoc'] == true  ) {?>
         	<div class="col-lg-3">
 				<button id="vmat_associate_bookings" 
 				        class="button action vmat-action-btn" 
