@@ -1045,7 +1045,7 @@ class Volunteer_Management_And_Tracking_Common {
         $sql .= $prefix . 'postmeta as hh on hh.post_id=vhdays.hours_id WHERE hh.meta_key="_hours_per_day" OR vhdays.hours_id IS NULL) as cum_data ';
         $sql .= 'GROUP BY cum_data.user_id ORDER BY ' . $order_by . ' display_name ASC ';
         $sql .= 'LIMIT ' . $offset . ',' . absint( $args['posts_per_page'] );
-
+        $foo = $wpdb->get_var( 'SET SESSION SQL_BIG_SELECTS=1' );
         $results = $wpdb->get_results( $sql );
         $count = $wpdb->get_var( 'SELECT FOUND_ROWS()' );
         $volunteer_data = array();
