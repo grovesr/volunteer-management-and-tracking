@@ -3486,7 +3486,15 @@ class Volunteer_Management_And_Tracking_Admin {
         ?>
         	</div>
         	<span class="vmat-footer">
-        	<?php _e( 'Plugin author: ', 'vmattd' ); ?><a href="<?php echo 'mailto:' . PLUGIN_AUTHOR_EMAIL; ?>"><?php echo PLUGIN_AUTHOR_EMAIL; ?></a>
+        	<?php 
+        	_e( 'Plugin version: '. VOLUNTEER_MANAGEMENT_AND_TRACKING_VERSION . '&nbsp;', 'vmattd' ); 
+        	_e( 'Plugin author: ', 'vmattd' );
+        	?>
+        	<a href="
+        	<?php echo 'mailto:' . PLUGIN_AUTHOR_EMAIL; ?>
+        	">
+        	<?php echo PLUGIN_AUTHOR_EMAIL; ?>
+        	</a>
         	</span>
         </div>
         <?php
