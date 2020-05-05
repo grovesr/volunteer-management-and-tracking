@@ -1,0 +1,33 @@
+COPY THE PRODUCTION SITE TO THE DEV SERVER:
+1. Go to production site WP dasboard and enable all-in-one WP Migration and all-in-one WP Migration Unlimited Extension.
+2. Select All-In-One WP Migration from left nav bar in dashboard, then select Export to File. This creates a >3G file and takes about 10 mins or so.
+3. Go to the WP install on dev server and enable all-in-one WP Migration and all-in-one WP Migration Unlimited Extension.
+4. Select All-In-One WP Migration from left nav bar in dashboard, then select Import to File. Select the file created in step 3. Takes 5-10 mins.
+5. Update permalinks using the link in the finished dialog. If you can't log in to dashboard on copied site due to reCaptcha issues. You need to disable the WP reCaptcha Integration plugin using the database.
+5a. Go to the localhost myphpadmin, open the ulsterc3/wp_options table and find the entry for option_name=active_plugins. Edit the option_value field by removing the entry for WP reCaptcha Integration and updating the total entries at the beginning of the field.
+6. you should now be able to go to http://ulstercorpsdev.org and see the local copy of ulstercorps.org
+
+SETUP PHP for DEBUGGING IN ECLIPSE (https://docs.joomla.org/Configuring_Xdebug_for_PHP_development/Linux):
+1. make sure Xdebug module is installed for apache2 php
+    php -m and check for xdebug. if missing:
+    sudo apt-get install php-xdebug
+    sudo service apache2 restart
+2. Make sure php.ini has xdebug support options enabled. In /etc/php7.2/mods-available/xdebug.ini add the foollowing:
+   xdebug.remote_enable=on
+   xdebug.remote_handler=dbgp
+   xdebug.remote_host=localhost
+   xdebug.remote_port=9000
+3. sudo service apache2 restart
+
+DO DEVELOPMENT WORK IN ECLIPSE:    
+1. start Eclipse PHP development environment. 
+2. Select workspace_php workspace
+3. Select ulsterc3 project
+
+DEBUGGING IN ECLIPSE:
+1. insert breakpoint in appropriate file
+2. select "index" debug configuration (starts ulsterc3/index.php in the Default PHP Web Server using Xdebug as the debugger
+    
+SETTING UP EMAIL ON LOCALHOST:
+1. select SMTP for mail server
+2. use mail sending method=smtp.gmail.com, SMTP username=robgroves0@gmail.com, SMTP password=password, port=587, SMTP TLS=true

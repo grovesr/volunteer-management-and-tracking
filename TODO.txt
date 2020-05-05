@@ -1,0 +1,3 @@
+TODO: handle logging of user's hours that are not necessarily associated with events
+
+TODO: watch get_manage_volunteers() custom sql query. approaching hard limit of 1000000000 MAX_JOIN_SIZE for bluehost. Easiest solution is to set a WHERE condition post_parent=0, which dramatically reduces the join size, but this increases query time to about 8-9 seconds from < 2 sec. So, figure out a different way to do the generation_date, last_volunteer_date sorts.

@@ -1,0 +1,27 @@
+Tips:
+1) Admin pages are rendered by the class Volunteer_Management_And_Tracking_Admin in admin/class-volunteer-management-and-tracking-admin.php
+1a) class functions beginning with html_page_... are the full admin pages hooked with 'admin_menu'
+2a) class functions beginning with html_part_... are the partial html pieces used by the admin pages to render various views
+2) functions that could potentially be used by both Admin and Public sides are found in the class Volunteer_Management_And_Tracking_Common in common/class-volunteer-management-and-tracking-common.php
+3) Public side functionality and page rendering is done in the class Volunteer_Management_And_Tracking_Common in public/class-volunteer-management-and-tracking-public.php
+4) The repository for defining what is hooked into WordPress for both public and private is the class Volunteer_Management_And_Tracking in includes/class-volunteer-management-and-tracking.php
+5) CSS and JS scripts are enqueued in the enquque_styles() and enqueue_scripts() functions in the Public and Admin classes. 
+6) needed files are "require_once'd" in the load_dependencies() function of the class Volunteer_Management_And_Tracking in includes/class-volunteer-management-and-tracking.php
+7) Total plugin boilerplate was created using the make_wp_boilerplate script in ~/bin, which uses the git repository wp-plugin-boilerplate as a basis for creating the framework
+8) Check TODO.txt in the git main directory to see what needs to be done.
+9) Check out ulstercorps_development_tips.txt for detailed instructions on setting up the PHP Eclipse development environment and getting a current version of the Ulstercorps main site on the dev server.
+
+When done making updates, use the following procedure to deploy a new version:
+1) change the Version number in the volunteer-management-and-tracking.php file
+1a) change Version: in the opening comments
+1b) change the constant: define( 'VOLUNTEER_MANAGEMENT_AND_TRACKING_VERSION'
+2) git ci -m"commit comments"
+3) git tag -a Vx.x.x -m"tag comments"
+4) git push origin master
+5) git push origin Vx.x.x
+6) ssh ulsterc3@ulstercorps.org (use bluehost cpanel password)
+7) cd to the volunteer-management-and-tracking plugin directory
+8) make sure you have a clean repository: git status
+9) If you need to go back to a previous version:
+9a) git checkout Vx.x.x
+
