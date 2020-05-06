@@ -618,48 +618,10 @@ class Volunteer_Management_And_Tracking_Common {
 	
 	public function add_volunteer_to_em_event( $em_event_id, $user_id ) {
 	   global $wpdb;
+	   global $vmat_plugin;
 	   $sql .= 'SELECT post_id FROM ' . EM_EVENTS_TABLE . ' WHERE event_id=%d';
 	   $event_id = $wpdb->get_var( $wpdb->prepare( $sql, $em_event_id ) );
-	   return $this->add_volunteer_to_event( $event_id, $user_id );
-	}
-	
-	public function add_volunteer_to_event( $event_id, $user_id ) {
-	    global $vmat_plugin;
-	    $hours = null;
-	    if( $event_id > 0 && $user_id ) {
-	        $args = array(
-	            'author' => $user_id,
-	            'post_type' => 'vmat_hours',
-	            'post_status' => 'publish',
-	            'meta_query' => array(
-	                array(
-	                    'key' => '_event_id',
-	                    'value' => $event_id,
-	                )
-	            )
-	        );
-	        $hours = new WP_Query( $args );
-	        if( ! $hours->posts ) {
-	            // hours are not already assigned to the event
-	            $event_data = $vmat_plugin->get_common()->get_event_data( $event_id );
-	            $args = array(
-	                    'author' => $user_id,
-	                    'post_type' => 'vmat_hours',
-	                    'post_status' => 'publish',
-	                    'post_title' => $event_data['title'],
-	                    'meta_input' => array(
-	                        '_event_id' => $event_id ,
-	                        '_volunteer_start_date' => $event_data['iso_start_date'],
-	                        '_hours_per_day' => $event_data['hours_per_day'],
-	                        '_volunteer_num_days' => 0,
-	                        '_approved' => false,
-	                    )
-	                );
-	            // Create a new vmat_hours post with the appropriate default information
-	            $hours = wp_insert_post( $args );
-	        }
-	    }
-	    return $hours;
+	   return $vmat_plugin->get_admin()->add_volunteer_to_event( $event_id, $user_id );
 	}
 	
 	public function link_posts_to_user_pulldown( $type='vmat_organization', $section_type='div', $user=null ) {

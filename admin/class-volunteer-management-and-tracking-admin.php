@@ -643,7 +643,7 @@ class Volunteer_Management_And_Tracking_Admin {
 	    wp_send_json_success( $results );
 	}
 	
-	function add_volunteer_to_event( $event, $volunteer_id ) {
+	function add_volunteer_to_event( $event_id, $volunteer_id ) {
 	    global $vmat_plugin;
 	    $error_message = '';
 	    $args = array(
@@ -652,20 +652,20 @@ class Volunteer_Management_And_Tracking_Admin {
 	        'meta_query' => array(
 	            array(
 	                'key' => '_event_id',
-	                'value' => $event->ID,
+	                'value' => $event_id,
 	            )
 	        ),
 	    );
 	    $hours = new WP_Query( $args );
 	    if( $hours->found_posts == 0 ) {
-	        $event_data = $vmat_plugin->get_common()->get_event_data( $event->ID );
+	        $event_data = $vmat_plugin->get_common()->get_event_data( $event_id );
 	        $hours = wp_insert_post( array(
 	            'post_author' => $volunteer_id,
 	            'post_type' => 'vmat_hours',
 	            'post_status' => 'publish',
-	            'post_title' => $event->post_title,
+	            'post_title' => $event_data['title'],
 	            'meta_input' => array(
-	                '_event_id' => $event->ID,
+	                '_event_id' => $event_id,
 	                '_volunteer_start_date' => $event_data['iso_start_date'],
 	                '_hours_per_day' => $event_data['hours_per_day'],
 	                '_volunteer_num_days' => 1,
@@ -1926,7 +1926,7 @@ class Volunteer_Management_And_Tracking_Admin {
                     $args['errors'][] = $error;
                 }
                 if( empty( $error ) ) {
-                    $error_message = $this->add_volunteer_to_event( $event, $volunteer_id );
+                    $error_message = $this->add_volunteer_to_event( $event_id, $volunteer_id );
                     if ( ! empty( $error_message ) ) {
                         $error = __('<strong>ERROR</strong>: Problem saving hours for volunteer . Please try again', 'vmattd' );
                         $args['errors'][] = $error;
@@ -2405,7 +2405,6 @@ class Volunteer_Management_And_Tracking_Admin {
 	}
 	
 	public function add_existing_volunteer_to_em_event( $em_event, $em_booking, $post_validation ) {
-	    global $vmat_plugin;
 	    $user_id = get_current_user_id();
 	    if( $user_id > 0 && $post_validation ) {
             // add volunteer role to user when creating booking
@@ -2415,10 +2414,30 @@ class Volunteer_Management_And_Tracking_Admin {
                     $wpuser->add_role('volunteer');
                 }
                 if( $em_event->post_id > 0 ) {
-                        $vmat_plugin->get_common()->add_volunteer_to_event( $em_event->post_id, $wpuser->ID );
+                        $this->add_volunteer_to_event( $em_event->post_id, $wpuser->ID );
                     }
             }
 	    }
+	}
+	
+	public function post_acui_import_single_user_action( $headers, $data, $user_id, $role ) {
+	    if( $user_id > 0 ) {
+	        $wpuser = get_user_by( 'id', $user_id );
+	        $event_id = 0;
+	        if( ( $index =  array_search( '_vmat_initial_event_id', $headers ) ) !== false ) {
+	            $event_id = $data[$index];
+	        }
+	        $event = get_post( $event_id );
+	        if ( $wpuser && $event !== 0 && $event !== null ) {
+	           $this->add_volunteer_to_event( $event_id, $wpuser->ID );
+	        }
+	    }
+	}
+	
+	public function acui_import_email_to_filter($email, $headers, $data, $subject, $body_mail, $headers_mail) {
+	    $foo=$email;
+	    wp_die('Don\'t want to send emails to newly created users');
+	    return $foo;
 	}
 	
 	public function add_em_org_meta_boxes(){
@@ -2930,6 +2949,16 @@ class Volunteer_Management_And_Tracking_Admin {
 	        ),
             'vmat_admin_settings'
         );
+        // register a new section in the "vmat_admin_settings" page
+        add_settings_section(
+        'vmat_section_volunteer_imports',
+        '<h4>' . __( 'Volunteer Import Settings.', 'vmat' ) . '</h4>',
+        array(
+        $this,
+        'section_volunteer_events_cb'
+	            ),
+	            'vmat_admin_settings'
+	            );
         
         // register a new field in the "section_view" section, inside the "admin_vmat_settings" page
         add_settings_field(
@@ -2981,6 +3010,23 @@ class Volunteer_Management_And_Tracking_Admin {
                 'custom_data' => 'custom',
             )
 	    );
+        // register a new field in the "section_volunteer_imports" section, inside the "admin_vmat_settings" page
+        add_settings_field(
+        'vmat_enable_volunteer_imports', // as of WP 4.6 this value is used only internally
+        // use $args' label_for to populate the id inside the callback
+        __( 'Enable Volunteer Imports', 'vmattd' ),
+        array(
+        $this,
+        'vmat_enable_volunteer_imports_cb'
+	                ),
+	                'vmat_admin_settings',
+	                'vmat_section_volunteer_imports',
+	                array(
+	                'label_for' => 'vmat_enable_volunteer_imports',
+	                'class' => 'vmat_row',
+	                'custom_data' => 'custom',
+	                )
+	                );
     }
     
     // view section cb
@@ -3003,6 +3049,12 @@ class Volunteer_Management_And_Tracking_Admin {
     public function section_events_cb( $args ) {
         ?>
          <p id="<?php echo esc_attr( $args['id'] ); ?>"><?php esc_html_e( 'Settings for Events.', 'vmattd' ); ?></p>
+         <?php
+    }
+    
+    public function section_volunteer_imports_cb( $args ) {
+        ?>
+         <p id="<?php echo esc_attr( $args['id'] ); ?>"><?php esc_html_e( 'Settings for Volunteer Imports.', 'vmattd' ); ?></p>
          <?php
     }
     
@@ -3071,6 +3123,29 @@ class Volunteer_Management_And_Tracking_Admin {
          >
          <p class="description">
          <?php esc_html_e( 'Enable the "Assoc. Event Bookings" button on the "Manage Volunteers" page.', 'vmattd' ); ?>
+         </p>
+         <?php
+    }
+    
+    function vmat_enable_volunteer_imports_cb( $args ) {
+        // get the value of the setting we've registered with register_setting()
+        $options = get_option( 'vmat_options' );
+        $checked = '';
+        if( isset( $options[ $args['label_for'] ] ) && $options[ $args['label_for'] ] == true ) {
+            $checked = 'checked';
+        }
+        // output the field
+        ?>
+         <input type="checkbox" 
+         id="<?php echo esc_attr( $args['label_for'] ); ?>"
+         data-custom="<?php echo esc_attr( $args['custom_data'] ); ?>"
+         name="vmat_options[<?php echo esc_attr( $args['label_for'] ); ?>]"
+         <?php 
+         echo $checked;
+         ?>
+         >
+         <p class="description">
+         <?php esc_html_e( 'Enable the import of volunteers using the "import-users-from-csv-with-meta" plugin', 'vmattd' ); ?>
          </p>
          <?php
     }

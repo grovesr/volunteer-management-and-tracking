@@ -54,6 +54,10 @@ $dependent_plugins = [
     'events-manager/events-manager.php' => 'https://wordpress.org/plugins/events-manager/',
     'multiple-roles/multiple-roles.php' => 'https://wordpress.org/plugins/multiple-roles/',
 ];
+$options = get_option( 'vmat_options' );
+if( isset( $options['vmat_enable_volunteer_imports'] ) && $options['vmat_enable_volunteer_imports'] == true ) {
+    $dependent_plugins['import-users-from-csv-with-meta/import-users-from-csv-with-meta.php'] = 'https://wordpress.org/plugins/import-users-from-csv-with-meta/';
+}
 
 /**
  * The code that runs during plugin activation.

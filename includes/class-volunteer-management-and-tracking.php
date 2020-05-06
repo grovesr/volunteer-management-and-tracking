@@ -216,6 +216,11 @@ class Volunteer_Management_And_Tracking {
         // add logged in user's default volunteer hours to em event associated to a new em booking
         $this->loader->add_action('em_booking_add', $this->admin, 'add_existing_volunteer_to_em_event', 10, 3 );
         
+        // when new users are registered using the import-users-from-csv-with-meta plugin
+        $this->loader->add_action('post_acui_import_single_user', $this->admin, 'post_acui_import_single_user_action', 10, 4 );
+        // this will cause wp_die() if we try to send an email to a new user
+        $this->loader->add_filter('acui_import_email_to', 'acui_import_email_to_filter', 10, 6 );
+        
         // dashboard page
         $this->loader->add_action('admin_menu', $this->admin, 'admin_main_page', 5);
         // manage volunteer participation page
