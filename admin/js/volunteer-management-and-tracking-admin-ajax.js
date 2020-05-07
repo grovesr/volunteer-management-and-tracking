@@ -1687,6 +1687,8 @@
 		attach_vmat_events_handlers();
         attach_vmat_hours_volunteers_handlers();
         attach_vmat_manage_volunteers_handlers();
+        // disable user_login input when updating an already existing user
+        $('#vmat_manage_volunteer_admin').closest('div.col').find('input#user_login').prop('disabled', true);
         // fields not getting reset to dafault on page reloads due to caching on firefox    
         $('div.clearable-input input[type="text"]').val('');
         $('#_vmat_scope').val('future');

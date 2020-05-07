@@ -725,6 +725,18 @@ class Volunteer_Management_And_Tracking_Admin {
 	            }
 	        }
 	        $reg_args['role'] = 'volunteer';
+	        $display_name = $reg_args['user_login'];
+	        if( array_key_exists( 'first_name', $reg_args ) &&
+	            !empty( $reg_args['first_name']) )
+	        {
+	            $display_name = $reg_args['first_name'];
+	        }
+	        if( array_key_exists( 'last_name', $reg_args ) &&
+	            !empty( $reg_args['last_name']) )
+	        {
+	            $display_name = $display_name . ' ' . $reg_args['last_name'];
+	        }
+	        $reg_args['display_name'] = $display_name;
 	        $roles = array();
 	        if( ! empty( $volunteer_data['volunteer_id'] ) ) {
 	            // update rather than create new

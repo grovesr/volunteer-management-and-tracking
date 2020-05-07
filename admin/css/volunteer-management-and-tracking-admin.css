@@ -114,3 +114,7 @@
 .vmat-select {
 	width: 12rem;
 }
+
+div.notice {
+	z-index: 2;
+}
