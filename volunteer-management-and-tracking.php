@@ -3,7 +3,7 @@
  Plugin Name:       Volunteer Management And Tracking
  Plugin URI:        https://ulstercorps.org/admin/admin.php?page=vmat_admin_volunteer_participation
  Description:       Track volunteers and associate them with Events Manager Events.
- Version:           1.0.2
+ Version:           1.0.3
  Requires at least: 5.3
  Requires PHP:      5.3
  Author:            Rob Groves
@@ -38,7 +38,7 @@ if ( ! defined( 'WPINC' ) ) {
  * Start at version 1.0.0 and use SemVer - https://semver.org
  * Rename this for your plugin and update it as you release new versions.
  */
-define( 'VOLUNTEER_MANAGEMENT_AND_TRACKING_VERSION', '1.0.2' );
+define( 'VOLUNTEER_MANAGEMENT_AND_TRACKING_VERSION', '1.0.3' );
 
 /*
  * plugin author email
