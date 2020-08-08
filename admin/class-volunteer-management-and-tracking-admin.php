@@ -2405,13 +2405,17 @@ class Volunteer_Management_And_Tracking_Admin {
             if( ! in_array('volunteer', $wpuser->roles)) {
                 $wpuser->add_role('volunteer');
             }
-            if( array_key_exists( 'dbem_phone', $_POST ) &&
-                ! empty( $_POST['dbem_phone'] ) ) {
-                update_user_meta( $wpuser->ID, 'vmat_phone_cell', $_POST['dbem_phone'] );
-            }
-            if( array_key_exists( 'event_id', $_POST ) &&
-                ! empty( $_POST['event_id'] ) ) {
-                    $vmat_plugin->get_common()->add_volunteer_to_em_event( $_POST['event_id'], $wpuser->ID );
+            // only do this if registering a user from the EM plugin booking form
+            if ( array_key_exists( 'action', $_POST ) &&
+                     $_POST['action']  == 'booking_add' ) {
+                if( array_key_exists( 'dbem_phone', $_POST ) &&
+                    ! empty( $_POST['dbem_phone'] ) ) {
+                        update_user_meta( $wpuser->ID, 'vmat_phone_cell', $_POST['dbem_phone'] );
+                    }
+                if( array_key_exists( 'event_id', $_POST ) &&
+                    ! empty( $_POST['event_id'] ) ) {
+                        $vmat_plugin->get_common()->add_volunteer_to_em_event( $_POST['event_id'], $wpuser->ID );
+                }
             }
         }
 	}
