@@ -24,4 +24,5 @@ When done making updates, use the following procedure to deploy a new version:
 8) make sure you have a clean repository: git status
 9) If you need to go back to a previous version:
 9a) git checkout Vx.x.x
+10) git pull
 
