@@ -1,11 +1,16 @@
 COPY THE PRODUCTION SITE TO THE DEV SERVER:
 1. Go to production site WP dasboard and enable all-in-one WP Migration and all-in-one WP Migration Unlimited Extension.
 2. Select All-In-One WP Migration from left nav bar in dashboard, then select Export to File. This creates a >3G file and takes about 10 mins or so.
+    Make sure to click "Download"!!! The file will go to your localhost Downloads dir
+    Deactivate the All-In-One WP Migration plugins on the prod server.
 3. Go to the WP install on dev server and enable all-in-one WP Migration and all-in-one WP Migration Unlimited Extension.
-4. Select All-In-One WP Migration from left nav bar in dashboard, then select Import to File. Select the file created in step 3. Takes 5-10 mins.
+3a. Make sure to remove any linked plugin dirs from the plugins dir on the dev server before importing to be sure you don't overwrite anything locally that you don't want to overwrite.
+4. Select All-In-One WP Migration from left nav bar in dashboard, then select Import to File. Select the file created in step 3. Takes 5-10 mins. You do this right over top of the current install
 5. Update permalinks using the link in the finished dialog. If you can't log in to dashboard on copied site due to reCaptcha issues. You need to disable the WP reCaptcha Integration plugin using the database.
 5a. Go to the localhost myphpadmin, open the ulsterc3/wp_options table and find the entry for option_name=active_plugins. Edit the option_value field by removing the entry for WP reCaptcha Integration and updating the total entries at the beginning of the field.
 6. you should now be able to go to http://ulstercorpsdev.org and see the local copy of ulstercorps.org
+7. Go to Sucurri Security and Wordfence settings pages and delete or change alert email from beth to something else.
+8. Relink any plugins under development to their respective git repositories.
 
 SETUP PHP for DEBUGGING IN ECLIPSE (https://docs.joomla.org/Configuring_Xdebug_for_PHP_development/Linux):
 1. make sure Xdebug module is installed for apache2 php
