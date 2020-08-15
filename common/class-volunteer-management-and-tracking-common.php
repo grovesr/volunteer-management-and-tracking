@@ -882,6 +882,8 @@ class Volunteer_Management_And_Tracking_Common {
 	    );
 	    return new WP_User_Query( $user_query_args );
 	}
+	   
+	}
 	
 	public function get_manage_volunteers( $args=array() ) {
 	    global $wpdb;

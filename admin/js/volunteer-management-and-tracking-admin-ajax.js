@@ -207,6 +207,29 @@
 	        .on( 'click', add_manage_volunteer_to_event );
 		}
 		
+		function attach_vmat_reports_handlers() {
+			attach_vmat_general_handlers();
+			// handle report format selection
+			$('select[name="vmat_report_format"]')
+	        .off( 'change', select_report_format )
+	        .on( 'change', select_report_format )
+			.change();
+			// handle funding stream selection
+			$('select[name="vmat_report_funding_stream"]')
+	        .off( 'change', select_report_funding_stream )
+	        .on( 'change', select_report_funding_stream )
+			.change();
+			// handle date range selection
+			$('#vmat_reports_datepicker input')
+			.off( 'change', check_report_dates)
+			.on( 'change', check_report_dates)
+			.change();
+			// generate the selected report HTML view
+			$('button[value="generate_report"]')
+			.off( 'click', generate_report )
+			.on( 'click', generate_report );
+		}
+		
 		function clear_text_input() {
 			var self = this;
 			$(self).closest('div.clearable-input').find('input[type="text"]').val('').change();
@@ -419,6 +442,26 @@
 			if ( $('.vmat-check-before-save-changed').length == 0 ) {
 				$(window).off('beforeunload');
 			}
+		}
+		
+		function handle_generate_report( response, status, jqxhr ) {
+			if ( response.success ) {
+				// handle a wp_send_json_success response
+				if ( response.data.ajax_notice.indexOf('ERROR') > -1 ) {
+					show_ajax_notice( response.data.notice_id, create_error_notice(  Array( response.data.ajax_notice ) ) );
+				} else {
+					var html = response.data.html;
+					var target = response.data.target;
+					$('#' + target).html(html);
+					show_ajax_notice( response.data.notice_id, response.data.ajax_notice );
+					attach_vmat_reports_handlers();
+				}
+				
+			} else {
+				// handle a wp_send_json_error response
+				handle_server_failure_response(  response ) ;
+			}
+			$('.waiting').removeClass('waiting');
 		}
 		
 		function handle_set_default_event_volunteers_data( response, status, jqxhr ) {
@@ -640,6 +683,23 @@
 			return data;
 		}
 		
+		function get_report_generation_data() {
+			var data = {
+					'report_format': {'selector': 'select#vmat_report_format'},
+					'report_funding_stream': {'selector': 'select#_vmat_vmat_report_funding_stream'},
+					'report_start_date': {'selector': '#vmat_reports_datepicker input#datepicker_start'},
+					'report_end_date' : {'selector': '#vmat_reports_datepicker input#datepicker_end'},
+			};
+		    Object.keys( data ).forEach( function( key ) {
+		    	data[key].required = $(data[key].selector).prop('required');
+		    	data[key].type = $(data[key].selector).attr('type');
+		    	data[key].min = $(data[key].selector).attr('min');
+		    	data[key].max = $(data[key].selector).attr('max');
+		    	data[key].val = $(data[key].selector).val();
+		    });
+		    return data;
+		}
+		
 		function validate_inputs( data={}, items=[] ) {
 			var errors = Array();
 			Object.keys( data ).forEach( function( dataset ) {
@@ -787,6 +847,8 @@
 			result.success = true;
 			if( ! is_date( new Date( val ) ) || ( required && ( val === '' ) ) ) {
 				result.success = false;
+			} else {
+				result.date = new Date( val );
 			}
 			result.val = val
 			return result;
@@ -795,6 +857,109 @@
 		/*
 		 * Action functions begin here
 		 */
+		
+		function select_report_format() {
+			clear_admin_notice();
+			var format = $('#vmat_report_format option:selected').val();
+			if( format === 'none' ) {
+				$('#vmat_reports_funding_streampicker').hide();
+				$('#vmat_reports_datepicker').hide();
+				$('#vmat_reports_datepicker input#datepicker_start').val('');
+				$('#vmat_reports_datepicker input#datepicker_end').val('');
+				$('#vmat_reports_gen_controls').hide();
+				$('#vmat_reports_report_view').hide();
+			} else {
+				$('#vmat_reports_funding_streampicker').show();
+			}
+			select_report_funding_stream();
+		}
+		
+		function select_report_funding_stream() {
+			clear_admin_notice();
+			var funding_stream = $('#_vmat_vmat_report_funding_stream option:selected').val();
+			if( funding_stream == 0 ) {
+				$('#vmat_reports_datepicker').hide();
+				$('#vmat_reports_datepicker input#datepicker_start').val('');
+				$('#vmat_reports_datepicker input#datepicker_end').val('');
+				$('#vmat_reports_gen_controls').hide();
+				$('#vmat_reports_report_view').hide();
+			} else {
+				check_report_dates();
+				$('#vmat_reports_datepicker').show();
+			}
+		}
+		
+		function check_report_dates() {
+			clear_admin_notice();
+			var start_date = $('#vmat_reports_datepicker input#datepicker_start');
+			var end_date = $('#vmat_reports_datepicker input#datepicker_end');
+			var format = $('#vmat_report_format option:selected').val();
+			var checked_start_date = check_date_input( start_date );
+			var checked_end_date = check_date_input( end_date );
+			if( start_date !== '' && 
+				end_date !== '' &&
+				checked_start_date.success &&
+				checked_start_date.success &&
+				checked_end_date.date >= checked_start_date.date &&
+				format !== 'none') {
+				$('#vmat_reports_gen_controls').show();
+			} else {
+				$('#vmat_reports_gen_controls').hide();
+				if( checked_end_date.date < checked_start_date.date ) {
+					var messages = Array(
+							'End Date must be >= Start Date'
+					);
+					var notice_html = create_error_notice( messages );
+					show_ajax_notice( 'report_status', notice_html );
+					handle_failed_volunteers_action_for_event();
+		        	$('.waiting').removeClass('waiting');
+				}
+			}
+			$('#vmat_reports_report_view').hide();
+		}
+		
+		function generate_report() {
+			var self = this;
+			var report_data = {};
+	        // need extra level in the data structure to use the validate_inputs function
+	        // which can be used across multiple sets of data. The generate_report is
+	        // only dealing with a single set of data
+	        report_data['fields'] = get_report_generation_data();
+	        var items_to_validate = [
+	        	'report_format',
+	        	'report_funding_stream',
+				'report_start_date',
+				'report_end_date',
+	        ];
+	        var results = validate_inputs(report_data, items_to_validate );
+	        var messages = results.errors;
+	        var validated_data = results.data;
+			show_ajax_notice( 'report_status', 'working....' );
+	        $(self).addClass('waiting');
+	        $('html').addClass('waiting');
+			if( messages.length === 0 ) {
+				var request = {
+						_ajax_nonce: my_ajax_obj.nonce,
+						action: "ajax_generate_report",
+						report_data: validated_data,
+						notice_id: 'report_status',
+						target: 'vmat_reports_report_view',
+						register_notice_id: 'report_status',
+					};
+		        clear_admin_notice();
+		        show_ajax_notice( 'report_status', 'working....' );
+		        $.post( my_ajax_obj.ajax_url, request )
+		        .done( handle_generate_report ) // handle any successful wp_send_json_success/error
+		        .fail( handle_failed_ajax_call ); // fall through to handle general ajax failures
+			} else {
+				var notice_html = create_error_notice( messages );
+				show_ajax_notice( 'report_status', notice_html );
+				handle_failed_volunteers_action_for_event();
+	        	highlight_failed_inputs( validated_data );
+	        	$('.waiting').removeClass('waiting');
+				$('#vmat_reports_report_view').hide();
+			}
+		}
 		
 		function show_event_selection_table() {                       //use in callback
 	        // open event selection table
@@ -1687,6 +1852,7 @@
 		attach_vmat_events_handlers();
         attach_vmat_hours_volunteers_handlers();
         attach_vmat_manage_volunteers_handlers();
+        attach_vmat_reports_handlers();
         // disable user_login input when updating an already existing user
         $('#vmat_manage_volunteer_admin').closest('div.col').find('input#user_login').prop('disabled', true);
         // fields not getting reset to dafault on page reloads due to caching on firefox    
