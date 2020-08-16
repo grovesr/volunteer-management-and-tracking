@@ -187,6 +187,7 @@ class Volunteer_Management_And_Tracking {
         $this->loader->add_action( 'wp_ajax_ajax_remove_volunteers', $this->admin, 'ajax_remove_volunteers' );
         $this->loader->add_action( 'wp_ajax_ajax_associate_event_bookings_with_volunteers', $this->admin, 'ajax_associate_event_bookings_with_volunteers' );
         $this->loader->add_action( 'wp_ajax_ajax_generate_report', $this->admin, 'ajax_generate_report' );
+        $this->loader->add_action( 'wp_ajax_ajax_export_report_csv', $this->admin, 'ajax_export_report_csv' );
         
         // add vmat settings page
         $this->loader->add_action( 'admin_init', $this->admin, 'settings_init' );

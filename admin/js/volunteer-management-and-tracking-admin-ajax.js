@@ -228,6 +228,10 @@
 			$('button[value="generate_report"]')
 			.off( 'click', generate_report )
 			.on( 'click', generate_report );
+			// export the selected report in CSV
+			$('button[value="export_report_csv"]')
+			.off( 'click', export_report_csv )
+			.on( 'click', export_report_csv );
 		}
 		
 		function clear_text_input() {
@@ -452,9 +456,36 @@
 				} else {
 					var html = response.data.html;
 					var target = response.data.target;
-					$('#' + target).html(html);
-					show_ajax_notice( response.data.notice_id, response.data.ajax_notice );
+					$('#' + target).html(html).show();
 					attach_vmat_reports_handlers();
+					show_ajax_notice( response.data.notice_id, response.data.ajax_notice );
+					$('#vmat_export_report_csv').show();
+				}
+				
+			} else {
+				// handle a wp_send_json_error response
+				handle_server_failure_response(  response ) ;
+			}
+			$('.waiting').removeClass('waiting');
+		}
+		
+		function handle_export_report_csv( response, status, jqxhr ) {
+			if ( response.success ) {
+				// handle a wp_send_json_success response
+				if ( response.data.ajax_notice.indexOf('ERROR') > -1 ) {
+					show_ajax_notice( response.data.notice_id, create_error_notice(  Array( response.data.ajax_notice ) ) );
+				} else {
+					var file = response.data.csv;
+					var bb = new Blob([file ], { type: 'text/csv' });
+					var a = document.createElement('a');
+					var filename = response.data.report_format;
+					filename += '_' + response.data.funding_stream_name;
+					filename += '_' + response.data.report_start_date;
+					filename += '_' + response.data.report_end_date;
+					a.download = filename + '.csv';
+					a.href = window.URL.createObjectURL(bb);
+					a.click();
+					show_ajax_notice( response.data.notice_id, response.data.ajax_notice );
 				}
 				
 			} else {
@@ -538,6 +569,9 @@
 				case 'vmat_manage_volunteer_events_table':
 				case 'vmat_event_volunteers_table':
 					attach_vmat_hours_volunteers_handlers();
+					break;
+				case 'vmat_manage_report_table':
+					attach_vmat_manage_volunteers_handlers();
 					break;
 				}
 			} else {
@@ -867,7 +901,7 @@
 				$('#vmat_reports_datepicker input#datepicker_start').val('');
 				$('#vmat_reports_datepicker input#datepicker_end').val('');
 				$('#vmat_reports_gen_controls').hide();
-				$('#vmat_reports_report_view').hide();
+				$('#vmat_manage_report_table').hide();
 			} else {
 				$('#vmat_reports_funding_streampicker').show();
 			}
@@ -882,11 +916,12 @@
 				$('#vmat_reports_datepicker input#datepicker_start').val('');
 				$('#vmat_reports_datepicker input#datepicker_end').val('');
 				$('#vmat_reports_gen_controls').hide();
-				$('#vmat_reports_report_view').hide();
+				$('#vmat_manage_report_table').hide();
 			} else {
 				check_report_dates();
 				$('#vmat_reports_datepicker').show();
 			}
+			$('#vmat_export_report_csv').hide();
 		}
 		
 		function check_report_dates() {
@@ -915,7 +950,6 @@
 		        	$('.waiting').removeClass('waiting');
 				}
 			}
-			$('#vmat_reports_report_view').hide();
 		}
 		
 		function generate_report() {
@@ -943,7 +977,7 @@
 						action: "ajax_generate_report",
 						report_data: validated_data,
 						notice_id: 'report_status',
-						target: 'vmat_reports_report_view',
+						target: 'vmat_manage_report_table',
 						register_notice_id: 'report_status',
 					};
 		        clear_admin_notice();
@@ -958,6 +992,48 @@
 	        	highlight_failed_inputs( validated_data );
 	        	$('.waiting').removeClass('waiting');
 				$('#vmat_reports_report_view').hide();
+			}
+		}
+		
+		function export_report_csv() {
+			var self = this;
+			var report_data = {};
+	        // need extra level in the data structure to use the validate_inputs function
+	        // which can be used across multiple sets of data. The generate_report is
+	        // only dealing with a single set of data
+	        report_data['fields'] = get_report_generation_data();
+	        var items_to_validate = [
+	        	'report_format',
+	        	'report_funding_stream',
+				'report_start_date',
+				'report_end_date',
+	        ];
+	        var results = validate_inputs(report_data, items_to_validate );
+	        var messages = results.errors;
+	        var validated_data = results.data;
+			show_ajax_notice( 'report_status', 'working....' );
+	        $(self).addClass('waiting');
+	        $('html').addClass('waiting');
+			if( messages.length === 0 ) {
+				var request = {
+						_ajax_nonce: my_ajax_obj.nonce,
+						action: "ajax_export_report_csv",
+						report_data: validated_data,
+						notice_id: 'report_status',
+						target: 'file',
+						register_notice_id: 'report_status',
+					};
+		        clear_admin_notice();
+		        show_ajax_notice( 'report_status', 'working....' );
+		        $.post( my_ajax_obj.ajax_url, request )
+		        .done( handle_export_report_csv ) // handle any successful wp_send_json_success/error
+		        .fail( handle_failed_ajax_call ); // fall through to handle general ajax failures
+			} else {
+				var notice_html = create_error_notice( messages );
+				show_ajax_notice( 'report_status', notice_html );
+				handle_failed_volunteers_action_for_event();
+	        	highlight_failed_inputs( validated_data );
+	        	$('.waiting').removeClass('waiting');
 			}
 		}
 		

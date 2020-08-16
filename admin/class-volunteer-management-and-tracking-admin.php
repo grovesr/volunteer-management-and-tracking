@@ -836,53 +836,8 @@ class Volunteer_Management_And_Tracking_Admin {
 	function ajax_generate_report() {
 	    global $vmat_plugin;
 	    check_ajax_referer( 'vmat_ajax' );
-	    $check = array();
-	    $errors = array();
-	    if ( ! empty( $_POST['target'] ) ) {
-	        $check['target'] = $_POST['target'];
-	    } else {
-	        $errors[] = __('<strong>ERROR</strong>: No target provided in ajax request. Please try again', 'vmattd' );
-	    }
-	    if ( ! empty( $_POST['action'] ) ) {
-	        $check['action'] = $_POST['action'];
-	    } else {
-	        $errors[] = __('<strong>ERROR</strong>: No action provided in ajax request. Please try again', 'vmattd' );
-	    }
-	    if ( ! empty( $_POST['notice_id'] ) ) {
-	        $check['notice_id'] = $_POST['notice_id'];
-	    } else {
-	        $errors[] = __('<strong>ERROR</strong>: No notice_id provided in ajax request. Please try again', 'vmattd' );
-	    }
-	    if ( empty( $_POST['report_data'] ) ) {
-	        $errors[] = __('<strong>ERROR</strong>: No report_data provided in ajax request. Please try again', 'vmattd' );
-	    }
-	    if ( ! empty( $_POST['report_data'] ) &&
-	         ! empty( $_POST['report_data']['fields'] ) ) {
-	        $report_data = $_POST['report_data']['fields'];
-	        if ( ! empty( $report_data['report_format'] ) ) {
-	            $check['report_format'] = $report_data['report_format']['val'];
-	        } else {
-	            $errors[] = __('<strong>ERROR</strong>: No report_format provided in ajax request. Please try again', 'vmattd' );
-	        }
-	        if ( ! empty( $report_data['report_funding_stream'] ) ) {
-	            $check['report_funding_stream'] = $report_data['report_funding_stream']['val'];
-	        } else {
-	            $errors[] = __('<strong>ERROR</strong>: No report_funding_stream provided in ajax request. Please try again', 'vmattd' );
-	        }
-	        if ( ! empty( $report_data['report_start_date']) ) {
-	            $check['report_start_date'] = $report_data['report_start_date']['val'];
-	        } else {
-	            $errors[] = __('<strong>ERROR</strong>: No report_start_date provided in ajax request. Please try again', 'vmattd' );
-	        }
-	        if ( ! empty( $report_data['report_end_date'] ) ) {
-	            $check['report_end_date'] = $report_data['report_end_date']['val'];
-	        } else {
-	            $errors[] = __('<strong>ERROR</strong>: No report_end_date provided in ajax request. Please try again', 'vmattd' );
-	        }
-	    } else {
-	        $errors[] = __('<strong>ERROR</strong>: No report_data->fields provided in ajax request. Please try again', 'vmattd' );
-	    }
-	    
+	    $check = $this->ajax_check_report();
+	    $errors = $check['errors'];
         if ( empty( $errors ) ) {
             $notice_id = $check['notice_id'];
             $action = $check['action'];
@@ -898,6 +853,7 @@ class Volunteer_Management_And_Tracking_Admin {
                 $errors[] = __('<strong>ERROR</strong>: Invalid start or end date format in ajax request. Please try again', 'vmattd' );
             }
             if( empty( $errors ) ) {
+                $args['rpno'] = 1;
                 $args['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
                 $html = $this->ajax_get_report_table_html( $args );
             }
@@ -921,6 +877,106 @@ class Volunteer_Management_And_Tracking_Admin {
         );
         // ajax request succeeded
         wp_send_json_success( $results );
+	}
+	
+	function ajax_export_report_csv() {
+	    global $vmat_plugin;
+	    check_ajax_referer( 'vmat_ajax' );
+	    $check = $this->ajax_check_report();
+        $errors = $check['errors'];
+        if ( empty( $errors ) ) {
+            $notice_id = $check['notice_id'];
+            $target = $check['target'];
+            $args = array();
+            $args['report_format'] = $check['report_format'];
+            $args['report_funding_stream'] = $check['report_funding_stream'];
+            if( $vmat_plugin->get_common()->validate_date( $check['report_start_date'], 'Y-m-d' ) &&
+                $vmat_plugin->get_common()->validate_date( $check['report_end_date'], 'Y-m-d' ) ) {
+                    $args['report_start_date'] = $check['report_start_date'];
+                    $args['report_end_date'] = $check['report_end_date'];
+                } else {
+                    $errors[] = __('<strong>ERROR</strong>: Invalid start or end date format in ajax request. Please try again', 'vmattd' );
+                }
+                if( empty( $errors ) ) {
+                    $args['rpno'] = 1;
+                    $args['posts_per_page'] = get_option( 'vmat_options' )['vmat_posts_per_page'];
+                    $csv = $this->ajax_get_report_table_csv( $args );
+                }
+        }
+        
+        if ( ! empty( $errors ) ) {
+            // ajax request failed
+            $results = array(
+                'ajax_notice' => $this->accumulate_messages( $errors ),
+                'notice_id' => $notice_id,
+            );
+            wp_send_json_error( $results );
+        }
+        $funding_stream_name = get_the_title( $args['report_funding_stream'] );
+        $results = array(
+            'notice' => '',
+            'ajax_notice'=> $this->accumulate_messages( array( __( '<strong>SUCCESS</strong>: Generated "' . $args['report_format'] . '" report', 'vmattd' ) ) ),
+            'notice_id' => $notice_id,
+            'target' => $target,
+            'csv' => $csv,
+            'funding_stream_name' => $funding_stream_name,
+            'report_format' => $args['report_format'],
+            'report_start_date' => $args['report_start_date'],
+            'report_end_date' => $args['report_end_date']
+        );
+        // ajax request succeeded
+        wp_send_json_success( $results );
+	}
+	
+	function ajax_check_report() {
+	    $check = array();
+	    $errors = array();
+	    if ( ! empty( $_POST['target'] ) ) {
+	        $check['target'] = $_POST['target'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No target provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['action'] ) ) {
+	        $check['action'] = $_POST['action'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No action provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['notice_id'] ) ) {
+	        $check['notice_id'] = $_POST['notice_id'];
+	    } else {
+	        $errors[] = __('<strong>ERROR</strong>: No notice_id provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( empty( $_POST['report_data'] ) ) {
+	        $errors[] = __('<strong>ERROR</strong>: No report_data provided in ajax request. Please try again', 'vmattd' );
+	    }
+	    if ( ! empty( $_POST['report_data'] ) &&
+	        ! empty( $_POST['report_data']['fields'] ) ) {
+	            $report_data = $_POST['report_data']['fields'];
+	            if ( ! empty( $report_data['report_format'] ) ) {
+	                $check['report_format'] = $report_data['report_format']['val'];
+	            } else {
+	                $errors[] = __('<strong>ERROR</strong>: No report_format provided in ajax request. Please try again', 'vmattd' );
+	            }
+	            if ( ! empty( $report_data['report_funding_stream'] ) ) {
+	                $check['report_funding_stream'] = $report_data['report_funding_stream']['val'];
+	            } else {
+	                $errors[] = __('<strong>ERROR</strong>: No report_funding_stream provided in ajax request. Please try again', 'vmattd' );
+	            }
+	            if ( ! empty( $report_data['report_start_date']) ) {
+	                $check['report_start_date'] = $report_data['report_start_date']['val'];
+	            } else {
+	                $errors[] = __('<strong>ERROR</strong>: No report_start_date provided in ajax request. Please try again', 'vmattd' );
+	            }
+	            if ( ! empty( $report_data['report_end_date'] ) ) {
+	                $check['report_end_date'] = $report_data['report_end_date']['val'];
+	            } else {
+	                $errors[] = __('<strong>ERROR</strong>: No report_end_date provided in ajax request. Please try again', 'vmattd' );
+	            }
+	        } else {
+	            $errors[] = __('<strong>ERROR</strong>: No report_data->fields provided in ajax request. Please try again', 'vmattd' );
+	        }
+	        $check['errors'] = $errors;
+	        return $check;
 	}
 	
 	function ajax_check_input() {
@@ -1207,6 +1263,33 @@ class Volunteer_Management_And_Tracking_Admin {
 	                    }
 	                }
 	                break;
+	            case 'vmat_manage_report_table':
+	                if ( array_key_exists( 'rpno', $data ) ) {
+	                    $result['rpno'] = $data['rpno'];
+	                } else {
+	                    $errors[] = __( '<strong>ERROR</strong>: Missing rpno page indicator.', 'vmattd' );
+	                }
+                    if ( ! empty( $data['report_format'] ) ) {
+                        $result['report_format'] = $data['report_format'];
+                    } else {
+                        $errors[] = __('<strong>ERROR</strong>: No report_format provided in ajax request. Please try again', 'vmattd' );
+                    }
+                    if ( ! empty( $data['report_funding_stream'] ) ) {
+                        $result['report_funding_stream'] = $data['report_funding_stream'];
+                    } else {
+                        $errors[] = __('<strong>ERROR</strong>: No report_funding_stream provided in ajax request. Please try again', 'vmattd' );
+                    }
+                    if ( ! empty( $data['report_start_date']) ) {
+                        $result['report_start_date'] = $data['report_start_date'];
+                    } else {
+                        $errors[] = __('<strong>ERROR</strong>: No report_start_date provided in ajax request. Please try again', 'vmattd' );
+                    }
+                    if ( ! empty( $data['report_end_date'] ) ) {
+                        $result['report_end_date'] = $data['report_end_date'];
+                    } else {
+                        $errors[] = __('<strong>ERROR</strong>: No report_end_date provided in ajax request. Please try again', 'vmattd' );
+                    }
+	                break;
 	            default:
 	        }
 	    }
@@ -1468,6 +1551,45 @@ class Volunteer_Management_And_Tracking_Admin {
 	    $this->html_part_report_table( $args );
 	    return ob_get_clean();
 	}
+	
+	function ajax_get_report_table_csv( $args=array() ) {
+	    global $vmat_plugin;
+	    $report_format = $args['report_format'];
+	    $report_funding_stream = $args['report_funding_stream'];
+	    $report_start_date = $args['report_start_date'];
+	    $report_end_date = $args['report_end_date'];
+	    switch( $report_format ) {
+	        case 'vmat_new_vols_for_funding_stream':
+	            $only_generated_within_dates = true;
+	            break;
+	        case 'vmat_all_vols_for_funding_stream':
+	            $only_generated_within_dates = false;
+	            break;
+	        default:
+	            $only_generated_within_dates = false;
+	    }
+	    $get_vol_args = array(
+	        'vmat_funding_stream' => $report_funding_stream,
+	        'vmat_vol_start_date' => $report_start_date,
+	        'vmat_vol_end_date' => $report_end_date,
+	        'vmat_only_generated_within_dates' => $only_generated_within_dates,
+	        'page' => $args['rpno'],
+	        'posts_per_page' => $args['posts_per_page']
+	    );
+	    $volunteers = $vmat_plugin->get_common()->get_report_volunteers( $get_vol_args );
+	    $volunteers = $volunteers['volunteers'];
+	    $file = "Volunteer,Generation Date,Last Volunteered Date,Events Volunteered,Days Volunteered, Hours Volunteered\n";
+	    if( $report_format !== 'none' ) {
+	        if ( $volunteers )
+	            foreach ( $volunteers as $volunteer_id=>$volunteer_data ) {
+	                $file.= $vmat_plugin->get_common()->volunteer_report_csv_row( $volunteer_id, $volunteer_data );
+	                $file .= "\n";
+	            }
+	    } else {
+	        $file .= 'No volunteers found';
+	    }
+	    return $file;
+    }
 	
 	function ajax_remove_volunteers_from_event() {
 	    global $vmat_plugin;
@@ -1872,6 +1994,9 @@ class Volunteer_Management_And_Tracking_Admin {
                     break;
                 case 'vmat_manage_volunteers_table':
                     $html = $this->ajax_get_manage_volunteers_table_html( $args );
+                    break;
+                case 'vmat_manage_report_table':
+                    $html = $this->ajax_get_report_table_html( $args );
                     break;
                 default:
                     // default action
@@ -4030,7 +4155,40 @@ class Volunteer_Management_And_Tracking_Admin {
         $content .= '</div>';
         $content .= '<div id="collapse_reports" class="collapse' . $show . '" data-parent="#help_accordian">';
         $content .= '<div class="card-body">';
-        $content .= 'Reports Help content under construction.';
+        $content .= '<ul class="vmat-help-list">';
+        $content .= '<li>';
+        $content .= 'Select a <strong>Report Format</strong>.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Next select a <strong>Funding Stream</strong>.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= 'Select <strong>Begin</strong> and <strong>End</strong> Dates to reflect the period over which to
+                     retrieve volunteer participation data for the selected <strong>Funding Stream</strong>.';
+	    $content .= '</li>';
+	    $content .= '<li>';
+	    $content .= 'Click <strong>Generate Report</strong> to create an HTML table view of the report.';
+	    $content .= '</li>';
+	    $content .= '<li>';
+	    $content .= 'Once the HTML table view is generated, the data can be exported to a CSV file by clicking on the
+                     <strong>Export Report (CSV)</strong> button.';
+	    $content .= '</li>';
+	    $content .= '</ul>';
+        $content .= '<h1>These reports show information related to the participation of volunteers that volunteered for events
+                     sponsored by an <strong>Organization</strong> that was funded by the selected 
+                     <strong>Funding Stream</strong>.</h1>';
+        $content .=  '<h1>The following reports are currently supported:</h1>';
+        $content .= '<ul class="vmat-help-list">';
+        $content .= '<li>';
+        $content .= '<strong>New Volunteers for Funding Stream</strong>: This shows data for volunteers generated during the date range and
+                     that volunteered for any events sponsored by an <strong>Organization</strong> that was funded by the selected 
+                     <strong>Funding Stream</strong>.';
+        $content .= '</li>';
+        $content .= '<li>';
+        $content .= '<strong>All Volunteers for Funding Stream</strong>: This shows data for all volunteers that volunteered for
+                     any events sponsored by an <strong>Organization</strong> that was funded by the selected <strong>Funding Stream</strong>.';
+        $content .= '</li>';
+        $content .= '</ul>';
         $content .= '</div><!-- card body --!>';
         $content .= '</div><!-- collapse_reports --!>';
         $content .= '</div><!-- card --!>';
@@ -4350,13 +4508,13 @@ class Volunteer_Management_And_Tracking_Admin {
         if( array_key_exists('report_format', $args ) ) {
             switch( $args['report_format' ] ) {
                 case 'vmat_all_vols_for_funding_stream':
-                    $show_date_picker = 'display';
+                    $show_funding_stream_picker = 'display';
                     break;
                 case 'vmat_new_vols_for_funding_stream':
-                    $show_date_picker = 'display';
+                    $show_funding_stream_picker = 'display';
                     break;
                 default:
-                    $show_date_picker = 'none';
+                    $show_funding_stream_picker = 'none';
             }
         }
         if( array_key_exists('report_funding_stream', $args ) ) {
@@ -4387,7 +4545,7 @@ class Volunteer_Management_And_Tracking_Admin {
         </div>
 		<div id="vmat_reports_formatpicker" class="row">
 			<div class="col">
-				<h1><?php _e('Pick a Report Format:', 'vmattd'); ?></h1>
+				<h1><?php _e('Select a Report Format:', 'vmattd'); ?></h1>
     			<select id="vmat_report_format" name="vmat_report_format" required>
     				<option value="none" selected="selected"><?php _e( 'none', 'vmattd' ); ?></option>
     				<option value="vmat_new_vols_for_funding_stream"
@@ -4415,9 +4573,11 @@ class Volunteer_Management_And_Tracking_Admin {
     			</select>
         	</div>
 		</div> 
-		<div id="vmat_reports_funding_streampicker" class="row">
+		<div id="vmat_reports_funding_streampicker" class="row" style="display:
+		<?php echo $show_funding_stream_picker; ?>
+		">
 			<div class="col">
-				<h1><?php _e('Pick a Funding Stream:', 'vmattd'); ?></h1>
+				<h1><?php _e('Select a Funding Stream:', 'vmattd'); ?></h1>
 				<?php 
                 echo $funding_stream_pulldown;
                 ?>
@@ -4443,8 +4603,18 @@ class Volunteer_Management_And_Tracking_Admin {
     				</button>
     			</div>
     		</div>
+    		<div id="vmat_export_report_csv" class="col-lg-4" style="display:none">
+    			<div class="alignleft">
+    				<button class="button action" 
+    				        type="button" 
+    				        value="export_report_csv" title="<?php _e( 'Export Report to CSV', 'vmattd'); ?>"
+    				>
+    				        <?php _e( 'Export Report (CSV)', 'vmattd'); ?>
+    				</button>
+    			</div>
+    		</div>
 		</div>
-		<div id="vmat_reports_report_view" class="row" style="display:none">
+		<div id="vmat_manage_report_table" class="row" style="display:none">
 			<?php 
             // display the date range picker
             $this->html_part_report_table( $args );
@@ -4624,6 +4794,7 @@ class Volunteer_Management_And_Tracking_Admin {
          *
          */
         global $vmat_plugin;
+        $args['page'] = $args['vpno'];
         $manage_volunteers = $vmat_plugin->get_common()->get_manage_volunteers( $args );
         $found_users = $manage_volunteers['count'];
         $volunteers = $manage_volunteers['volunteers'];
@@ -5264,7 +5435,7 @@ class Volunteer_Management_And_Tracking_Admin {
     
     function html_part_report_table( $args ) {
         /*
-         * Display a volunteer table
+         * Display a report table
          *
          */
         global $vmat_plugin;
@@ -5272,134 +5443,86 @@ class Volunteer_Management_And_Tracking_Admin {
         $report_funding_stream = $args['report_funding_stream'];
         $report_start_date = $args['report_start_date'];
         $report_end_date = $args['report_end_date'];
+        switch( $report_format ) {
+            case 'vmat_new_vols_for_funding_stream':
+                $only_generated_within_dates = true;
+                break;
+            case 'vmat_all_vols_for_funding_stream':
+                $only_generated_within_dates = false;
+                break;
+            default:
+                $only_generated_within_dates = false;
+        }
+        $get_vol_args = array(
+            'vmat_funding_stream' => $report_funding_stream,
+            'vmat_vol_start_date' => $report_start_date,
+            'vmat_vol_end_date' => $report_end_date,
+            'vmat_only_generated_within_dates' => $only_generated_within_dates,
+            'page' => $args['rpno'],
+            'posts_per_page' => $args['posts_per_page']
+        );
+        $volunteers = $vmat_plugin->get_common()->get_report_volunteers( $get_vol_args );
+        $found_volunteers = $volunteers['count'];
+        $volunteers = $volunteers['volunteers'];
         $page = $args['rpno'];
         $page_name = 'rpno';
-        $max_num_pages = ceil( $found_rows / $args['posts_per_page'] );
+        $max_num_pages = ceil( $found_volunteers / $args['posts_per_page'] );
         $this_page_url = admin_url() . 'admin.php';
         $this_page_url = add_query_arg(
             array(
-                'page' => 'vmat_admin_manage_reports',
-                'report_format' => $report_format,
+                'page' => 'vmat_admin_manage_volunteers',
             ),
             $this_page_url
             );
         $ajax_args = array(
             'admin_page' => 'vmat_admin_manage_reports',
             'posts_per_page' => $args['posts_per_page'],
-            'target' => 'vmat_manage_reports_table',
-            'notice_id' => 'manage_report_generation_status',
+            'target' => 'vmat_manage_report_table',
+            'notice_id' => 'manage_report_table_status',
+            'report_format' => $report_format,
+            'report_funding_stream' => $report_funding_stream,
+            'report_start_date' => $report_start_date,
+            'report_end_date' => $report_end_date
         );
         $table_nav = $vmat_plugin->get_common()->ajax_admin_paginate(
-            $found_rows,
+            $found_volunteers,
             $page,
             $max_num_pages,
             $page_name,
             $ajax_args
             );
-        if( $report !== 'none' ) {
+        if( $report_format !== 'none' ) {
+            // leave paging block out for now
             ?>
-        	<div class="row">
-        		<div class="col-lg-2">
-        			<button class="button action vmat-action-btn" 
-            		        name="submit_button" 
-            		        type="button" 
-            		        value="show_update_volunteer_form"><?php _e('Volunteer Profile', 'vmattd'); ?>
-            		</button>
-        		</div>
-        		<div class="col-lg-2">
-        			<button id="add_event_to_volunteer" 
-    				        class="button action vmat-action-btn" 
-    				        type="button" 
-    				        volunteer_id="<?php echo $volunteer->ID; ?>"
-    				        value="show_select_event">
-    				        <?php _e( 'Add Hours to Event', 'vmattd')?>
-    				</button>
+            <div class="row">
+        	<div class="col">
+        		<div class="tablenav alignright">
+        			<?php
+        			echo '<div class="tablenav-pages"><span class="displaying-num">' . $found_volunteers . ' items</span>';
+        			?>
+        			<br class="clear"/>
         		</div>
         	</div>
-        	<div class="row">
-        		<div class="col-lg-2">
-        			<div class="actions bulkactions">
-        				<button id="hours_bulk_remove" 
-        				        class="button action vmat-action-btn" 
-        				        type="button"
-        				        volunteer_id="<?php echo $volunteer->ID; ?>"
-        				        value="bulk_hours_remove"
-        				        disabled><?php _e( 'Bulk Remove Hours', 'vmattd')?></button>
-        			</div>
-            	</div>
-            	<div class="col-lg-2">
-            		<div class="actions bulkactions">
-        				<button id="hours_bulk_save" 
-        				        class="button action vmat-action-btn" 
-        				        type="button" 
-        				        volunteer_id="<?php echo $volunteer->ID; ?>"
-        				        value="bulk_hours_save"
-        				        disabled>
-        				        <?php _e( 'Bulk Save Hours', 'vmattd')?>
-        				</button>
-        			</div>
-            	</div>
-            	<div class="col">
-        			<div class="alignright">
-        				<div class="clearable-input">
-                    	<input type="text" 
-                    	       id="manage-volunteer-search-input" 
-                    	       name="manage_volunteer_search" 
-                    	       placeholder="Search Events"
-                    	       value="<?php 
-                    	if ( ! empty( $search) ) {
-                    	    echo $search;
-                    	} else {
-                    	    echo '';
-                    	}
-                    	?>">
-                    	<span data-clear-input class="dashicons-no-alt" title="Clear"></span>
-                	</div>
-                	<button class="button" 
-            		        name="submit_button" 
-            		        type="button" 
-            		        volunteer_id="<?php echo $volunteer->ID; ?>"
-            		        value="search_manage_volunteer"><?php _e('Search', 'vmattd'); ?>
-            		</button>
-        			</div>
-        		</div>
-        	</div>
+        </div>
             <div class="row">
             	<div class="col">
-            		<div class="tablenav alignright">
-            			<?php
-            			echo $table_nav;
-            			?>
-            			<br class="clear"/>
-            		</div>
-            	</div>
-            </div>
-            <div class="row">
-            	<div class="col pr-1">
-            		<?php $this->admin_notice( 'manage_volunteer_status' ); ?>
-            	</div>
-            </div>
-            <div class="row">
-            	<div class="col">
-            		<table class="widefat" id="vmat_volunteer_table">
+            		<table class="widefat" id="vmat_volunteers_table">
             			<thead>
             				<tr>
-            					<td class="manage-column column-cb check-column"><input id="vmat_hours_select_all" type=checkbox></td>
-            					<td class="manage-column"><?php _e('Event', 'vmattd' );?></td>
-            					<td class="manage-column"><?php _e('Hours/Day', 'vmattd' );?></td>
-            					<td class="manage-column"><?php _e('Start (mm/dd/yyyy)', 'vmattd' );?></td>
-            					<td class="manage-column"><?php _e('Vol. Days', 'vmattd' );?></td>
-            					<td class="vmat-manage-column">
-            						<?php _e('Appr', 'vmattd' );?><input id="vmat_hours_approve_all" type=checkbox>
-            					</td>
+            					<td class="manage-column"><?php _e( 'Volunteer', 'vmattd' ); ?></td>
+            					<td class="manage-column"><?php _e( 'Generation Date', 'vmattd' ); ?></td>
+            					<td class="manage-column"><?php _e( 'Last Volunteered Date', 'vmattd' ); ?></td>
+            					<td class="manage-column"><?php _e( 'Events Vol.', 'vmattd' ); ?></td>
+            					<td class="manage-column"><?php _e( 'Days Vol.', 'vmattd' ); ?></td>
+            					<td class="manage-column"><?php _e( 'Hours Vol.', 'vmattd' ); ?></td>
             				</tr>
             			</thead>
             			<tbody>
             			<?php 
-            			if ( $hours ) {
+            			if ( $volunteers ) {
             			    $alternate = 'alternate';
-            			    foreach ( $hours as $hour ) {
-            			        echo $vmat_plugin->get_common()->volunteer_hour_row( $hour, $alternate );
+            			    foreach ( $volunteers as $volunteer_id=>$volunteer_data ) {
+            			        echo $vmat_plugin->get_common()->volunteer_report_row( $volunteer_id, $volunteer_data, $this_page_url, $alternate );
             			        if ( empty( $alternate ) ) {
             			            $alternate = 'alternate';
             			        } else {
@@ -5407,8 +5530,8 @@ class Volunteer_Management_And_Tracking_Admin {
             			        }
             			    }
             			} else {
-            			    echo '<tr><td colspan="6">';
-            			    _e( 'No hours found', 'vmattd');
+            			    echo '<tr><td colspan="10">';
+            			    _e( 'No volunteers found', 'vmattd');
             			    echo '</td></tr>';
             			}
             			?>
